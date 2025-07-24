@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한국어 번역 퀴즈</title>
+    <style>
+        /* 간단한 스타일링: 페이지를 보기 좋게 만듭니다 */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .quiz-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+        }
+        #answerInput {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #submitButton {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #submitButton:hover {
+            background-color: #0056b3;
+        }
+        #resultArea {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #28a745;
+            min-height: 30px; /* 결과가 표시될 공간을 미리 확보 */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="quiz-container">
+        <h1>한국어 번역 퀴즈</h1>
+        <p>오디오를 들었다고 가정하고, 아래에 이탈리아어 번역을 입력하세요.</p>
+        
+        <!-- 정답을 넣는 빈칸 -->
+        <input type="text" id="answerInput" placeholder="여기에 정답을 입력하세요">
+        
+        <!-- 제출 버튼 -->
+        <button id="submitButton">제출하고 채점받기</button>
+        
+        <!-- 점수가 나오는 곳 -->
+        <div id="resultArea"></div>
+    </div>
+
+    <script>
+        // HTML 요소들을 가져옵니다.
+        const answerInput = document.getElementById('answerInput');
+        const submitButton = document.getElementById('submitButton');
+        const resultArea = document.getElementById('resultArea');
+
+        // ★★★★★ 가장 중요 ★★★★★
+        // 이 URL을 교수님의 기존 Vercel 서버 주소로 바꿔주세요.
+        // 예: 'https://my-unreal-server.vercel.app/api/proxy'
+        const apiUrl = '여기에_교수님의_기존_서버_URL을_입력하세요/api/proxy';
+
+        // '제출' 버튼을 클릭했을 때 실행될 함수를 연결합니다.
+        submitButton.addEventListener('click', () => {
+            const userAnswer = answerInput.value;
+
+            if (!userAnswer) {
+                alert('정답을 입력해주세요!');
+                return;
+            }
+            
+            resultArea.textContent = '채점 중입니다...';
+
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    answer: userAnswer 
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('서버 응답에 문제가 있습니다.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 서버가 { "score": 10 } 와 같은 형식으로 점수를 준다고 가정합니다.
+                resultArea.innerHTML = `채점 결과: ${data.score} / 10 점`;
+            })
+            .catch(error => {
+                console.error('API 호출 오류:', error);
+                resultArea.innerHTML = '오류가 발생했습니다. 서버 주소를 확인하거나 잠시 후 다시 시도해주세요.';
+            });
+        });
+    </script>
+
+</body>
+</html>
