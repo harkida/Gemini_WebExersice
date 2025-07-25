@@ -93,9 +93,34 @@ EVALUATION_PROMPT = """
 
 # --- 웹 페이지 라우트 ---
 @app.route('/')
-def home():
-    # 나중에 이 부분에서 퀴즈 문제를 DB에서 불러와서 HTML에 전달하게 됩니다.
-    return render_template('index.html')
+def login():
+    """웹사이트의 가장 첫 페이지, 로그인 화면을 보여줍니다."""
+    return render_template('login.html')
+
+@app.route('/quiz')
+def quiz_page():
+    """학생 ID가 입력된 후, 실제 퀴즈를 푸는 메인 페이지를 보여줍니다."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            # 데이터베이스 연결 실패 시 에러 메시지와 함께 빈 페이지를 렌더링할 수 있습니다.
+            return "데이터베이스에 연결할 수 없습니다.", 500
+
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # exercises 테이블에서 모든 문제를 id 순서대로 가져옵니다.
+            cur.execute("SELECT id, korean_sentence FROM exercises ORDER BY id;")
+            exercises = cur.fetchall() # 모든 결과를 리스트로 가져옵니다.
+        
+        # 'index.html'을 보여줄 때, 'exercises'라는 이름으로 문제 목록 데이터를 함께 전달합니다.
+        return render_template('index.html', exercises=exercises)
+
+    except Exception as e:
+        print(f"🚨 /quiz 페이지 로딩 중 오류 발생: {e}")
+        return "퀴즈를 불러오는 중 오류가 발생했습니다.", 500
+    finally:
+        if conn:
+            conn.close()
 
 # (★★★ 이 부분이 우리 프로젝트의 심장입니다 ★★★)
 # --- API: 학생 답안 제출 및 채점 처리 ---
