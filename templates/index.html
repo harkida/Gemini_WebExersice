@@ -3,10 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 한국어 퀴즈</title>
+    <title>한국어 번역 퀴즈</title>
+    <style>
+        /* --- 다크 모드 스타일 --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #1e2124;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 30px;
+            background-color: #282c34;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+        h1 {
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        /* --- 각 퀴즈 아이템 스타일 --- */
+        .quiz-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap; /* 모바일 화면에서 줄바꿈 허용 */
+        }
+        .quiz-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #7289da; /* 디스코드 느낌의 파란색 */
+            margin-right: 20px;
+        }
+        .quiz-content {
+            flex-grow: 1;
+        }
+        .korean-question {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #36393f;
+            border-radius: 5px;
+        }
+        .answer-input {
+            width: 100%;
+            padding: 10px;
+            background-color: #40444b;
+            border: 1px solid #4f545c;
+            color: #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .submit-btn {
+            background-color: #7289da;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-left: 15px;
+        }
+        .submit-btn:hover {
+            background-color: #677bc4;
+        }
+        .submit-btn:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        /* --- 결과 표시 영역 --- */
+        .result-display {
+            margin-top: 10px;
+            font-size: 1.3em;
+            font-weight: bold;
+            display: none; /* 평소에는 숨김 */
+        }
+        /* 점수 색상 조건부 스타일 */
+        .score-high {
+            color: #2ecc71; /* 7.0점 이상 (초록색) */
+        }
+        .score-low {
+            color: #e74c3c; /* 7.0점 미만 (빨간색) */
+        }
+        .error-message {
+            color: #e74c3c; /* 에러 메시지 */
+        }
+
+        /* 모바일 화면 대응 */
+        @media (max-width: 600px) {
+            .quiz-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .submit-btn {
+                margin-left: 0;
+                margin-top: 10px;
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>한국어 퀴즈 페이지</h1>
-    <p>서버가 성공적으로 HTML 파일을 보여주고 있습니다!</p>
+
+    <div class="container">
+        <h1>한국어 번역 퀴즈</h1>
+
+        <!-- 문제 목록을 표시할 영역 -->
+        <div id="quiz-list">
+            <!-- 
+                이 부분은 서버(Python)에서 전달받은 'exercises' 데이터를 기반으로 채워집니다.
+                Jinja2 템플릿 엔진이 for 루프를 돌면서 각 문제를 HTML로 변환합니다.
+            -->
+            {% for exercise in exercises %}
+            <div class="quiz-item">
+                <span class="quiz-number">{{ loop.index }}.</span>
+                <div class="quiz-content">
+                    <div class="korean-question">{{ exercise.korean_sentence }}</div>
+                    
+                    <!-- 각 문제마다 별도의 form을 사용해 제출을 독립적으로 처리합니다. -->
+                    <form class="answer-form" data-exercise-id="{{ exercise.id }}">
+                        <textarea class="answer-input" placeholder="여기에 이탈리아어 번역을 입력하세요..." required></textarea>
+                        
+                        <!-- 결과가 표시될 영역 -->
+                        <div class="result-display"></div>
+                    </form>
+                </div>
+                <!-- 제출 버튼은 form 바깥에 두어 디자인 유연성을 확보합니다. -->
+                <button type="submit" class="submit-btn" form="form-{{ exercise.id }}">제출</button>
+            </div>
+            <!-- form과 button을 연결하기 위해 form에 고유 ID를 부여합니다. -->
+            <script>document.querySelector('[data-exercise-id="{{ exercise.id }}"]').id = "form-{{ exercise.id }}";</script>
+            {% else %}
+            <p>표시할 연습 문제가 없습니다. 선생님께 문의하세요.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // --- 프론트엔드 JavaScript 로직 ---
+
+        // 페이지에 있는 모든 '제출' 버튼에 대해 이벤트 리스너를 설정합니다.
+        document.querySelectorAll('.submit-btn').forEach(button => {
+            button.addEventListener('click', async function(event) {
+                event.preventDefault(); // 기본 제출 동작 중단
+
+                const formId = this.getAttribute('form');
+                const form = document.getElementById(formId);
+                
+                const exerciseId = form.dataset.exerciseId;
+                const textarea = form.querySelector('.answer-input');
+                const studentAnswer = textarea.value;
+                const resultDisplay = form.querySelector('.result-display');
+                const submitButton = this;
+
+                // 1. 학생 ID를 브라우저 저장소(localStorage)에서 가져옵니다.
+                // 로그인 페이지에서 저장한 ID가 없다면, 로그인 페이지로 돌려보냅니다.
+                const studentId = localStorage.getItem('studentId');
+                if (!studentId) {
+                    alert('학생 ID가 없습니다. 로그인 페이지로 돌아갑니다.');
+                    window.location.href = '/';
+                    return;
+                }
+
+                if (!studentAnswer.trim()) {
+                    alert('답안을 입력해주세요.');
+                    return;
+                }
+
+                // 2. 제출 중 버튼 비활성화
+                submitButton.disabled = true;
+                submitButton.textContent = '채점 중...';
+                resultDisplay.style.display = 'none';
+
+                // 3. 서버로 보낼 데이터 준비
+                const dataToSend = {
+                    student_id: studentId,
+                    exercise_id: exerciseId,
+                    student_answer: studentAnswer
+                };
+
+                try {
+                    // 4. '/api/submit-answer' API 호출
+                    const response = await fetch('/api/submit-answer', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(dataToSend)
+                    });
+
+                    const result = await response.json();
+
+                    // 5. 결과 처리 및 표시
+                    resultDisplay.style.display = 'block';
+                    if (response.ok) {
+                        const score = parseFloat(result.score);
+                        // 교수님 요청사항: 7.0 이상은 초록색, 미만은 빨간색
+                        if (score >= 7.0) {
+                            resultDisplay.className = 'result-display score-high';
+                        } else {
+                            resultDisplay.className = 'result-display score-low';
+                        }
+                        resultDisplay.textContent = `점수: ${score.toFixed(1)}`;
+                    } else {
+                        resultDisplay.className = 'result-display error-message';
+                        resultDisplay.textContent = `오류: ${result.error || '알 수 없는 문제'}`;
+                    }
+                } catch (error) {
+                    resultDisplay.style.display = 'block';
+                    resultDisplay.className = 'result-display error-message';
+                    resultDisplay.textContent = '서버 연결 오류.';
+                    console.error('Fetch Error:', error);
+                } finally {
+                    // 6. 버튼 다시 활성화 (성공/실패 모두)
+                    submitButton.disabled = false;
+                    submitButton.textContent = '제출';
+                }
+            });
+        });
+    </script>
 </body>
 </html>
