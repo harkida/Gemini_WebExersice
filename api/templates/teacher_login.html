@@ -6,7 +6,7 @@
   <title>선생님 로그인</title>
   <style>
     :root{
-      --bg:#0f172a;        /* 학생 페이지와 동일한 배경색 */
+      --bg:#0f172a;
       --card:#1f2937;
       --text:#e5e7eb;
       --muted:#94a3b8;
@@ -15,6 +15,9 @@
       --accent:#22c55e;
       --accent-text:#06202b;
     }
+    /* 핵심 FIX: 모든 요소를 border-box로 */
+    *, *::before, *::after { box-sizing: border-box; }
+
     html,body{height:100%}
     body{
       margin:0; background:var(--bg); color:var(--text);
@@ -22,21 +25,23 @@
       display:grid; place-items:center; padding:24px;
     }
     .card{
-      width:100%; max-width:560px; background:var(--card);
+      width:min(560px, calc(100% - 32px));
+      background:var(--card);
       border-radius:12px; padding:24px;
       box-shadow:0 12px 28px rgba(0,0,0,.35);
     }
     h1{margin:0 0 16px}
     form{display:grid; gap:12px}
     input[type=password]{
-      width:100%; padding:14px 16px; border-radius:8px;
+      width:100%; padding:14px 16px; border-radius:10px;
       border:1px solid var(--border); background:var(--input-bg);
       color:var(--text); outline:none;
     }
     input[type=password]::placeholder{color:var(--muted)}
     button{
+      width:100%;
       background:var(--accent); color:var(--accent-text);
-      border:none; padding:12px 16px; border-radius:8px;
+      border:none; padding:12px 16px; border-radius:10px;
       font-weight:700; cursor:pointer;
     }
     button:hover{filter:brightness(1.05)}

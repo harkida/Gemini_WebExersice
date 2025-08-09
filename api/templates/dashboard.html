@@ -6,7 +6,7 @@
   <title>실시간 제출 현황</title>
   <style>
     :root{
-      --bg:#0f172a;        /* 학생 페이지와 동일한 배경색 */
+      --bg:#0f172a;
       --card:#1f2937;
       --text:#e5e7eb;
       --muted:#94a3b8;
@@ -14,6 +14,9 @@
       --accent:#22c55e;
       --accent-text:#06202b;
     }
+    /* 일관 정렬을 위한 글로벌 box-sizing */
+    *, *::before, *::after { box-sizing: border-box; }
+
     html,body{height:100%}
     body{
       margin:0; background:var(--bg); color:var(--text);
@@ -39,16 +42,12 @@
       <h1>실시간 제출 현황</h1>
       <a href="/logout">로그아웃</a>
     </div>
-
     <div class="card">
-      <!-- 대기 메시지/리스트 출력 영역 -->
       <div id="events" class="muted">대기 중…</div>
     </div>
   </div>
 
-  <!-- 기존 실시간 수신 스크립트가 있다면 그대로 유지하세요 -->
   <script>
-    // 예시: 서버의 SSE 엔드포인트가 /events 라고 가정
     const box = document.getElementById('events');
     const es = new EventSource('/events');
     box.textContent = '연결 중…';
@@ -56,16 +55,15 @@
     es.onmessage = (e) => {
       try{
         const data = JSON.parse(e.data);
-        // data: { student_id, answer, score, analysis }
         const container = document.createElement('div');
         container.className = 'item';
+        const scoreText = (data.score ?? '-');
+        const scoreStr = typeof scoreText === 'number' ? scoreText.toFixed(1) : scoreText;
         container.innerHTML = `
-          <div><span class="badge">${(data.score ?? '-').toFixed ? data.score.toFixed(1) : data.score}</span> <b>${data.student_id}</b>: ${data.answer}</div>
+          <div><span class="badge">${scoreStr}</span> <b>${data.student_id}</b>: ${data.answer}</div>
           <pre>${data.analysis || ''}</pre>
         `;
-        if (box.textContent === '연결 중…' || box.textContent === '실시간 수신 중' || box.textContent === '대기 중…') {
-          box.textContent = '';
-        }
+        if (box.textContent.includes('중')) box.textContent = '';
         box.prepend(container);
       }catch(err){
         console.error(err);
