@@ -1,85 +1,79 @@
 <!doctype html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <title>Teacher Dashboard</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>실시간 제출 현황</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;max-width:1100px;margin:28px auto;padding:0 16px}
-    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-    .item{border:1px solid #e3e3e3;border-radius:10px;padding:12px;margin:10px 0;background:#fafafa}
-    .row{margin:6px 0}
-    .label{color:#666;width:260px;display:inline-block;vertical-align:top}
-    .val{display:inline-block;white-space:pre-wrap}
-    .score-high{color:#0a8a0a;font-weight:700}
-    .score-low{color:#c00;font-weight:700}
-    .muted{color:#999}
-    .chip{display:inline-block;background:#eee;border-radius:12px;padding:2px 8px;margin:2px}
-    a{color:#333}
+    :root{
+      --bg:#0f172a;        /* 학생 페이지와 동일한 배경색 */
+      --card:#1f2937;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --border:#334155;
+      --accent:#22c55e;
+      --accent-text:#06202b;
+    }
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans',Arial,sans-serif;
+    }
+    .wrap{max-width:1100px; margin:32px auto; padding:0 16px}
+    .top{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
+    .card{
+      background:var(--card); border-radius:12px; padding:20px;
+      box-shadow:0 12px 28px rgba(0,0,0,.35);
+    }
+    .muted{color:var(--muted)}
+    a{color:#93c5fd; text-decoration:none}
+    a:hover{text-decoration:underline}
+    pre, code{white-space:pre-wrap; word-break:break-word}
+    .item{border-top:1px solid var(--border); padding-top:12px; margin-top:12px}
+    .badge{display:inline-block; background:#0ea5e9; color:#06202b; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700}
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <h2>실시간 제출 현황</h2>
-    <div><a href="/teacher-logout">로그아웃</a></div>
+  <div class="wrap">
+    <div class="top">
+      <h1>실시간 제출 현황</h1>
+      <a href="/logout">로그아웃</a>
+    </div>
+
+    <div class="card">
+      <!-- 대기 메시지/리스트 출력 영역 -->
+      <div id="events" class="muted">대기 중…</div>
+    </div>
   </div>
 
-  <div id="list"></div>
-  <div id="status" class="muted">대기 중...</div>
-
+  <!-- 기존 실시간 수신 스크립트가 있다면 그대로 유지하세요 -->
   <script>
-    let lastId = 0;
-    const list = document.getElementById('list');
-    const statusEl = document.getElementById('status');
-
-    function scoreClass(s){
-      if(typeof s !== 'number') return 'score-low';
-      return s >= 7.0 ? 'score-high' : 'score-low';
-    }
-    function toChips(arr){
-      if(!Array.isArray(arr) || arr.length === 0) return '<span class="muted">-</span>';
-      return arr.map(x=>`<span class="chip">${x}</span>`).join(' ');
-    }
-    function appendItem(it){
-      const div = document.createElement('div');
-      div.className = 'item';
-      div.innerHTML = `
-        <div class="row"><span class="label">제출 ID</span><span class="val">${it.id}</span></div>
-        <div class="row"><span class="label">학생 ID</span><span class="val">${it.student_id || '-'}</span></div>
-        <div class="row"><span class="label">채점 점수</span>
-          <span class="val ${scoreClass(it.score)}">${(it.score ?? '-')}</span>
-        </div>
-        <div class="row"><span class="label">한국어 원문</span><span class="val">${it.original_korean_question || '-'}</span></div>
-        <div class="row"><span class="label">학생 답안(이탈리아어)</span><span class="val">${it.student_answer_original || it.student_answer || '-'}</span></div>
-        <div class="row"><span class="label">학생 답안의 한국어 번역</span><span class="val">${it.student_answer_korean_translation || '-'}</span></div>
-        <div class="row"><span class="label">핵심 어휘(이탈리아어)</span><span class="val">${toChips(it.key_phrases_italian)}</span></div>
-        <div class="row"><span class="label">핵심 어휘의 한국어 뜻</span><span class="val">${toChips(it.key_phrases_korean_translation)}</span></div>
-      `;
-      list.appendChild(div);
-    }
-    async function fetchNew(){
+    // 예시: 서버의 SSE 엔드포인트가 /events 라고 가정
+    const box = document.getElementById('events');
+    const es = new EventSource('/events');
+    box.textContent = '연결 중…';
+    es.onopen = () => box.textContent = '실시간 수신 중';
+    es.onmessage = (e) => {
       try{
-        const res = await fetch('/api/submissions?since_id=' + lastId, {cache:'no-store'});
-        if(!res.ok){
-          statusEl.textContent = '접근 권한이 없습니다. 다시 로그인 해 주세요.';
-          return;
+        const data = JSON.parse(e.data);
+        // data: { student_id, answer, score, analysis }
+        const container = document.createElement('div');
+        container.className = 'item';
+        container.innerHTML = `
+          <div><span class="badge">${(data.score ?? '-').toFixed ? data.score.toFixed(1) : data.score}</span> <b>${data.student_id}</b>: ${data.answer}</div>
+          <pre>${data.analysis || ''}</pre>
+        `;
+        if (box.textContent === '연결 중…' || box.textContent === '실시간 수신 중' || box.textContent === '대기 중…') {
+          box.textContent = '';
         }
-        const data = await res.json();
-        if(Array.isArray(data.items) && data.items.length){
-          data.items.forEach(it=>{
-            appendItem(it);
-            if(it.id > lastId) lastId = it.id;
-          });
-          statusEl.textContent = '업데이트됨: ' + new Date().toLocaleTimeString();
-        }
-      }catch(e){
-        statusEl.textContent = '연결 오류. 재시도 중...';
+        box.prepend(container);
+      }catch(err){
+        console.error(err);
       }
-    }
-    // 최초 로드 + 2초마다 자동 갱신(페이지 새로고침 없이)
-    (async () => {
-      await fetchNew();
-      setInterval(fetchNew, 2000);
-    })();
+    };
+    es.onerror = () => {
+      box.textContent = '연결이 끊겼습니다. 새로고침 해주세요.';
+    };
   </script>
 </body>
 </html>

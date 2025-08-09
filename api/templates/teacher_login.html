@@ -1,22 +1,55 @@
 <!doctype html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <title>Teacher Login</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>선생님 로그인</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;max-width:420px;margin:60px auto;padding:0 16px}
-    h2{margin:0 0 16px}
-    input{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:6px}
-    button{padding:10px 16px;border:0;background:#333;color:#fff;border-radius:6px;cursor:pointer}
-    .err{color:#c00;margin:8px 0}
+    :root{
+      --bg:#0f172a;        /* 학생 페이지와 동일한 배경색 */
+      --card:#1f2937;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --border:#334155;
+      --input-bg:#111827;
+      --accent:#22c55e;
+      --accent-text:#06202b;
+    }
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans',Arial,sans-serif;
+      display:grid; place-items:center; padding:24px;
+    }
+    .card{
+      width:100%; max-width:560px; background:var(--card);
+      border-radius:12px; padding:24px;
+      box-shadow:0 12px 28px rgba(0,0,0,.35);
+    }
+    h1{margin:0 0 16px}
+    form{display:grid; gap:12px}
+    input[type=password]{
+      width:100%; padding:14px 16px; border-radius:8px;
+      border:1px solid var(--border); background:var(--input-bg);
+      color:var(--text); outline:none;
+    }
+    input[type=password]::placeholder{color:var(--muted)}
+    button{
+      background:var(--accent); color:var(--accent-text);
+      border:none; padding:12px 16px; border-radius:8px;
+      font-weight:700; cursor:pointer;
+    }
+    button:hover{filter:brightness(1.05)}
+    a{color:#93c5fd}
   </style>
 </head>
 <body>
-  <h2>선생님 로그인</h2>
-  {% if error %}<div class="err">{{ error }}</div>{% endif %}
-  <form method="post">
-    <input type="password" name="password" placeholder="비밀번호" required>
-    <button type="submit">입장</button>
-  </form>
+  <div class="card">
+    <h1>선생님 로그인</h1>
+    <form method="post" action="/teacher-login">
+      <input type="password" name="password" placeholder="비밀번호" required />
+      <button type="submit">입장</button>
+    </form>
+  </div>
 </body>
 </html>
