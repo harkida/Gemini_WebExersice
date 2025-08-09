@@ -1,12 +1,23 @@
 import os
-import google.generativeai as genai
-from flask import Flask, render_template, jsonify, request # 'request'를 새로 추가했습니다.
+import json
+import pathlib
+from functools import wraps
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 import psycopg2
 import psycopg2.extras
-import json # AI의 응답(문자열)을 JSON으로 다루기 위해 추가했습니다.
+import google.generativeai as genai
 
-# --- 기본 설정 ---
-app = Flask(__name__)
+# --- Flask 템플릿 경로 설정(루트/templates 우선, 없으면 api/templates 사용) ---
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+TEMPLATES_DIR = BASE_DIR.parent / "templates"
+if not TEMPLATES_DIR.exists():
+    TEMPLATES_DIR = BASE_DIR / "templates"
+
+app = Flask(__name__, template_folder=str(TEMPLATES_DIR))
+
+# 세션/교사용 비밀번호
+app.secret_key = os.environ.get('SECRET_KEY', 'change-this-in-prod')
+TEACHER_PASSWORD = os.environ.get('TEACHER_PASSWORD')
 
 # --- AI 모델 설정 ---
 try:
@@ -61,7 +72,7 @@ def init_db():
 
 init_db()
 
-# --- 최종 프롬프트 (교수님 피드백 반영 v1.1) ---
+# --- 채점 프롬프트 ---
 EVALUATION_PROMPT = """
 당신은 이탈리아 학생에게 한국어를 가르치는, 매우 엄격하고 공정한 AI 언어 교사입니다.
 당신의 임무는, 주어진 한국어 원문과 학생이 제출한 이탈리아어 번역 답안을 비교하여, 학생의 이해도를 10.0점 만점으로 채점하고 심층적인 분석을 제공하는 것입니다.
@@ -85,36 +96,30 @@ EVALUATION_PROMPT = """
     "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
     "student_answer_korean_translation": "학생의 답안을 자연스러운 한국어로 번역한 문장",
     "score": "채점 점수 (위의 score와 동일한 값)",
-    "key_phrases_italian": "학생 답안에서 핵심이 되는 이탈리아어 어휘나 관용구 2~3개를 담은 리스트(배열)",
-    "key_phrases_korean_translation": "위에서 추출한 이탈리아어 어휘/관용구의 한국어 뜻풀이를 담은 리스트(배열)"
+    "key_phrases_italian": ["..."],
+    "key_phrases_korean_translation": ["..."]
   }
 }
 """
 
-# --- 웹 페이지 라우트 ---
+# --- 공용 라우트(학생용) ---
 @app.route('/')
 def login():
-    """웹사이트의 가장 첫 페이지, 로그인 화면을 보여줍니다."""
     return render_template('login.html')
 
 @app.route('/quiz')
 def quiz_page():
-    """학생 ID가 입력된 후, 실제 퀴즈를 푸는 메인 페이지를 보여줍니다."""
     conn = None
     try:
         conn = get_db_connection()
         if conn is None:
-            # 데이터베이스 연결 실패 시 에러 메시지와 함께 빈 페이지를 렌더링할 수 있습니다.
             return "데이터베이스에 연결할 수 없습니다.", 500
 
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            # exercises 테이블에서 모든 문제를 id 순서대로 가져옵니다.
             cur.execute("SELECT id, korean_sentence FROM exercises ORDER BY id;")
-            exercises = cur.fetchall() # 모든 결과를 리스트로 가져옵니다.
-        
-        # 'index.html'을 보여줄 때, 'exercises'라는 이름으로 문제 목록 데이터를 함께 전달합니다.
-        return render_template('index.html', exercises=exercises)
+            exercises = cur.fetchall()
 
+        return render_template('index.html', exercises=exercises)
     except Exception as e:
         print(f"🚨 /quiz 페이지 로딩 중 오류 발생: {e}")
         return "퀴즈를 불러오는 중 오류가 발생했습니다.", 500
@@ -122,54 +127,52 @@ def quiz_page():
         if conn:
             conn.close()
 
-# (★★★ 이 부분이 우리 프로젝트의 심장입니다 ★★★)
-# --- API: 학생 답안 제출 및 채점 처리 ---
+# --- 학생 답안 제출 API ---
 @app.route('/api/submit-answer', methods=['POST'])
 def submit_answer():
-    # 1. 웹페이지로부터 학생 정보와 답안을 받습니다.
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     student_id = data.get('student_id')
     student_answer = data.get('student_answer')
-    exercise_id = data.get('exercise_id') # 어떤 문제에 대한 답인지 ID를 받습니다.
+    exercise_id = data.get('exercise_id')
 
-    # 필수 정보가 없는 경우 오류를 반환합니다.
     if not all([student_id, student_answer, exercise_id]):
         return jsonify({"error": "필수 정보(학생 ID, 답안, 문제 ID)가 누락되었습니다."}), 400
 
     conn = None
     try:
-        # 2. 데이터베이스에서 채점의 기준이 될 '원본 한국어 문장'을 가져옵니다.
         conn = get_db_connection()
+        if conn is None:
+            return jsonify({"error": "DB 연결 실패"}), 500
+
         korean_question = ""
         with conn.cursor() as cur:
             cur.execute("SELECT korean_sentence FROM exercises WHERE id = %s;", (exercise_id,))
-            result = cur.fetchone()
-            if result:
-                korean_question = result[0]
-            else:
+            row = cur.fetchone()
+            if not row:
                 return jsonify({"error": "해당 ID의 문제를 찾을 수 없습니다."}), 404
+            korean_question = row[0]
 
-        # 3. AI에게 보낼 프롬프트를 완성합니다.
+        if not model:
+            return jsonify({"error": "AI 모델이 설정되지 않았습니다."}), 500
+
         prompt_text = EVALUATION_PROMPT.format(
             Korean_Question=korean_question,
             Student_Answer=student_answer
         )
-
-        # 4. AI를 호출하여 채점 및 분석을 요청합니다.
-        if not model:
-            return jsonify({"error": "AI 모델이 설정되지 않았습니다."}), 500
-        
         response = model.generate_content(prompt_text)
-        
-        # AI 응답(텍스트)에서 순수 JSON 부분만 추출하고 파싱합니다.
-        # AI가 가끔 ```json ... ``` 같은 마크다운을 포함할 때가 있어 안전장치를 추가합니다.
-        cleaned_text = response.text.strip().replace("```json", "").replace("```", "").strip()
-        ai_result = json.loads(cleaned_text)
-        
-        score = ai_result.get('score')
-        analysis = ai_result.get('analysis')
 
-        # 5. 채점 결과를 'submissions' 테이블에 저장합니다.
+        cleaned_text = (response.text or "").strip().replace("```json", "").replace("```", "").strip()
+        ai_result = json.loads(cleaned_text)
+
+        # 점수는 숫자로 보정
+        score_raw = ai_result.get('score')
+        try:
+            score = round(float(score_raw), 1) if score_raw is not None else None
+        except Exception:
+            score = None
+
+        analysis = ai_result.get('analysis') or {}
+
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -179,15 +182,100 @@ def submit_answer():
                 (exercise_id, student_id, student_answer, score, json.dumps(analysis))
             )
             conn.commit()
-        
-        # 6. 학생의 웹페이지에는 '점수'만 간단히 보내줍니다.
-        return jsonify({"success": True, "score": score})
 
+        return jsonify({"success": True, "score": score})
     except Exception as e:
-        # 어떤 단계에서든 오류가 발생하면 서버 로그에 기록하고 에러 메시지를 반환합니다.
         print(f"🚨 /api/submit-answer 처리 중 오류 발생: {e}")
         return jsonify({"error": "서버 내부 오류가 발생했습니다."}), 500
     finally:
-        # 모든 작업이 끝나면 데이터베이스 연결을 반드시 닫습니다.
+        if conn:
+            conn.close()
+
+# --------------------------
+# 교사용 로그인/대시보드
+# --------------------------
+
+def teacher_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if session.get('is_teacher'):
+            return f(*args, **kwargs)
+        return redirect(url_for('teacher_login'))
+    return wrapper
+
+@app.route('/teacher-login', methods=['GET', 'POST'])
+def teacher_login():
+    if request.method == 'POST':
+        pwd = request.form.get('password')
+        if TEACHER_PASSWORD and pwd == TEACHER_PASSWORD:
+            session['is_teacher'] = True
+            return redirect(url_for('dashboard'))
+        return render_template('teacher_login.html', error='비밀번호가 틀렸습니다.')
+    return render_template('teacher_login.html')
+
+@app.route('/teacher-logout')
+def teacher_logout():
+    session.clear()
+    return redirect(url_for('teacher_login'))
+
+@app.route('/dashboard')
+@teacher_required
+def dashboard():
+    return render_template('dashboard.html')
+
+# 교사용: 제출 목록 API(자동 갱신용)
+@app.route('/api/submissions', methods=['GET'])
+def api_submissions():
+    if not session.get('is_teacher'):
+        return jsonify({"error": "unauthorized"}), 401
+
+    since_id = request.args.get('since_id', default=0, type=int)
+    limit = request.args.get('limit', default=50, type=int)
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    s.id, s.exercise_id, s.student_id, s.student_answer,
+                    s.score, s.ai_analysis_json, s.created_at,
+                    e.korean_sentence
+                FROM submissions s
+                JOIN exercises e ON e.id = s.exercise_id
+                WHERE s.id > %s
+                ORDER BY s.id ASC
+                LIMIT %s
+            """, (since_id, limit))
+            rows = cur.fetchall()
+
+        items = []
+        for r in rows:
+            analysis = r.get('ai_analysis_json') or {}
+            # 분석 JSON에 값이 없으면 DB의 korean_sentence로 대체
+            original_ko = analysis.get("original_korean_question") or r.get("korean_sentence")
+
+            # 점수 숫자화
+            s_val = r.get("score")
+            s_num = None
+            if s_val is not None:
+                try:
+                    s_num = float(s_val)
+                except Exception:
+                    s_num = None
+
+            items.append({
+                "id": r["id"],
+                "student_id": r["student_id"],
+                "student_answer": r["student_answer"],
+                "score": s_num,
+                "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+                "original_korean_question": original_ko,
+                "student_answer_original": analysis.get("student_answer_original"),
+                "student_answer_korean_translation": analysis.get("student_answer_korean_translation"),
+                "key_phrases_italian": analysis.get("key_phrases_italian"),
+                "key_phrases_korean_translation": analysis.get("key_phrases_korean_translation"),
+            })
+        return jsonify({"items": items})
+    finally:
         if conn:
             conn.close()
