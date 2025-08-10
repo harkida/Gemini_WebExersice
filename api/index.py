@@ -7,7 +7,7 @@ import psycopg2
 import psycopg2.extras
 import google.generativeai as genai
 
-# --- Flask 템플릿 경로 설정(루트/templates 우선, 없으면 api/templates 사용) ---
+# --- Flask 템플릿 경로 설정 ---
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR.parent / "templates"
 if not TEMPLATES_DIR.exists():
@@ -15,25 +15,29 @@ if not TEMPLATES_DIR.exists():
 
 app = Flask(__name__, template_folder=str(TEMPLATES_DIR))
 
-# 세션/교사용 비밀번호
 app.secret_key = os.environ.get('SECRET_KEY', 'change-this-in-prod')
 TEACHER_PASSWORD = os.environ.get('TEACHER_PASSWORD')
 
-# --- AI 모델 설정 ---
-try:
-    api_key = os.environ.get('GEMINI_API_KEY')
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
-    print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
-except Exception as e:
-    model = None
-    print(f"🚨 Gemini AI 모델 설정 오류: {e}")
+# --- AI 모델 설정 (API 키 없으면 명시적으로 비활성) ---
+api_key = os.environ.get('GEMINI_API_KEY')
+model = None
+if api_key:
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
+    except Exception as e:
+        model = None
+        print(f"🚨 Gemini AI 모델 설정 오류: {e}")
+else:
+    print("⚠️ GEMINI_API_KEY 미설정: 채점 기능이 비활성화됩니다.")
 
 # --- 데이터베이스 설정 ---
 DATABASE_URL = os.environ.get('POSTGRES_URL')
 
 def get_db_connection():
     try:
+        # 필요 시 연결 문자열에 sslmode=require 포함 여부 확인
         conn = psycopg2.connect(DATABASE_URL)
         return conn
     except Exception as e:
@@ -72,30 +76,50 @@ def init_db():
 
 init_db()
 
+# --- 안전한 JSON 본문 추출 유틸 ---
+def extract_first_json_block(text: str):
+    if not text:
+        return None
+    # 코드블럭 마커 제거
+    t = text.replace("```json", "```").strip()
+    if "```" in t:
+        # 첫 번째 코드블럭만 취함
+        parts = t.split("```")
+        # parts는 ["서문", "json?", "후문"] 구조일 수 있음
+        for chunk in parts:
+            chunk = chunk.strip()
+            if chunk.startswith("{") and chunk.endswith("}"):
+                return chunk
+    # 코드블럭이 아니면 중괄호 범위 스캔
+    start = t.find("{")
+    end = t.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return t[start:end+1]
+    return None
+
 # --- 채점 프롬프트 ---
 EVALUATION_PROMPT = """
 당신은 이탈리아 학생에게 한국어를 가르치는, 매우 엄격하고 공정한 AI 언어 교사입니다.
 당신의 임무는, 주어진 한국어 원문과 학생이 제출한 이탈리아어 번역 답안을 비교하여, 학생의 이해도를 10.0점 만점으로 채점하고 심층적인 분석을 제공하는 것입니다.
 
 [채점 기준]
-- 의미의 정확성: 단순 직역이 아닌, 문맥적 의미와 뉘앙스를 얼마나 잘 살렸는지가 가장 중요합니다.
-- 문법 및 어휘: 약간의 문법적 오류나 더 나은 단어 선택이 가능했다면 점수를 미세하게 조정하세요.
-- 점수는 반드시 0.0에서 10.0 사이의 숫자여야 하며, 소수점 첫째 자리까지 표현해야 합니다.
+- 의미의 정확성
+- 문법 및 어휘
+- 점수는 반드시 0.0~10.0, 소수점 한 자리
 
 [입력 정보]
 - 한국어 원문: "{Korean_Question}"
 - 학생의 이탈리아어 답안: "{Student_Answer}"
 
 [출력 형식]
-절대로, 무슨 일이 있어도 다른 설명 없이 오직 아래 규칙을 따르는 JSON 형식으로만 응답해야 합니다.
-
+JSON ONLY:
 {
-  "score": "학생에게 보여줄 10.0 만점의 채점 점수 (숫자 형식)",
+  "score": "10.0 형식의 숫자 문자열",
   "analysis": {
     "original_korean_question": "채점의 기준이 된 한국어 원문",
-    "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
-    "student_answer_korean_translation": "학생의 답안을 자연스러운 한국어로 번역한 문장",
-    "score": "채점 점수 (위의 score와 동일한 값)",
+    "student_answer_original": "학생 이탈리아어 원문",
+    "student_answer_korean_translation": "학생 답안을 자연스러운 한국어로 번역",
+    "score": "동일 점수",
     "key_phrases_italian": ["..."],
     "key_phrases_korean_translation": ["..."]
   }
@@ -144,7 +168,6 @@ def submit_answer():
         if conn is None:
             return jsonify({"error": "DB 연결 실패"}), 500
 
-        korean_question = ""
         with conn.cursor() as cur:
             cur.execute("SELECT korean_sentence FROM exercises WHERE id = %s;", (exercise_id,))
             row = cur.fetchone()
@@ -153,7 +176,7 @@ def submit_answer():
             korean_question = row[0]
 
         if not model:
-            return jsonify({"error": "AI 모델이 설정되지 않았습니다."}), 500
+            return jsonify({"error": "AI 모델이 설정되지 않았습니다. GEMINI_API_KEY 확인"}), 500
 
         prompt_text = EVALUATION_PROMPT.format(
             Korean_Question=korean_question,
@@ -161,10 +184,14 @@ def submit_answer():
         )
         response = model.generate_content(prompt_text)
 
-        cleaned_text = (response.text or "").strip().replace("```json", "").replace("```", "").strip()
-        ai_result = json.loads(cleaned_text)
+        raw_text = (getattr(response, "text", None) or "").strip()
+        json_str = extract_first_json_block(raw_text)
+        if not json_str:
+            print("🚨 AI 응답에서 JSON 블록 추출 실패:", raw_text[:200])
+            return jsonify({"error": "AI 응답 파싱 실패"}), 502
 
-        # 점수는 숫자로 보정
+        ai_result = json.loads(json_str)
+
         score_raw = ai_result.get('score')
         try:
             score = round(float(score_raw), 1) if score_raw is not None else None
@@ -172,6 +199,8 @@ def submit_answer():
             score = None
 
         analysis = ai_result.get('analysis') or {}
+        if "original_korean_question" not in analysis:
+            analysis["original_korean_question"] = korean_question
 
         with conn.cursor() as cur:
             cur.execute(
@@ -179,7 +208,7 @@ def submit_answer():
                 INSERT INTO submissions (exercise_id, student_id, student_answer, score, ai_analysis_json)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                (exercise_id, student_id, student_answer, score, json.dumps(analysis))
+                (exercise_id, student_id, student_answer, score, json.dumps(analysis, ensure_ascii=False))
             )
             conn.commit()
 
@@ -194,8 +223,8 @@ def submit_answer():
 # --------------------------
 # 교사용 로그인/대시보드
 # --------------------------
-
 def teacher_required(f):
+    from functools import wraps
     @wraps(f)
     def wrapper(*args, **kwargs):
         if session.get('is_teacher'):
@@ -223,7 +252,7 @@ def teacher_logout():
 def dashboard():
     return render_template('dashboard.html')
 
-# 교사용: 제출 목록 API(자동 갱신용)
+# 교사용: 제출 목록 API(자동 갱신용 - 폴링)
 @app.route('/api/submissions', methods=['GET'])
 def api_submissions():
     if not session.get('is_teacher'):
@@ -251,17 +280,12 @@ def api_submissions():
         items = []
         for r in rows:
             analysis = r.get('ai_analysis_json') or {}
-            # 분석 JSON에 값이 없으면 DB의 korean_sentence로 대체
             original_ko = analysis.get("original_korean_question") or r.get("korean_sentence")
-
-            # 점수 숫자화
             s_val = r.get("score")
-            s_num = None
-            if s_val is not None:
-                try:
-                    s_num = float(s_val)
-                except Exception:
-                    s_num = None
+            try:
+                s_num = float(s_val) if s_val is not None else None
+            except Exception:
+                s_num = None
 
             items.append({
                 "id": r["id"],
