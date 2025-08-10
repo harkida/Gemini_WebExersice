@@ -5,13 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>실시간 제출 현황</title>
   <style>
-    :root{ --bg:#1e2124; --card:#1f2937; --text:#e5e7eb; --muted:#94a3b8; --border:#334155; --accent:#22c55e; --accent-text:#06202b; }
+    :root{
+      --bg:#1e2124;
+      --card:#1f2937;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --border:#334155;
+      --accent:#22c55e;
+      --accent-text:#06202b;
+    }
     *, *::before, *::after { box-sizing: border-box; }
     html,body{height:100%}
-    body{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans',Arial,sans-serif; }
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans',Arial,sans-serif;
+    }
     .wrap{max-width:1100px; margin:32px auto; padding:0 16px}
     .top{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
-    .card{ background:var(--card); border-radius:12px; padding:20px; box-shadow:0 12px 28px rgba(0,0,0,.35); }
+    .card{background:var(--card); border-radius:12px; padding:20px; box-shadow:0 12px 28px rgba(0,0,0,.35)}
     .muted{color:var(--muted)}
     a{color:#93c5fd; text-decoration:none}
     a:hover{text-decoration:underline}
@@ -24,6 +35,7 @@
   <div class="wrap">
     <div class="top">
       <h1>실시간 제출 현황</h1>
+      <!-- 로그아웃 경로를 서버 라우트(/teacher-logout)에 맞춤 -->
       <a href="/teacher-logout">로그아웃</a>
     </div>
     <div class="card">
@@ -31,6 +43,7 @@
     </div>
   </div>
 
+  <!-- 폴링 방식으로 /api/submissions에서 2초마다 신규 데이터만 가져옴 -->
   <script>
     const box = document.getElementById('events');
     let lastId = 0;
@@ -39,16 +52,16 @@
     function renderItem(it){
       const container = document.createElement('div');
       container.className = 'item';
-      const score = (typeof it.score === 'number') ? it.score.toFixed(1) : '-';
-      const analysis = [
-        it.original_korean_question ? `- 원문: ${it.original_korean_question}` : '',
-        it.student_answer_korean_translation ? `- 학생답(한글 번역): ${it.student_answer_korean_translation}` : '',
-        (it.key_phrases_italian && it.key_phrases_italian.length) ? `- 핵심표현(IT): ${it.key_phrases_italian.join(', ')}` : ''
-      ].filter(Boolean).join('\n');
-
+      const scoreStr = (typeof it.score === 'number') ? it.score.toFixed(1) : '-';
+      const lines = [];
+      if (it.original_korean_question) lines.push(`- 원문: ${it.original_korean_question}`);
+      if (it.student_answer_korean_translation) lines.push(`- 학생답(한글 번역): ${it.student_answer_korean_translation}`);
+      if (Array.isArray(it.key_phrases_italian) && it.key_phrases_italian.length) {
+        lines.push(`- 핵심표현(IT): ${it.key_phrases_italian.join(', ')}`);
+      }
       container.innerHTML = `
-        <div><span class="badge">${score}</span> <b>${it.student_id}</b>: ${it.student_answer}</div>
-        <pre>${analysis}</pre>
+        <div><span class="badge">${scoreStr}</span> <b>${it.student_id}</b>: ${it.student_answer}</div>
+        <pre>${lines.join('\n')}</pre>
       `;
       if (!firstLoaded) box.textContent = '';
       box.prepend(container);
@@ -57,14 +70,20 @@
     async function poll(){
       try{
         const res = await fetch(`/api/submissions?since_id=${lastId}&limit=50`, { credentials:'same-origin' });
-        if(!res.ok){ 
-          if(res.status === 401){ box.textContent = '세션 만료. 다시 로그인 해주세요.'; return; }
+        if(!res.ok){
+          if(res.status === 401){
+            box.textContent = '세션 만료. 다시 로그인 해주세요.';
+            return;
+          }
           throw new Error('API 실패');
         }
         const data = await res.json();
         const items = data.items || [];
         if(items.length){
-          items.forEach(it => { renderItem(it); lastId = Math.max(lastId, it.id); });
+          items.forEach(it => {
+            renderItem(it);
+            if (typeof it.id === 'number') lastId = Math.max(lastId, it.id);
+          });
           firstLoaded = true;
         }else if(!firstLoaded){
           box.textContent = '대기 중…';
@@ -73,7 +92,7 @@
         console.error(e);
         box.textContent = '연결 오류. 잠시 후 자동 재시도합니다.';
       }finally{
-        setTimeout(poll, 2000); // 2초 간격 폴링
+        setTimeout(poll, 2000); // 2초 간격
       }
     }
     poll();
