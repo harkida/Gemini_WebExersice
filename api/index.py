@@ -168,6 +168,7 @@ def submit_answer():
         if conn is None:
             return jsonify({"error": "DB 연결 실패"}), 500
 
+        # 문제 한국어 원문 조회
         with conn.cursor() as cur:
             cur.execute("SELECT korean_sentence FROM exercises WHERE id = %s;", (exercise_id,))
             row = cur.fetchone()
@@ -178,37 +179,64 @@ def submit_answer():
         if not model:
             return jsonify({"error": "AI 모델이 설정되지 않았습니다. GEMINI_API_KEY 확인"}), 500
 
+        # JSON만 반환하도록 강제
         prompt_text = EVALUATION_PROMPT.format(
             Korean_Question=korean_question,
             Student_Answer=student_answer
         )
-        response = model.generate_content(prompt_text)
+        response = model.generate_content(
+            prompt_text,
+            generation_config={"response_mime_type": "application/json"}
+        )
 
+        # 응답 텍스트 확보
         raw_text = (getattr(response, "text", None) or "").strip()
-        json_str = extract_first_json_block(raw_text)
-        if not json_str:
-            print("🚨 AI 응답에서 JSON 블록 추출 실패:", raw_text[:200])
+        if not raw_text and hasattr(response, "candidates") and response.candidates:
+            try:
+                raw_text = response.candidates[0].content.parts[0].text.strip()
+            except Exception:
+                raw_text = ""
+
+        if not raw_text:
+            print("🚨 AI 응답이 비어 있습니다.")
+            return jsonify({"error": "AI 응답이 비어 있습니다."}), 502
+
+        # JSON 파싱 (코드블럭 제거 후 시도)
+        json_str = extract_first_json_block(raw_text) or raw_text
+        try:
+            ai_result = json.loads(json_str)
+        except Exception as e:
+            print(f"🚨 AI JSON 디코딩 실패: {e}\nRAW: {raw_text[:400]}")
             return jsonify({"error": "AI 응답 파싱 실패"}), 502
 
-        ai_result = json.loads(json_str)
-
+        # 점수 처리
+        score = None
         score_raw = ai_result.get('score')
         try:
-            score = round(float(score_raw), 1) if score_raw is not None else None
+            # 쉼표 소수점 등 대비
+            score = round(float(str(score_raw).strip().replace(',', '.')), 1)
         except Exception:
             score = None
 
+        # 분석 필드
         analysis = ai_result.get('analysis') or {}
         if "original_korean_question" not in analysis:
             analysis["original_korean_question"] = korean_question
 
+        # DB 저장(JSONB는 Json 어댑터로 안전 삽입)
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO submissions (exercise_id, student_id, student_answer, score, ai_analysis_json)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                (exercise_id, student_id, student_answer, score, json.dumps(analysis, ensure_ascii=False))
+                (
+                    exercise_id,
+                    student_id,
+                    student_answer,
+                    score,
+                    psycopg2.extras.Json(analysis, dumps=lambda x: json.dumps(x, ensure_ascii=False))
+                )
             )
             conn.commit()
 
@@ -219,7 +247,7 @@ def submit_answer():
     finally:
         if conn:
             conn.close()
-
+            
 # --------------------------
 # 교사용 로그인/대시보드
 # --------------------------
