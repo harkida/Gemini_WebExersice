@@ -71,12 +71,20 @@ def extract_first_json_block(text: str):
     if start != -1 and end != -1 and end > start: return t[start:end+1]
     return None
 
-# --- 채점 프롬프트 (★★★ 핵심 수정 부분 ★★★) ---
+# --- 채점 프롬프트 (★★★ 교수님 지시대로 수정 ★★★) ---
 EVALUATION_PROMPT = """
-당신은 이탈리아 학생에게 한국어를 가르치는, 매우 엄격하고 공정한 AI 언어 교사입니다. 당신의 임무는 학생의 답안을 채점하고, 교사를 위한 심층 분석 자료를 생성하는 것입니다.
+당신은 한국어 듣기 평가를 전문으로 하는, 매우 정교하고 교육적인 AI 채점 조교입니다. 당신의 임무는 학생이 한국어 문장의 '의미'를 정확히 이해했는지 평가하고, 교사를 위한 심층 분석 보고서를 생성하는 것입니다.
 
-[채점 기준]
-- 의미의 정확성, 문법, 어휘를 종합하여 10.0점 만점으로 채점합니다.
+[핵심 원칙: 관용의 원칙]
+- 학생은 이탈리아어 원어민입니다. 학생이 제출한 이탈리아어의 사소한 문법 오류, 오타, 어색한 표현은 채점에 절대로 영향을 주어서는 안 됩니다.
+- 채점의 유일한 기준은 '학생이 들은 한국어 문장의 의미를 정확히 이해했는가?' 입니다.
+
+[채점 기준: 4단계 감점 기준표]
+- 10.0점에서 시작하여, 아래 기준에 따라 오류의 심각도에 맞춰 점수를 차감합니다.
+- [1단계: 치명적 오류 (Critical Errors)] (-4.0점 ~ -6.0점 감점): 핵심 동사/명사/시간 오역, 긍정/부정 혼동 등.
+- [2단계: 주요 오류 (Major Errors)] (-2.0점 ~ -3.0점 감점): 문장 유형 혼동, 핵심 수식어 누락 등.
+- [3단계: 경미한 오류 (Minor Errors)] (-0.5점 ~ -1.5점 감점): 사소한 디테일/수식어 누락.
+- [4단계: 뉘앙스 분석 (Nuance Analysis)] (감점 없음 또는 최대 -0.5점): 점수보다 '교사용 참고 자료' 생성에 중점. '-(으)ㄹ게요' vs '-(으)ㄹ래요' 같은 미묘한 차이 분석.
 
 [핵심 어휘 추출 규칙]
 - 학생의 이탈리아어 답안에서, 유럽언어기준(CEFR) B1 레벨 이상의 학습 가치가 있는 핵심 이탈리아어 어휘를 추출합니다. (개수 제한 없음)
@@ -90,7 +98,7 @@ EVALUATION_PROMPT = """
 - 학생의 이탈리아어 답안: "{Student_Answer}"
 
 [출력 형식]
-JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
+JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다. 점수 계산 근거와 교육적 피드백을 'evaluation_feedback'에 상세히 서술해야 합니다.
 {{
   "score": "10.0 형식의 숫자 문자열",
   "analysis": {{
@@ -99,7 +107,8 @@ JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
     "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
     "score": "채점된 점수와 동일한 값",
     "key_vocabularies_italian": ["추출된 이탈리아어 어휘 기본형"],
-    "key_vocabularies_korean_translation": ["위 이탈리아어 어휘의 한국어 뜻"]
+    "key_vocabularies_korean_translation": ["위 이탈리아어 어휘의 한국어 뜻"],
+    "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술. 어떤 오류 때문에 몇 점이 감점되었는지 명확히 설명하고, 뉘앙스 차이는 [교사용 참고] 태그를 붙여 보고합니다."
   }}
 }}
 """
@@ -129,7 +138,9 @@ def submit_answer():
 
         response = None
         try:
+            # ★★★ analysis 객체에 값을 채우기 위해, 프롬프트 포맷팅에 필요한 정보를 추가합니다 ★★★
             prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
+            
             response = model.generate_content(
                 prompt_text,
                 generation_config={"response_mime_type": "application/json"}
@@ -170,6 +181,15 @@ def submit_answer():
             print(f"⚠️ 'score' 값 '{score_raw}'을(를) 숫자로 변환하는 데 실패했습니다. 오류: {e}")
 
         analysis = ai_result.get('analysis', {})
+        
+        # ★★★ 교수님 요청대로, analysis 객체에 정보가 비어있을 경우 채워줍니다 ★★★
+        if 'original_korean_question' not in analysis:
+            analysis['original_korean_question'] = korean_question
+        if 'student_answer_original' not in analysis:
+            analysis['student_answer_original'] = student_answer
+        if 'score' not in analysis and score is not None:
+            analysis['score'] = str(score)
+
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO submissions (exercise_id, student_id, student_answer, score, ai_analysis_json) VALUES (%s, %s, %s, %s, %s)",
