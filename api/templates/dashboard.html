@@ -45,20 +45,17 @@
             background-color: #2c2c2c;
             border: 1px solid #444;
             border-radius: 8px;
+            padding: 1.5rem;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             opacity: 0;
             transform: translateY(20px);
             animation: fadeIn 0.5s forwards;
-            overflow: hidden; /* for child border-radius */
         }
         @keyframes fadeIn {
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
-        }
-        .card-content {
-            padding: 1.5rem;
         }
         .card-header {
             display: flex;
@@ -82,7 +79,7 @@
         .score.high { color: #4CAF50; /* Green */ }
         .score.low { color: #F44336; /* Red */ }
         .card-body p {
-            margin: 0.5rem 0;
+            margin: 0.8rem 0;
             line-height: 1.6;
         }
         .card-body strong {
@@ -93,30 +90,6 @@
         .korean-translation {
             font-style: italic;
             color: #a0d8ef;
-        }
-        .card-footer {
-            background-color: #383838;
-            padding: 1rem 1.5rem;
-            margin-top: 1rem;
-        }
-        .card-footer strong {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #ffffff;
-        }
-        .card-footer ul {
-            list-style-type: none;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .card-footer li {
-            background-color: #4a4a4a;
-            padding: 0.3rem 0.8rem;
-            border-radius: 12px;
-            font-size: 0.9rem;
         }
         .timestamp {
             font-size: 0.8rem;
@@ -163,36 +136,39 @@
                         const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
                         const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
 
-                        // AI 분석 결과 (JSON)
                         const analysis = item.ai_analysis_json || {};
                         const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
                         const vocabItalian = analysis.key_vocabularies_italian || [];
                         const vocabKorean = analysis.key_vocabularies_korean_translation || [];
 
-                        // 학습 어휘 목록 HTML 생성
-                        let vocabHtml = '';
+                        // --- ★★★ 교수님 요청사항 반영 ★★★ ---
+                        // 1. 키워드 문자열 생성
+                        let keywordsString = '';
                         if (vocabItalian.length > 0) {
-                            vocabHtml += '<div class="card-footer"><strong>교수님을 위한 학습 어휘 (B1 이상)</strong><ul>';
-                            for (let i = 0; i < vocabItalian.length; i++) {
-                                vocabHtml += `<li>${vocabItalian[i]}: ${vocabKorean[i] || ''}</li>`;
-                            }
-                            vocabHtml += '</ul></div>';
+                            const keywordsArray = vocabItalian.map((vocab, index) => {
+                                return `${vocab}(${vocabKorean[index] || '뜻 없음'})`;
+                            });
+                            keywordsString = keywordsArray.join(', ');
                         }
 
+                        // 2. 키워드 문자열이 있을 때만 HTML 라인 생성
+                        const keywordsHtml = keywordsString 
+                            ? `<p><strong>키워드 :</strong> ${keywordsString}</p>`
+                            : '';
+                        // --- ★★★ ---
+
                         card.innerHTML = `
-                            <div class="card-content">
-                                <div class="card-header">
-                                    <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
-                                    <div class="score ${scoreClass}">${scoreDisplay}</div>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
-                                    <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
-                                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
-                                </div>
-                                <div class="timestamp">${formattedDate}</div>
+                            <div class="card-header">
+                                <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
+                                <div class="score ${scoreClass}">${scoreDisplay}</div>
                             </div>
-                            ${vocabHtml}
+                            <div class="card-body">
+                                <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
+                                <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
+                                <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
+                                ${keywordsHtml}
+                            </div>
+                            <div class="timestamp">${formattedDate}</div>
                         `;
                         
                         container.prepend(card);
