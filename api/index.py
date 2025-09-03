@@ -73,29 +73,32 @@ def extract_first_json_block(text: str):
 
 # --- 채점 프롬프트 (★★★ 핵심 수정 부분 ★★★) ---
 EVALUATION_PROMPT = """
-당신은 이탈리아 학생에게 한국어를 가르치는, 매우 엄격하고 공정한 AI 언어 교사입니다.
-당신의 임무는, 주어진 한국어 원문과 학생이 제출한 이탈리아어 번역 답안을 비교하여, 학생의 이해도를 10.0점 만점으로 채점하고 심층적인 분석을 제공하는 것입니다.
+당신은 이탈리아 학생에게 한국어를 가르치는, 매우 엄격하고 공정한 AI 언어 교사입니다. 당신의 임무는 학생의 답안을 채점하고, 교사를 위한 심층 분석 자료를 생성하는 것입니다.
 
 [채점 기준]
-- 의미의 정확성
-- 문법 및 어휘
-- 점수는 반드시 0.0~10.0, 소수점 한 자리
+- 의미의 정확성, 문법, 어휘를 종합하여 10.0점 만점으로 채점합니다.
+
+[핵심 어휘 추출 규칙]
+- 학생의 이탈리아어 답안에서, 유럽언어기준(CEFR) A2 레벨을 초과하는 B1 레벨 이상의 학습 가치가 있는 핵심 이탈리아어 어휘를 최대 3개까지 추출합니다.
+- 각 어휘는 반드시 동사 원형(infinito)이나 명사의 단수형 등 기본 형태로 변환하여 `key_vocabularies_italian` 배열에 추가합니다.
+- 각 어휘에 대한 한국어 뜻을 `key_vocabularies_korean_translation` 배열에 추가합니다.
+- 만약 B1 레벨 이상의 어휘가 없다면, 두 배열 모두 빈 상태 `[]`로 둡니다.
 
 [입력 정보]
 - 한국어 원문: "{Korean_Question}"
 - 학생의 이탈리아어 답안: "{Student_Answer}"
 
 [출력 형식]
-JSON ONLY:
+JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
 {{
   "score": "10.0 형식의 숫자 문자열",
   "analysis": {{
     "original_korean_question": "채점의 기준이 된 한국어 원문",
-    "student_answer_original": "학생 이탈리아어 원문",
-    "student_answer_korean_translation": "학생 답안을 자연스러운 한국어로 번역",
-    "score": "동일 점수",
-    "key_phrases_italian": ["..."],
-    "key_phrases_korean_translation": ["..."]
+    "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
+    "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
+    "score": "채점된 점수와 동일한 값",
+    "key_vocabularies_italian": ["B1 레벨 이상 이탈리아어 어휘 기본형"],
+    "key_vocabularies_korean_translation": ["위 이탈리아어 어휘의 한국어 뜻"]
   }}
 }}
 """
@@ -131,7 +134,7 @@ def submit_answer():
                 generation_config={"response_mime_type": "application/json"}
             )
         except Exception as e:
-            print("🚨🚨🚨 AI 모델 호출(generate_content) 자체에서 심각한 오류 발생! 🚨🚨🚨")
+            print(f"🚨🚨🚨 AI 모델 호출(generate_content) 자체에서 심각한 오류 발생! 🚨🚨🚨")
             print(f"오류 타입: {type(e)}")
             print(f"오류 메시지: {e}")
             traceback.print_exc()
