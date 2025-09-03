@@ -37,7 +37,6 @@ DATABASE_URL = os.environ.get('POSTGRES_URL')
 
 def get_db_connection():
     try:
-        # 필요 시 연결 문자열에 sslmode=require 포함 여부 확인
         conn = psycopg2.connect(DATABASE_URL)
         return conn
     except Exception as e:
@@ -80,17 +79,13 @@ init_db()
 def extract_first_json_block(text: str):
     if not text:
         return None
-    # 코드블럭 마커 제거
     t = text.replace("```json", "```").strip()
     if "```" in t:
-        # 첫 번째 코드블럭만 취함
         parts = t.split("```")
-        # parts는 ["서문", "json?", "후문"] 구조일 수 있음
         for chunk in parts:
             chunk = chunk.strip()
             if chunk.startswith("{") and chunk.endswith("}"):
                 return chunk
-    # 코드블럭이 아니면 중괄호 범위 스캔
     start = t.find("{")
     end = t.rfind("}")
     if start != -1 and end != -1 and end > start:
@@ -168,7 +163,6 @@ def submit_answer():
         if conn is None:
             return jsonify({"error": "DB 연결 실패"}), 500
 
-        # 문제 한국어 원문 조회
         with conn.cursor() as cur:
             cur.execute("SELECT korean_sentence FROM exercises WHERE id = %s;", (exercise_id,))
             row = cur.fetchone()
@@ -179,7 +173,6 @@ def submit_answer():
         if not model:
             return jsonify({"error": "AI 모델이 설정되지 않았습니다. GEMINI_API_KEY 확인"}), 500
 
-        # JSON만 반환하도록 강제
         prompt_text = EVALUATION_PROMPT.format(
             Korean_Question=korean_question,
             Student_Answer=student_answer
@@ -188,8 +181,10 @@ def submit_answer():
             prompt_text,
             generation_config={"response_mime_type": "application/json"}
         )
+        
+        # <<< ★★★ 이 한 줄이 핵심입니다! AI의 응답을 서버 로그에 남깁니다. ★★★ >>>
+        print(f"!!! AI로부터 받은 RAW 응답 전문: {getattr(response, 'text', '응답에 text 속성 없음')}")
 
-        # 응답 텍스트 확보
         raw_text = (getattr(response, "text", None) or "").strip()
         if not raw_text and hasattr(response, "candidates") and response.candidates:
             try:
@@ -201,7 +196,6 @@ def submit_answer():
             print("🚨 AI 응답이 비어 있습니다.")
             return jsonify({"error": "AI 응답이 비어 있습니다."}), 502
 
-        # JSON 파싱 (코드블럭 제거 후 시도)
         json_str = extract_first_json_block(raw_text) or raw_text
         try:
             ai_result = json.loads(json_str)
@@ -209,30 +203,23 @@ def submit_answer():
             print(f"🚨 AI JSON 디코딩 실패: {e}\nRAW: {raw_text[:400]}")
             return jsonify({"error": "AI 응답 파싱 실패"}), 502
 
-        # --- ★★★ 디버깅을 위한 핵심 수정 부분 ★★★ ---
         score = None
         score_raw = ai_result.get('score')
-
-        # 만약 'score' 키가 없다면, AI가 보낸 응답 전체를 로그로 남깁니다.
+        
         if score_raw is None:
             print(f"!!! AI 응답에 'score' 키가 없습니다. AI 응답 전체: {json.dumps(ai_result, indent=2, ensure_ascii=False)}")
         
         try:
-            # score_raw가 None이 아닐 때만 숫자 변환을 시도합니다.
             if score_raw is not None:
                 score = round(float(str(score_raw).strip().replace(',', '.')), 1)
         except Exception as e:
-            # 변환 실패 시 로그를 남기고 score는 None으로 유지합니다.
             print(f"⚠️ 'score' 값 '{score_raw}'을(를) 숫자로 변환하는 데 실패했습니다. 오류: {e}")
             score = None
-        # --- 수정 끝 ---
 
-        # 분석 필드
         analysis = ai_result.get('analysis') or {}
         if "original_korean_question" not in analysis:
             analysis["original_korean_question"] = korean_question
 
-        # DB 저장(JSONB는 Json 어댑터로 안전 삽입)
         with conn.cursor() as cur:
             cur.execute(
                 """
