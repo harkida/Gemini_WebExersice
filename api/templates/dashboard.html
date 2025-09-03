@@ -1,101 +1,178 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>실시간 제출 현황</title>
-  <style>
-    :root{
-      --bg:#1e2124;
-      --card:#1f2937;
-      --text:#e5e7eb;
-      --muted:#94a3b8;
-      --border:#334155;
-      --accent:#22c55e;
-      --accent-text:#06202b;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    html,body{height:100%}
-    body{
-      margin:0; background:var(--bg); color:var(--text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans',Arial,sans-serif;
-    }
-    .wrap{max-width:1100px; margin:32px auto; padding:0 16px}
-    .top{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
-    .card{background:var(--card); border-radius:12px; padding:20px; box-shadow:0 12px 28px rgba(0,0,0,.35)}
-    .muted{color:var(--muted)}
-    a{color:#93c5fd; text-decoration:none}
-    a:hover{text-decoration:underline}
-    pre, code{white-space:pre-wrap; word-break:break-word}
-    .item{border-top:1px solid var(--border); padding-top:12px; margin-top:12px}
-    .badge{display:inline-block; background:#0ea5e9; color:#06202b; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교사 대시보드 (Teacher Dashboard)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 2rem;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #444;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            color: #ffffff;
+            margin: 0;
+        }
+        #logout-btn {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        #logout-btn:hover {
+            background-color: #777;
+        }
+        #submissions-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .submission-card {
+            background-color: #2c2c2c;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.5s forwards;
+        }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #444;
+            padding-bottom: 1rem;
+        }
+        .student-info {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .student-info .id {
+            color: #87ceeb; /* Sky Blue */
+        }
+        .score {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .score.high { color: #4CAF50; /* Green */ }
+        .score.low { color: #F44336; /* Red */ }
+        .card-body p {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
+        .card-body strong {
+            color: #a9a9a9; /* Dark Gray */
+            display: inline-block;
+            width: 150px;
+        }
+        .timestamp {
+            font-size: 0.8rem;
+            color: #888;
+            text-align: right;
+            margin-top: 1rem;
+        }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <h1>실시간 제출 현황</h1>
-      <!-- 로그아웃 경로를 서버 라우트(/teacher-logout)에 맞춤 -->
-      <a href="/teacher-logout">로그아웃</a>
+
+    <header>
+        <h1>실시간 제출 현황</h1>
+        <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
+    </header>
+
+    <div id="submissions-container">
+        <!-- 새로운 제출물이 여기에 동적으로 추가됩니다 -->
     </div>
-    <div class="card">
-      <div id="events" class="muted">대기 중…</div>
-    </div>
-  </div>
 
-  <!-- 폴링 방식으로 /api/submissions에서 2초마다 신규 데이터만 가져옴 -->
-  <script>
-    const box = document.getElementById('events');
-    let lastId = 0;
-    let firstLoaded = false;
+    <script>
+        // 마지막으로 받은 제출물의 ID를 저장하는 변수.
+        // 이 ID를 기준으로 새로운 제출물만 가져옵니다.
+        let lastSubmissionId = 0;
 
-    function renderItem(it){
-      const container = document.createElement('div');
-      container.className = 'item';
-      const scoreStr = (typeof it.score === 'number') ? it.score.toFixed(1) : '-';
-      const lines = [];
-      if (it.original_korean_question) lines.push(`- 원문: ${it.original_korean_question}`);
-      if (it.student_answer_korean_translation) lines.push(`- 학생답(한글 번역): ${it.student_answer_korean_translation}`);
-      if (Array.isArray(it.key_phrases_italian) && it.key_phrases_italian.length) {
-        lines.push(`- 핵심표현(IT): ${it.key_phrases_italian.join(', ')}`);
-      }
-      container.innerHTML = `
-        <div><span class="badge">${scoreStr}</span> <b>${it.student_id}</b>: ${it.student_answer}</div>
-        <pre>${lines.join('\n')}</pre>
-      `;
-      if (!firstLoaded) box.textContent = '';
-      box.prepend(container);
-    }
+        // 서버에 새로운 제출물을 요청하는 함수
+        async function fetchNewSubmissions() {
+            try {
+                // 'since_id' 쿼리 파라미터를 사용하여 마지막 ID 이후의 데이터만 요청
+                const response = await fetch(`/api/submissions?since_id=${lastSubmissionId}`);
+                if (!response.ok) {
+                    // 401 Unauthorized 오류 시 로그인 페이지로 리디렉션
+                    if (response.status === 401) {
+                        window.location.href = '/teacher-login';
+                    }
+                    throw new Error(`서버 응답 오류: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const container = document.getElementById('submissions-container');
 
-    async function poll(){
-      try{
-        const res = await fetch(`/api/submissions?since_id=${lastId}&limit=50`, { credentials:'same-origin' });
-        if(!res.ok){
-          if(res.status === 401){
-            box.textContent = '세션 만료. 다시 로그인 해주세요.';
-            return;
-          }
-          throw new Error('API 실패');
+                if (data.items && data.items.length > 0) {
+                    // 최신 제출물이 가장 위로 오도록 배열 순서를 뒤집습니다.
+                    data.items.reverse();
+
+                    data.items.forEach(item => {
+                        // 새로운 제출 카드를 생성합니다.
+                        const card = document.createElement('div');
+                        card.className = 'submission-card';
+
+                        const scoreValue = parseFloat(item.score);
+                        const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
+                        const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
+
+                        const submissionDate = new Date(item.created_at);
+                        const formattedDate = submissionDate.toLocaleString('ko-KR');
+
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
+                                <div class="score ${scoreClass}">${scoreDisplay}</div>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
+                                <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
+                            </div>
+                            <div class="timestamp">${formattedDate}</div>
+                        `;
+                        
+                        // 새로운 카드를 컨테이너의 맨 위에 추가합니다.
+                        container.prepend(card);
+                    });
+
+                    // 마지막으로 받은 제출물의 ID를 갱신합니다.
+                    lastSubmissionId = data.items[0].id; // reverse 했으므로 첫번째 항목이 가장 최신 ID
+                }
+            } catch (error) {
+                console.error('제출물을 가져오는 중 오류 발생:', error);
+            }
         }
-        const data = await res.json();
-        const items = data.items || [];
-        if(items.length){
-          items.forEach(it => {
-            renderItem(it);
-            if (typeof it.id === 'number') lastId = Math.max(lastId, it.id);
-          });
-          firstLoaded = true;
-        }else if(!firstLoaded){
-          box.textContent = '대기 중…';
-        }
-      }catch(e){
-        console.error(e);
-        box.textContent = '연결 오류. 잠시 후 자동 재시도합니다.';
-      }finally{
-        setTimeout(poll, 2000); // 2초 간격
-      }
-    }
-    poll();
-  </script>
+
+        // 3초마다 자동으로 새로운 제출물을 확인합니다.
+        setInterval(fetchNewSubmissions, 3000);
+
+        // 페이지가 처음 로드될 때 한 번 실행하여 기존 데이터를 가져옵니다.
+        fetchNewSubmissions();
+    </script>
+
 </body>
 </html>
