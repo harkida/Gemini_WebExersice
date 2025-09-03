@@ -1,7 +1,7 @@
 import os
 import json
 import pathlib
-import traceback # 오류의 상세 내용을 추적하기 위해 추가
+import traceback
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 import psycopg2
@@ -45,7 +45,6 @@ def get_db_connection():
         return None
 
 def init_db():
-    # DB 초기화 코드는 변경 없음
     conn = get_db_connection()
     if conn:
         try:
@@ -60,7 +59,6 @@ def init_db():
             conn.close()
 init_db()
 
-# --- JSON 추출 유틸 및 프롬프트 (변경 없음) ---
 def extract_first_json_block(text: str):
     if not text: return None
     t = text.replace("```json", "```").strip()
@@ -73,19 +71,35 @@ def extract_first_json_block(text: str):
     if start != -1 and end != -1 and end > start: return t[start:end+1]
     return None
 
+# --- 채점 프롬프트 (★★★ 핵심 수정 부분 ★★★) ---
 EVALUATION_PROMPT = """
-당신은 이탈리아 학생에게 한국어를 가르치는, 매우 엄격하고 공정한 AI 언어 교사입니다. 당신의 임무는, 주어진 한국어 원문과 학생이 제출한 이탈리아어 번역 답안을 비교하여, 학생의 이해도를 10.0점 만점으로 채점하고 심층적인 분석을 제공하는 것입니다.
+당신은 이탈리아 학생에게 한국어를 가르치는, 매우 엄격하고 공정한 AI 언어 교사입니다.
+당신의 임무는, 주어진 한국어 원문과 학생이 제출한 이탈리아어 번역 답안을 비교하여, 학생의 이해도를 10.0점 만점으로 채점하고 심층적인 분석을 제공하는 것입니다.
+
 [채점 기준]
-- 의미의 정확성, 문법 및 어휘. 점수는 반드시 0.0~10.0, 소수점 한 자리.
+- 의미의 정확성
+- 문법 및 어휘
+- 점수는 반드시 0.0~10.0, 소수점 한 자리
+
 [입력 정보]
 - 한국어 원문: "{Korean_Question}"
 - 학생의 이탈리아어 답안: "{Student_Answer}"
+
 [출력 형식]
 JSON ONLY:
-{ "score": "10.0 형식의 숫자 문자열", "analysis": { "original_korean_question": "...", "student_answer_original": "...", "student_answer_korean_translation": "...", "score": "...", "key_phrases_italian": ["..."], "key_phrases_korean_translation": ["..."] } }
+{{
+  "score": "10.0 형식의 숫자 문자열",
+  "analysis": {{
+    "original_korean_question": "채점의 기준이 된 한국어 원문",
+    "student_answer_original": "학생 이탈리아어 원문",
+    "student_answer_korean_translation": "학생 답안을 자연스러운 한국어로 번역",
+    "score": "동일 점수",
+    "key_phrases_italian": ["..."],
+    "key_phrases_korean_translation": ["..."]
+  }}
+}}
 """
 
-# --- 학생 답안 제출 API (★★★ 핵심 수정 부분 ★★★) ---
 @app.route('/api/submit-answer', methods=['POST'])
 def submit_answer():
     data = request.get_json(silent=True) or {}
@@ -109,7 +123,6 @@ def submit_answer():
 
         if not model: return jsonify({"error": "AI 모델 미설정"}), 500
 
-        # --- 🚨 AI 호출을 위한 특별 감시 구역 시작 🚨 ---
         response = None
         try:
             prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
@@ -121,11 +134,9 @@ def submit_answer():
             print("🚨🚨🚨 AI 모델 호출(generate_content) 자체에서 심각한 오류 발생! 🚨🚨🚨")
             print(f"오류 타입: {type(e)}")
             print(f"오류 메시지: {e}")
-            traceback.print_exc() # 오류의 전체 경로를 출력
+            traceback.print_exc()
             return jsonify({"error": "AI 모델 호출 중 심각한 오류가 발생했습니다."}), 500
-        # --- 🚨 AI 호출 감시 구역 끝 🚨 ---
 
-        # AI가 응답을 거부했는지 확인
         if response and hasattr(response, 'prompt_feedback') and response.prompt_feedback.block_reason:
             block_reason = response.prompt_feedback.block_reason
             print(f"🚨 AI 프롬프트가 차단되었습니다. 이유: {block_reason}")
@@ -137,7 +148,7 @@ def submit_answer():
             print(f"AI 응답 객체 전문: {response}")
             return jsonify({"error": "AI로부터 빈 응답을 받았습니다."}), 502
 
-        print(f"✅ AI로부터 받은 RAW 응답: {raw_text[:500]}") # 성공 시 로그 출력
+        print(f"✅ AI로부터 받은 RAW 응답: {raw_text[:500]}")
 
         json_str = extract_first_json_block(raw_text) or raw_text
         try:
@@ -171,7 +182,7 @@ def submit_answer():
     finally:
         if conn: conn.close()
         
-# --- 나머지 라우트 (교사용 대시보드 등)는 변경 없음 ---
+# --- 나머지 라우트 ---
 def teacher_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -212,6 +223,7 @@ def teacher_logout():
 def dashboard(): return render_template('dashboard.html')
 
 @app.route('/api/submissions')
+@teacher_required
 def api_submissions():
     if not session.get('is_teacher'): return jsonify({"error": "unauthorized"}), 401
     since_id = request.args.get('since_id', 0, type=int)
@@ -220,7 +232,6 @@ def api_submissions():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, s.created_at, e.korean_sentence FROM submissions s JOIN exercises e ON e.id = s.exercise_id WHERE s.id > %s ORDER BY s.id ASC LIMIT 50", (since_id,))
             rows = cur.fetchall()
-        # api/submissions의 반환 형식을 RealDictCursor에 맞게 수정
         items = []
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
