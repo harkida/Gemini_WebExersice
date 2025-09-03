@@ -24,14 +24,26 @@
             color: #ffffff;
             margin: 0;
         }
-        #logout-btn {
-            background-color: #555;
+        .header-buttons {
+            display: flex;
+            gap: 0.8rem;
+        }
+        .header-buttons button {
             color: white;
             border: none;
             padding: 0.6rem 1.2rem;
             border-radius: 6px;
             cursor: pointer;
             font-size: 1rem;
+        }
+        #clear-btn {
+            background-color: #c0392b; /* Red */
+        }
+        #clear-btn:hover {
+            background-color: #e74c3c;
+        }
+        #logout-btn {
+            background-color: #555;
         }
         #logout-btn:hover {
             background-color: #777;
@@ -103,7 +115,11 @@
 
     <header>
         <h1>실시간 제출 현황</h1>
-        <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
+        <div class="header-buttons">
+            <!-- ★★★ '화면 지우기' 버튼 추가 ★★★ -->
+            <button id="clear-btn" onclick="clearDashboard()">화면 지우기</button>
+            <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
+        </div>
     </header>
 
     <div id="submissions-container">
@@ -112,6 +128,13 @@
 
     <script>
         let lastSubmissionId = 0;
+
+        // ★★★ '화면 지우기' 기능 구현 ★★★
+        function clearDashboard() {
+            const container = document.getElementById('submissions-container');
+            container.innerHTML = ''; // 화면의 모든 카드를 즉시 제거합니다.
+            console.log('대시보드 화면이 초기화되었습니다.');
+        }
 
         async function fetchNewSubmissions() {
             try {
@@ -141,8 +164,6 @@
                         const vocabItalian = analysis.key_vocabularies_italian || [];
                         const vocabKorean = analysis.key_vocabularies_korean_translation || [];
 
-                        // --- ★★★ 교수님 요청사항 반영 ★★★ ---
-                        // 1. 키워드 문자열 생성
                         let keywordsString = '';
                         if (vocabItalian.length > 0) {
                             const keywordsArray = vocabItalian.map((vocab, index) => {
@@ -151,12 +172,11 @@
                             keywordsString = keywordsArray.join(', ');
                         }
 
-                        // 2. 키워드 문자열이 있을 때만 HTML 라인 생성
                         const keywordsHtml = keywordsString 
                             ? `<p><strong>키워드 :</strong> ${keywordsString}</p>`
                             : '';
-                        // --- ★★★ ---
 
+                        // ★★★ 항목 순서 변경 ★★★
                         card.innerHTML = `
                             <div class="card-header">
                                 <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
@@ -165,8 +185,8 @@
                             <div class="card-body">
                                 <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
                                 <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
-                                <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
                                 ${keywordsHtml}
+                                <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
                             </div>
                             <div class="timestamp">${formattedDate}</div>
                         `;
