@@ -79,10 +79,11 @@ EVALUATION_PROMPT = """
 - 의미의 정확성, 문법, 어휘를 종합하여 10.0점 만점으로 채점합니다.
 
 [핵심 어휘 추출 규칙]
-- 학생의 이탈리아어 답안에서, 유럽언어기준(CEFR) A2 레벨을 초과하는 B1 레벨 이상의 학습 가치가 있는 핵심 이탈리아어 어휘를 최대 3개까지 추출합니다.
+- 학생의 이탈리아어 답안에서, 유럽언어기준(CEFR) B1 레벨 이상의 학습 가치가 있는 핵심 이탈리아어 어휘를 추출합니다. (개수 제한 없음)
+- 만약 B1 레벨 이상의 어휘가 없다면, 대신 가장 중요하다고 판단되는 A2 레벨의 명사 또는 동사를 추출합니다.
 - 각 어휘는 반드시 동사 원형(infinito)이나 명사의 단수형 등 기본 형태로 변환하여 `key_vocabularies_italian` 배열에 추가합니다.
 - 각 어휘에 대한 한국어 뜻을 `key_vocabularies_korean_translation` 배열에 추가합니다.
-- 만약 B1 레벨 이상의 어휘가 없다면, 두 배열 모두 빈 상태 `[]`로 둡니다.
+- 추출할 어휘가 아예 없는 경우에만 두 배열 모두 빈 상태 `[]`로 둡니다.
 
 [입력 정보]
 - 한국어 원문: "{Korean_Question}"
@@ -97,7 +98,7 @@ JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
     "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
     "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
     "score": "채점된 점수와 동일한 값",
-    "key_vocabularies_italian": ["B1 레벨 이상 이탈리아어 어휘 기본형"],
+    "key_vocabularies_italian": ["추출된 이탈리아어 어휘 기본형"],
     "key_vocabularies_korean_translation": ["위 이탈리아어 어휘의 한국어 뜻"]
   }}
 }}
