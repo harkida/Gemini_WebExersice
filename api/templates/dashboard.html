@@ -45,17 +45,20 @@
             background-color: #2c2c2c;
             border: 1px solid #444;
             border-radius: 8px;
-            padding: 1.5rem;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             opacity: 0;
             transform: translateY(20px);
             animation: fadeIn 0.5s forwards;
+            overflow: hidden; /* for child border-radius */
         }
         @keyframes fadeIn {
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
+        }
+        .card-content {
+            padding: 1.5rem;
         }
         .card-header {
             display: flex;
@@ -83,9 +86,37 @@
             line-height: 1.6;
         }
         .card-body strong {
-            color: #a9a9a9; /* Dark Gray */
+            color: #b0b0b0; /* Lighter Gray */
             display: inline-block;
             width: 150px;
+        }
+        .korean-translation {
+            font-style: italic;
+            color: #a0d8ef;
+        }
+        .card-footer {
+            background-color: #383838;
+            padding: 1rem 1.5rem;
+            margin-top: 1rem;
+        }
+        .card-footer strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+        .card-footer ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .card-footer li {
+            background-color: #4a4a4a;
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
         }
         .timestamp {
             font-size: 0.8rem;
@@ -107,20 +138,13 @@
     </div>
 
     <script>
-        // 마지막으로 받은 제출물의 ID를 저장하는 변수.
-        // 이 ID를 기준으로 새로운 제출물만 가져옵니다.
         let lastSubmissionId = 0;
 
-        // 서버에 새로운 제출물을 요청하는 함수
         async function fetchNewSubmissions() {
             try {
-                // 'since_id' 쿼리 파라미터를 사용하여 마지막 ID 이후의 데이터만 요청
                 const response = await fetch(`/api/submissions?since_id=${lastSubmissionId}`);
                 if (!response.ok) {
-                    // 401 Unauthorized 오류 시 로그인 페이지로 리디렉션
-                    if (response.status === 401) {
-                        window.location.href = '/teacher-login';
-                    }
+                    if (response.status === 401) window.location.href = '/teacher-login';
                     throw new Error(`서버 응답 오류: ${response.status}`);
                 }
                 
@@ -128,49 +152,60 @@
                 const container = document.getElementById('submissions-container');
 
                 if (data.items && data.items.length > 0) {
-                    // 최신 제출물이 가장 위로 오도록 배열 순서를 뒤집습니다.
                     data.items.reverse();
 
                     data.items.forEach(item => {
-                        // 새로운 제출 카드를 생성합니다.
                         const card = document.createElement('div');
                         card.className = 'submission-card';
 
                         const scoreValue = parseFloat(item.score);
                         const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
                         const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
+                        const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
 
-                        const submissionDate = new Date(item.created_at);
-                        const formattedDate = submissionDate.toLocaleString('ko-KR');
+                        // AI 분석 결과 (JSON)
+                        const analysis = item.ai_analysis_json || {};
+                        const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
+                        const vocabItalian = analysis.key_vocabularies_italian || [];
+                        const vocabKorean = analysis.key_vocabularies_korean_translation || [];
+
+                        // 학습 어휘 목록 HTML 생성
+                        let vocabHtml = '';
+                        if (vocabItalian.length > 0) {
+                            vocabHtml += '<div class="card-footer"><strong>교수님을 위한 학습 어휘 (B1 이상)</strong><ul>';
+                            for (let i = 0; i < vocabItalian.length; i++) {
+                                vocabHtml += `<li>${vocabItalian[i]}: ${vocabKorean[i] || ''}</li>`;
+                            }
+                            vocabHtml += '</ul></div>';
+                        }
 
                         card.innerHTML = `
-                            <div class="card-header">
-                                <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
-                                <div class="score ${scoreClass}">${scoreDisplay}</div>
+                            <div class="card-content">
+                                <div class="card-header">
+                                    <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
+                                    <div class="score ${scoreClass}">${scoreDisplay}</div>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
+                                    <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
+                                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
+                                </div>
+                                <div class="timestamp">${formattedDate}</div>
                             </div>
-                            <div class="card-body">
-                                <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
-                                <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
-                            </div>
-                            <div class="timestamp">${formattedDate}</div>
+                            ${vocabHtml}
                         `;
                         
-                        // 새로운 카드를 컨테이너의 맨 위에 추가합니다.
                         container.prepend(card);
                     });
 
-                    // 마지막으로 받은 제출물의 ID를 갱신합니다.
-                    lastSubmissionId = data.items[0].id; // reverse 했으므로 첫번째 항목이 가장 최신 ID
+                    lastSubmissionId = data.items[0].id;
                 }
             } catch (error) {
                 console.error('제출물을 가져오는 중 오류 발생:', error);
             }
         }
 
-        // 3초마다 자동으로 새로운 제출물을 확인합니다.
         setInterval(fetchNewSubmissions, 3000);
-
-        // 페이지가 처음 로드될 때 한 번 실행하여 기존 데이터를 가져옵니다.
         fetchNewSubmissions();
     </script>
 
