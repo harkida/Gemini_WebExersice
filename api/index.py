@@ -209,14 +209,23 @@ def submit_answer():
             print(f"🚨 AI JSON 디코딩 실패: {e}\nRAW: {raw_text[:400]}")
             return jsonify({"error": "AI 응답 파싱 실패"}), 502
 
-        # 점수 처리
+        # --- ★★★ 디버깅을 위한 핵심 수정 부분 ★★★ ---
         score = None
         score_raw = ai_result.get('score')
+
+        # 만약 'score' 키가 없다면, AI가 보낸 응답 전체를 로그로 남깁니다.
+        if score_raw is None:
+            print(f"!!! AI 응답에 'score' 키가 없습니다. AI 응답 전체: {json.dumps(ai_result, indent=2, ensure_ascii=False)}")
+        
         try:
-            # 쉼표 소수점 등 대비
-            score = round(float(str(score_raw).strip().replace(',', '.')), 1)
-        except Exception:
+            # score_raw가 None이 아닐 때만 숫자 변환을 시도합니다.
+            if score_raw is not None:
+                score = round(float(str(score_raw).strip().replace(',', '.')), 1)
+        except Exception as e:
+            # 변환 실패 시 로그를 남기고 score는 None으로 유지합니다.
+            print(f"⚠️ 'score' 값 '{score_raw}'을(를) 숫자로 변환하는 데 실패했습니다. 오류: {e}")
             score = None
+        # --- 수정 끝 ---
 
         # 분석 필드
         analysis = ai_result.get('analysis') or {}
