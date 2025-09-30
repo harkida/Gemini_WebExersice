@@ -3,238 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>교사 대시보드 (Teacher Dashboard)</title>
+    <title>KR-Quiz 실시간 대시보드</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            margin: 0;
-            padding: 2rem;
-        }
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #444;
-            padding-bottom: 1rem;
-            margin-bottom: 2rem;
-        }
-        h1 {
-            color: #ffffff;
-            margin: 0;
-        }
-        .header-buttons {
-            display: flex;
-            gap: 0.8rem;
-        }
-        .header-buttons button {
-            color: white;
-            border: none;
-            padding: 0.6rem 1.2rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-        #clear-btn {
-            background-color: #c0392b; /* Red */
-        }
-        #clear-btn:hover {
-            background-color: #e74c3c;
-        }
-        #logout-btn {
-            background-color: #555;
-        }
-        #logout-btn:hover {
-            background-color: #777;
-        }
-        #submissions-container {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-        .submission-card {
-            background-color: #2c2c2c;
-            border: 1px solid #444;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeIn 0.5s forwards;
-            overflow: hidden;
-        }
-        @keyframes fadeIn {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .card-main-content {
-            padding: 1.5rem;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid #444;
-            padding-bottom: 1rem;
-        }
-        .student-info {
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-        .student-info .id {
-            color: #87ceeb; /* Sky Blue */
-        }
-        .score {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        .score.high { color: #4CAF50; /* Green */ }
-        .score.low { color: #F44336; /* Red */ }
-        .card-body p {
-            margin: 0.8rem 0;
-            line-height: 1.6;
-        }
-        .card-body strong {
-            color: #b0b0b0; /* Lighter Gray */
-            display: inline-block;
-            width: 150px;
-        }
-        .korean-translation {
-            font-style: italic;
-            color: #a0d8ef;
-        }
-        .timestamp {
-            font-size: 0.8rem;
-            color: #888;
-            text-align: right;
-            margin-top: 1rem;
-        }
-        /* ★★★ AI 피드백을 위한 새로운 스타일 ★★★ */
-        .feedback-section {
-            background-color: #383838;
-            padding: 1rem 1.5rem;
-            margin-top: 1.5rem;
-            border-top: 1px solid #555;
-        }
-        .feedback-section strong {
-            color: #ffffff;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-        .feedback-section p {
-            margin: 0;
-            line-height: 1.6;
-            color: #d0d0d0;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #1e2124; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 20px auto; padding: 30px; background-color: #282c34; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+        h1 { color: #ffffff; text-align: center; margin-bottom: 20px; }
+        .logout-link { position: absolute; top: 20px; right: 20px; color: #7289da; text-decoration: none; }
+        
+        /* ★★★ 신규: 반 필터 버튼 스타일 ★★★ */
+        .class-filter { text-align: center; margin-bottom: 30px; }
+        .filter-btn { background-color: #40444b; color: #e0e0e0; border: 1px solid #4f545c; padding: 10px 20px; font-size: 1em; border-radius: 5px; cursor: pointer; margin: 0 5px; transition: background-color 0.3s; }
+        .filter-btn:hover { background-color: #4f545c; }
+        .filter-btn.active { background-color: #7289da; color: white; border-color: #7289da; }
+
+        #submissions-list { list-style-type: none; padding: 0; }
+        .submission-item { background-color: #2f3136; border: 1px solid #40444b; padding: 20px; margin-bottom: 15px; border-radius: 8px; }
+        .submission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .student-info { font-size: 1.2em; font-weight: bold; }
+        .score { font-size: 1.4em; font-weight: bold; }
+        .score-high { color: #2ecc71; } /* 7.0 이상 */
+        .score-low { color: #e74c3c; } /* 6.9 이하 */
+        .submission-body { background-color: #36393f; padding: 15px; border-radius: 5px; margin-top: 10px; }
+        .ai-analysis { white-space: pre-wrap; font-family: "SF Mono", "Consolas", monospace; font-size: 0.9em; line-height: 1.6; }
+        .timestamp { font-size: 0.8em; color: #99aab5; text-align: right; margin-top: 10px; }
     </style>
 </head>
 <body>
-
-    <header>
+    <div class="container">
         <h1>실시간 제출 현황</h1>
-        <div class="header-buttons">
-            <button id="clear-btn" onclick="clearDashboard()">화면 지우기</button>
-            <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
-        </div>
-    </header>
+        <a href="/teacher-logout" class="logout-link">로그아웃</a>
 
-    <div id="submissions-container">
-        <!-- 새로운 제출물이 여기에 동적으로 추가됩니다 -->
+        <!-- ★★★ 신규: 반 필터 버튼 UI ★★★ -->
+        <div class="class-filter">
+            <button class="filter-btn active" data-class="all">전체 보기</button>
+            <button class="filter-btn" data-class="siena-3">3학년</button>
+            <button class="filter-btn" data-class="master-1">석사 1학년</button>
+            <button class="filter-btn" data-class="master-2">석사 2학년</button>
+            <!-- 새로운 반이 추가되면 여기에 버튼만 추가하면 됩니다 -->
+        </div>
+
+        <ul id="submissions-list"></ul>
     </div>
 
     <script>
-        let lastSubmissionId = 0;
+        let lastId = 0;
+        // ★★★ 변경: 현재 선택된 필터를 추적하는 변수 추가 ★★★
+        let currentClassFilter = 'all'; 
 
-        function clearDashboard() {
-            const container = document.getElementById('submissions-container');
-            container.innerHTML = '';
-            console.log('대시보드 화면이 초기화되었습니다.');
+        function getScoreClass(score) {
+            const s = parseFloat(score);
+            if (isNaN(s)) return '';
+            return s >= 7.0 ? 'score-high' : 'score-low';
         }
 
-        async function fetchNewSubmissions() {
+        function createSubmissionElement(item) {
+            const li = document.createElement('li');
+            li.className = 'submission-item';
+            li.id = `submission-${item.id}`;
+
+            const scoreClass = getScoreClass(item.score);
+            const analysis = item.ai_analysis_json || {};
+            
+            // ★★★ 변경: 반 이름(class_name) 표시 추가 ★★★
+            const classNameDisplay = item.class_name ? `(${item.class_name})` : '';
+
+            li.innerHTML = `
+                <div class="submission-header">
+                    <span class="student-info">${item.student_id} ${classNameDisplay}</span>
+                    <span class="score ${scoreClass}">${parseFloat(item.score).toFixed(1)}</span>
+                </div>
+                <div class="submission-body">
+                    <p><strong>원본 질문:</strong> ${item.korean_sentence}</p>
+                    <p><strong>학생 답안:</strong> ${item.student_answer}</p>
+                    <details>
+                        <summary>AI 상세 분석 보기</summary>
+                        <pre class="ai-analysis">${JSON.stringify(analysis, null, 2)}</pre>
+                    </details>
+                </div>
+                <div class="timestamp">${new Date(item.created_at).toLocaleString('ko-KR')}</div>
+            `;
+            return li;
+        }
+
+        async function fetchSubmissions() {
             try {
-                const response = await fetch(`/api/submissions?since_id=${lastSubmissionId}`);
+                // ★★★ 변경: API 요청 시 현재 선택된 반 필터 정보를 함께 보냅니다 ★★★
+                const url = `/api/submissions?since_id=${lastId}&class_name=${currentClassFilter}`;
+                const response = await fetch(url);
                 if (!response.ok) {
                     if (response.status === 401) window.location.href = '/teacher-login';
-                    throw new Error(`서버 응답 오류: ${response.status}`);
+                    throw new Error('서버 응답 오류');
                 }
-                
                 const data = await response.json();
-                const container = document.getElementById('submissions-container');
+                const list = document.getElementById('submissions-list');
 
                 if (data.items && data.items.length > 0) {
-                    data.items.reverse();
-
                     data.items.forEach(item => {
-                        const card = document.createElement('div');
-                        card.className = 'submission-card';
-
-                        const scoreValue = parseFloat(item.score);
-                        const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
-                        const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
-                        const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
-
-                        const analysis = item.ai_analysis_json || {};
-                        const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
-                        const vocabItalian = analysis.key_vocabularies_italian || [];
-                        const vocabKorean = analysis.key_vocabularies_korean_translation || [];
-                        
-                        // ★★★ AI 교육적 피드백 추출 ★★★
-                        const evaluationFeedback = analysis.evaluation_feedback || '(AI 피드백 없음)';
-
-                        let keywordsString = '';
-                        if (vocabItalian.length > 0) {
-                            const keywordsArray = vocabItalian.map((vocab, index) => {
-                                return `${vocab}(${vocabKorean[index] || '뜻 없음'})`;
-                            });
-                            keywordsString = keywordsArray.join(', ');
-                        }
-
-                        const keywordsHtml = keywordsString 
-                            ? `<p><strong>키워드 :</strong> ${keywordsString}</p>`
-                            : '';
-                        
-                        // ★★★ AI 피드백 섹션 HTML 생성 ★★★
-                        const feedbackHtml = `
-                            <div class="feedback-section">
-                                <strong>AI 평가 피드백:</strong>
-                                <p>${evaluationFeedback}</p>
-                            </div>
-                        `;
-
-                        card.innerHTML = `
-                            <div class="card-main-content">
-                                <div class="card-header">
-                                    <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
-                                    <div class="score ${scoreClass}">${scoreDisplay}</div>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
-                                    <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
-                                    ${keywordsHtml}
-                                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
-                                </div>
-                                <div class="timestamp">${formattedDate}</div>
-                            </div>
-                            ${feedbackHtml}
-                        `;
-                        
-                        container.prepend(card);
+                        const newElement = createSubmissionElement(item);
+                        list.prepend(newElement);
                     });
-
-                    lastSubmissionId = data.items[0].id;
+                    lastId = data.items[data.items.length - 1].id;
                 }
             } catch (error) {
-                console.error('제출물을 가져오는 중 오류 발생:', error);
+                console.error('제출물 로딩 오류:', error);
             }
         }
+        
+        // ★★★ 신규: 필터 버튼 클릭 이벤트 처리 로직 ★★★
+        document.querySelectorAll('.filter-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                // 모든 버튼에서 'active' 클래스 제거
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                // 클릭된 버튼에 'active' 클래스 추가
+                this.classList.add('active');
+                
+                // 현재 필터 상태 업데이트
+                currentClassFilter = this.dataset.class;
+                
+                // 목록 초기화 및 재로딩
+                document.getElementById('submissions-list').innerHTML = '';
+                lastId = 0;
+                fetchSubmissions(); // 즉시 새로운 필터로 데이터 로드
+            });
+        });
 
-        setInterval(fetchNewSubmissions, 3000);
-        fetchNewSubmissions();
+        // 페이지 로드 시 및 3초마다 주기적으로 데이터 가져오기
+        fetchSubmissions();
+        setInterval(fetchSubmissions, 3000);
     </script>
-
 </body>
 </html>

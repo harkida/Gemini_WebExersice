@@ -61,7 +61,7 @@
             font-size: 1em;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color: 0.3s;
             margin-left: 15px;
         }
         .submit-btn:hover {
@@ -107,14 +107,16 @@
   <div class="container">
     <h1>한국어 듣기 퀴즈</h1>
 
+    <!-- ★★★ 1. 첫 번째 수정 지점: 여기에 보이지 않는 '반 이름' 꼬리표를 심었습니다. ★★★ -->
+    <!-- 이 페이지가 어떤 반의 퀴즈 페이지인지 자바스크립트가 알 수 있도록 하는 역할입니다. -->
+    <input type="hidden" id="class-name-hidden" value="{{ class_name }}">
+
     <div id="quiz-list">
       {% for exercise in exercises %}
       <div class="quiz-item">
         <span class="quiz-number">{{ loop.index }}.</span>
         <div class="quiz-content">
           <div class="korean-question">{{ exercise.korean_sentence }}</div>
-
-          <!-- 고유 ID를 바로 부여 -->
           <form class="answer-form" id="form-{{ exercise.id }}" data-exercise-id="{{ exercise.id }}">
             <textarea class="answer-input" placeholder="여기에 이탈리아어 번역을 입력하세요..." required></textarea>
             <div class="result-display"></div>
@@ -128,8 +130,8 @@
     </div>
   </div>
 
+  <!-- ★★★ 2. 두 번째 수정 지점: 교수님의 기존 스크립트를 기반으로 '반 이름' 전송 로직을 추가했습니다. ★★★ -->
   <script>
-    // 기존 JS 동일
     document.querySelectorAll('.submit-btn').forEach(button => {
       button.addEventListener('click', async function(event) {
         event.preventDefault();
@@ -142,7 +144,8 @@
         const resultDisplay = form.querySelector('.result-display');
         const submitButton = this;
 
-        const studentId = localStorage.getItem('studentId');
+        // 로컬 스토리지에서 학생 ID 가져오기 (교수님 기존 코드 유지)
+        const studentId = localStorage.getItem('studentId'); // 'studentId'가 맞는지 확인 (교수님 코드 기준)
         if (!studentId) {
           alert('학생 ID가 없습니다. 로그인 페이지로 돌아갑니다.');
           window.location.href = '/';
@@ -153,6 +156,13 @@
           return;
         }
 
+        // ★★★ 핵심 추가 로직: 숨겨둔 input에서 '반 이름' 값을 가져옵니다. ★★★
+        const className = document.getElementById('class-name-hidden').value;
+        if (!className) {
+            alert('반 정보가 없습니다. 페이지를 새로고침하거나 다시 로그인해주세요.');
+            return;
+        }
+
         submitButton.disabled = true;
         submitButton.textContent = '채점 중...';
         resultDisplay.style.display = 'none';
@@ -161,7 +171,13 @@
           const response = await fetch('/api/submit-answer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ student_id: studentId, exercise_id: exerciseId, student_answer: studentAnswer })
+            // ★★★ 핵심 수정 로직: 전송하는 데이터에 'class_name'을 추가합니다. ★★★
+            body: JSON.stringify({
+                student_id: studentId,
+                exercise_id: exerciseId,
+                student_answer: studentAnswer,
+                class_name: className
+            })
           });
           const result = await response.json();
           resultDisplay.style.display = 'block';
