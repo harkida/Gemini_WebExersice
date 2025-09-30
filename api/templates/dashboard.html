@@ -83,9 +83,21 @@
         .student-info {
             font-size: 1.2rem;
             font-weight: bold;
+            display: flex; /* ★★★ 수정을 위해 추가 ★★★ */
+            align-items: center; /* ★★★ 수정을 위해 추가 ★★★ */
+            gap: 0.8rem; /* ★★★ 수정을 위해 추가 ★★★ */
         }
         .student-info .id {
             color: #87ceeb; /* Sky Blue */
+        }
+        /* ★★★ [핵심 추가] 반 정보를 위한 뱃지 스타일 ★★★ */
+        .class-badge {
+            background-color: #4f545c;
+            color: #e0e0e0;
+            padding: 0.3rem 0.7rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: normal;
         }
         .score {
             font-size: 2rem;
@@ -112,7 +124,6 @@
             text-align: right;
             margin-top: 1rem;
         }
-        /* ★★★ AI 피드백을 위한 새로운 스타일 ★★★ */
         .feedback-section {
             background-color: #383838;
             padding: 1rem 1.5rem;
@@ -166,9 +177,9 @@
                 const container = document.getElementById('submissions-container');
 
                 if (data.items && data.items.length > 0) {
-                    data.items.reverse();
+                    const reversedItems = [...data.items].reverse();
 
-                    data.items.forEach(item => {
+                    reversedItems.forEach(item => {
                         const card = document.createElement('div');
                         card.className = 'submission-card';
 
@@ -182,7 +193,6 @@
                         const vocabItalian = analysis.key_vocabularies_italian || [];
                         const vocabKorean = analysis.key_vocabularies_korean_translation || [];
                         
-                        // ★★★ AI 교육적 피드백 추출 ★★★
                         const evaluationFeedback = analysis.evaluation_feedback || '(AI 피드백 없음)';
 
                         let keywordsString = '';
@@ -197,7 +207,6 @@
                             ? `<p><strong>키워드 :</strong> ${keywordsString}</p>`
                             : '';
                         
-                        // ★★★ AI 피드백 섹션 HTML 생성 ★★★
                         const feedbackHtml = `
                             <div class="feedback-section">
                                 <strong>AI 평가 피드백:</strong>
@@ -205,10 +214,14 @@
                             </div>
                         `;
 
+                        // ★★★ [핵심 수정] card.innerHTML에 반 정보(class_name) 뱃지를 추가합니다. ★★★
                         card.innerHTML = `
                             <div class="card-main-content">
                                 <div class="card-header">
-                                    <div class="student-info">학생 ID: <span class="id">${item.student_id}</span></div>
+                                    <div class="student-info">
+                                        <span>학생 ID: <span class="id">${item.student_id}</span></span>
+                                        <span class="class-badge">${item.class_name || '반 없음'}</span>
+                                    </div>
                                     <div class="score ${scoreClass}">${scoreDisplay}</div>
                                 </div>
                                 <div class="card-body">
@@ -225,7 +238,7 @@
                         container.prepend(card);
                     });
 
-                    lastSubmissionId = data.items[0].id;
+                    lastSubmissionId = data.items[data.items.length - 1].id;
                 }
             } catch (error) {
                 console.error('제출물을 가져오는 중 오류 발생:', error);

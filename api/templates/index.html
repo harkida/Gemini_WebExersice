@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>한국어 듣기 퀴즈</title>
     <style>
-        /* --- 다크 모드 스타일 --- */
+        /* --- 교수님의 미려한 다크 모드 스타일을 그대로 유지합니다 --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: #1e2124;
@@ -26,17 +26,16 @@
             text-align: center;
             margin-bottom: 30px;
         }
-        /* --- 각 퀴즈 아이템 스타일 --- */
         .quiz-item {
             display: flex;
             align-items: center;
             margin-bottom: 25px;
-            flex-wrap: wrap; /* 모바일 화면에서 줄바꿈 허용 */
+            flex-wrap: wrap;
         }
         .quiz-number {
             font-size: 1.5em;
             font-weight: bold;
-            color: #7289da; /* 디스코드 느낌의 파란색 */
+            color: #7289da;
             margin-right: 20px;
         }
         .quiz-content {
@@ -71,25 +70,16 @@
             background-color: #555;
             cursor: not-allowed;
         }
-        /* --- 결과 표시 영역 --- */
         .result-display {
             margin-top: 10px;
             font-size: 1.3em;
             font-weight: bold;
-            display: none; /* 평소에는 숨김 */
+            display: none;
         }
-        /* 점수 색상 조건부 스타일 */
-        .score-high {
-            color: #2ecc71; /* 7.0점 이상 (초록색) */
-        }
-        .score-low {
-            color: #e74c3c; /* 7.0점 미만 (빨간색) */
-        }
-        .error-message {
-            color: #e74c3c; /* 에러 메시지 */
-        }
+        .score-high { color: #2ecc71; }
+        .score-low { color: #e74c3c; }
+        .error-message { color: #e74c3c; }
 
-        /* 모바일 화면 대응 */
         @media (max-width: 600px) {
             .quiz-item {
                 flex-direction: column;
@@ -113,8 +103,6 @@
         <span class="quiz-number">{{ loop.index }}.</span>
         <div class="quiz-content">
           <div class="korean-question">{{ exercise.korean_sentence }}</div>
-
-          <!-- 고유 ID를 바로 부여 -->
           <form class="answer-form" id="form-{{ exercise.id }}" data-exercise-id="{{ exercise.id }}">
             <textarea class="answer-input" placeholder="여기에 이탈리아어 번역을 입력하세요..." required></textarea>
             <div class="result-display"></div>
@@ -123,13 +111,22 @@
         <button type="submit" class="submit-btn" form="form-{{ exercise.id }}">제출</button>
       </div>
       {% else %}
-      <p>표시할 연습 문제가 없습니다. 선생님께 문의하세요.</p>
+      <p>이 반에는 아직 문제가 없습니다. 선생님께 문의하세요.</p>
       {% endfor %}
     </div>
   </div>
 
   <script>
-    // 기존 JS 동일
+    // ★★★ [핵심 수정 1] 페이지가 로드될 때, 로컬 스토리지에서 '반 정보'도 함께 가져옵니다. ★★★
+    const studentId = localStorage.getItem('studentId');
+    const className = localStorage.getItem('className');
+
+    // 로그인 정보가 없으면 즉시 로그인 페이지로 돌려보냅니다.
+    if (!studentId || !className) {
+        alert('학생 ID 또는 반 정보가 없습니다. 로그인 페이지로 돌아갑니다.');
+        window.location.href = '/';
+    }
+
     document.querySelectorAll('.submit-btn').forEach(button => {
       button.addEventListener('click', async function(event) {
         event.preventDefault();
@@ -142,12 +139,6 @@
         const resultDisplay = form.querySelector('.result-display');
         const submitButton = this;
 
-        const studentId = localStorage.getItem('studentId');
-        if (!studentId) {
-          alert('학생 ID가 없습니다. 로그인 페이지로 돌아갑니다.');
-          window.location.href = '/';
-          return;
-        }
         if (!studentAnswer.trim()) {
           alert('답안을 입력해주세요.');
           return;
@@ -161,18 +152,20 @@
           const response = await fetch('/api/submit-answer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ student_id: studentId, exercise_id: exerciseId, student_answer: studentAnswer })
+            // ★★★ [핵심 수정 2] 올바른 변수명(studentAnswer)과 정의된 변수(className)를 사용하여 서버에 전송합니다. ★★★
+            body: JSON.stringify({ 
+                student_id: studentId, 
+                exercise_id: exerciseId, 
+                student_answer: studentAnswer,
+                class_name: className 
+            })
           });
           const result = await response.json();
           resultDisplay.style.display = 'block';
 
           if (response.ok) {
             const score = parseFloat(result.score);
-            if (score >= 7.0) {
-              resultDisplay.className = 'result-display score-high';
-            } else {
-              resultDisplay.className = 'result-display score-low';
-            }
+            resultDisplay.className = 'result-display ' + (score >= 7.0 ? 'score-high' : 'score-low');
             resultDisplay.textContent = `점수: ${score.toFixed(1)}`;
           } else {
             resultDisplay.className = 'result-display error-message';

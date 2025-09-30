@@ -44,17 +44,26 @@ def get_db_connection():
         print(f"🚨 데이터베이스 연결 오류: {e}")
         return None
 
+# ★★★ [핵심 수정] 데이터베이스 초기화 로직을 '반별 기능'에 맞게 전면 수정합니다. ★★★
 def init_db():
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cur:
-                cur.execute("CREATE TABLE IF NOT EXISTS exercises (id SERIAL PRIMARY KEY, korean_sentence TEXT NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);")
-                cur.execute("CREATE TABLE IF NOT EXISTS submissions (id SERIAL PRIMARY KEY, exercise_id INTEGER REFERENCES exercises(id), student_id VARCHAR(255) NOT NULL, student_answer TEXT, score NUMERIC(3, 1), ai_analysis_json JSONB, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);")
+                # exercises 테이블에 class_name 컬럼이 없으면 추가합니다.
+                cur.execute("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS class_name VARCHAR(50);")
+                # submissions 테이블에 class_name 컬럼이 없으면 추가합니다.
+                cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS class_name VARCHAR(50);")
+                
+                # 테이블이 존재하지 않을 경우를 대비한 생성 구문 (기존 구조와 호환)
+                cur.execute("CREATE TABLE IF NOT EXISTS exercises (id SERIAL PRIMARY KEY, korean_sentence TEXT NOT NULL, class_name VARCHAR(50), created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);")
+                cur.execute("CREATE TABLE IF NOT EXISTS submissions (id SERIAL PRIMARY KEY, exercise_id INTEGER REFERENCES exercises(id), student_id VARCHAR(255) NOT NULL, student_answer TEXT, score NUMERIC(3, 1), ai_analysis_json JSONB, class_name VARCHAR(50), created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);")
+                
                 conn.commit()
-                print("✅ 데이터베이스 테이블이 성공적으로 확인/생성되었습니다.")
+                print("✅ 데이터베이스 테이블이 '반별 기능'에 맞게 성공적으로 확인/수정되었습니다.")
         except Exception as e:
-            print(f"🚨 테이블 생성 오류: {e}")
+            print(f"🚨 테이블 생성/수정 오류: {e}")
+            conn.rollback()
         finally:
             conn.close()
 init_db()
@@ -71,54 +80,10 @@ def extract_first_json_block(text: str):
     if start != -1 and end != -1 and end > start: return t[start:end+1]
     return None
 
-# --- 채점 프롬프트 (★★★ 교수님 지시대로 수정 ★★★) ---
+# --- 채점 프롬프트 (교수님 지시대로 축약) ---
 EVALUATION_PROMPT = """
-당신은 한국어 듣기 평가를 전문으로 하는, 매우 정교하고 교육적인 AI 채점 조교입니다. 당신의 임무는 학생이 한국어 문장의 '의미'를 정확히 이해했는지 평가하고, 교사를 위한 심층 분석 보고서를 생성하는 것이다.
 
-[채점 기준: 4단계 다면 평가 기준표]
-- [엄격한 감점 규칙]: 10.0점에서 시작하여, 아래 기준에 따라 오류를 분류하고, 해당 단계에서 명시된 감점 범위 내에서만 점수를 차감해야 한다. 이 범위는 절대적인 규칙이며, 임의로 벗어날 수 없다.
-  - [정밀 채점 권한 부여]: 각 오류 단계별로 명시된 감점 범위 안에서, 당신은 본인의 교육적 판단에 따라 소수점 첫째 자리를 활용하여 감점 수치를 자유롭게 결정할 권한을 갖는다. 예를 들어, 같은 [2단계: 주요 오류]라도, 오류의 심각성에 따라 -3.1점, -4.5점 등으로 세밀하게 점수를 차등 적용할 수 있다.
-
-- [1단계: 치명적 오류 (Critical Errors)] (-7.0점 ~ -5.0점 사이 감점)
-  - 정의: 문장의 핵심 의미가 완전히 왜곡되거나 반대로 해석된 경우.
-  - 예시:
-    - 핵심 동사/명사 오역 (예: '먹다'를 '자다'로, '학교'를 '병원'으로, '촬영'을 '복사'로 번역)
-    - 핵심 형용사/부사 오역 (예: '공손한'을 '오만한'으로, '뜨거운'을 '차가운'으로 번역. 이는 의미를 완전히 바꾸므로 치명적 오류임)**
-    - 긍정/부정 오역 (예: '했다'를 '안 했다'로 번역)
-    - 핵심 시간/장소 오역 (예: '어제'를 '내일'로, '여기'를 '저기'로 번역)
-
-- [2단계: 주요 오류 (Major Errors)] (-5.0점 ~ -3.0점 사이 감점)
-  - 정의: 문장의 핵심 주제(누가, 무엇을)는 파악했으나, 시제, 문장 구조, 혹은 특정 어휘의 오역으로 인해 원문이 가진 분위기(Tone)나 의도를 크게 훼손하는 경우.
-  - 예시:
-    - 문맥/분위기를 왜곡하는 어휘 오역:
-      - (공손함/공식성) '공손한'을 '공식적인'으로 번역하는 경우.
-      - (관계) '친한 친구'를 '애인'으로 번역하는 경우.
-      - (감정) '아쉽다'를 '슬프다'로 번역하는 경우.
-      - (의무/권유) '해야 한다'를 '하는 게 좋다'로 번역하는 경우.
-    - 문장 유형 혼동: 평서문을 의문문으로, 명령문을 권유문으로 또는 그 반대로 번역.
-    - 시제 오류: 과거형 '하셨어요?'를 현재형 '해요?'로 번역.
-    - 핵심 의미에 영향을 주는 수식어 누락: '자연스럽게 번역하세요'에서 '자연스럽게'를 누락.
-    - 주요 접속사 오역: '그래서'를 '그러나'로 번역.
-    - 디테일 누락: '가방 안에 책과 연필이 있다'를 '가방 안에 책이 있다'로 번역.
-
-- [3단계: 경미한 오류 (Minor Errors)] (-3.0점 ~ -1.0점 사이 감점)
-  - 정의: 문장의 핵심 의미와 구조는 모두 정확하지만, 의미에 큰 영향을 주지 않는 세부 정보나 수식어가 누락된 경우.
-  - 예시:
-    - 덜 중요한 수식어 누락 (예: '아주 맛있는'을 그냥 '맛있는'으로 번역 / '좀 별로예요'를 '별로예요')
-
-- [4단계: 뉘앙스 분석 (Nuance Analysis)] (-1.0 ~ 0 사이 감점)
-  - 정의: 번역 자체는 틀리지 않았으나, 한국어 원문이 가진 미묘한 뉘앙스를 완벽하게 살리지 못한 경우. 이 단계는 감점보다 '교사용 참고 자료' 생성에 중점을 둔다.
-  - 지시: 분석 결과를 반드시 `[교사용 참고]` 태그를 붙여 보고해야 한다.
-  - 예시:
-    - 의도/의지의 차이 (예: '-(으)ㄹ게요'와 '-(으)ㄹ 것이다'의 뉘앙스 차이)
-    - 추측의 강도 차이 (예: '-것 같다'와 '-것이다'의 뉘앙스 차이)
-
-[핵심 어휘 추출 규칙]
-- 학생의 이탈리아어 답안에서, 유럽언어기준(CEFR) B1 레벨 이상의 학습 가치가 있는 핵심 이탈리아어 어휘를 추출한다. (개수 제한 없음)
-- 만약 B1 레벨 이상의 어휘가 없다면, 대신 가장 중요하다고 판단되는 A2 레벨의 명사 또는 동사를 추출한다.
-- 각 어휘는 반드시 동사 원형(infinito)이나 명사의 단수형 등 기본 형태로 변환하여 `key_vocabularies_italian` 배열에 추가한다.
-- 각 어휘에 대한 한국어 뜻을 `key_vocabularies_korean_translation` 배열에 추가한다.
-- 추출할 어휘가 아예 없는 경우에만 두 배열 모두 빈 상태 `[]`로 둔다.
+***프롬프트 내용***
 
 [입력 정보]
 - 한국어 원문: "{Korean_Question}"
@@ -146,9 +111,12 @@ def submit_answer():
     student_id = data.get('student_id')
     student_answer = data.get('student_answer')
     exercise_id = data.get('exercise_id')
+    # ★★★ [핵심 수정] 요청 본문에서 class_name을 가져옵니다. ★★★
+    class_name = data.get('class_name')
 
-    if not all([student_id, student_answer, exercise_id]):
-        return jsonify({"error": "필수 정보 누락"}), 400
+    # ★★★ [핵심 수정] class_name도 필수 정보로 확인합니다. ★★★
+    if not all([student_id, student_answer, exercise_id, class_name]):
+        return jsonify({"error": "필수 정보 누락 (반 정보 포함)"}), 400
 
     conn = None
     try:
@@ -163,64 +131,25 @@ def submit_answer():
 
         if not model: return jsonify({"error": "AI 모델 미설정"}), 500
 
-        response = None
-        try:
-            # ★★★ analysis 객체에 값을 채우기 위해, 프롬프트 포맷팅에 필요한 정보를 추가합니다 ★★★
-            prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
-            
-            response = model.generate_content(
-                prompt_text,
-                generation_config={"response_mime_type": "application/json"}
-            )
-        except Exception as e:
-            print(f"🚨🚨🚨 AI 모델 호출(generate_content) 자체에서 심각한 오류 발생! 🚨🚨🚨")
-            print(f"오류 타입: {type(e)}")
-            print(f"오류 메시지: {e}")
-            traceback.print_exc()
-            return jsonify({"error": "AI 모델 호출 중 심각한 오류가 발생했습니다."}), 500
-
-        if response and hasattr(response, 'prompt_feedback') and response.prompt_feedback.block_reason:
-            block_reason = response.prompt_feedback.block_reason
-            print(f"🚨 AI 프롬프트가 차단되었습니다. 이유: {block_reason}")
-            return jsonify({"error": f"AI가 유해성 등의 이유로 응답을 거부했습니다: {block_reason}"}), 503
-
+        prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
+        response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
         raw_text = getattr(response, 'text', '').strip()
-        if not raw_text:
-            print("🚨 AI 응답이 비어 있습니다. 전체 응답 객체를 확인합니다.")
-            print(f"AI 응답 객체 전문: {response}")
-            return jsonify({"error": "AI로부터 빈 응답을 받았습니다."}), 502
-
-        print(f"✅ AI로부터 받은 RAW 응답: {raw_text[:500]}")
-
         json_str = extract_first_json_block(raw_text) or raw_text
-        try:
-            ai_result = json.loads(json_str)
-        except json.JSONDecodeError as e:
-            print(f"🚨 AI JSON 디코딩 실패: {e}\nRAW TEXT: {raw_text[:500]}")
-            return jsonify({"error": "AI 응답을 JSON으로 해석하는데 실패했습니다."}), 502
-
+        ai_result = json.loads(json_str)
         score_raw = ai_result.get('score')
         score = None
-        try:
-            if score_raw is not None:
-                score = round(float(str(score_raw).strip().replace(',', '.')), 1)
-        except (ValueError, TypeError) as e:
-            print(f"⚠️ 'score' 값 '{score_raw}'을(를) 숫자로 변환하는 데 실패했습니다. 오류: {e}")
-
+        if score_raw is not None:
+            score = round(float(str(score_raw).strip().replace(',', '.')), 1)
         analysis = ai_result.get('analysis', {})
+        if 'original_korean_question' not in analysis: analysis['original_korean_question'] = korean_question
+        if 'student_answer_original' not in analysis: analysis['student_answer_original'] = student_answer
+        if 'score' not in analysis and score is not None: analysis['score'] = str(score)
         
-        # ★★★ 교수님 요청대로, analysis 객체에 정보가 비어있을 경우 채워줍니다 ★★★
-        if 'original_korean_question' not in analysis:
-            analysis['original_korean_question'] = korean_question
-        if 'student_answer_original' not in analysis:
-            analysis['student_answer_original'] = student_answer
-        if 'score' not in analysis and score is not None:
-            analysis['score'] = str(score)
-
         with conn.cursor() as cur:
+            # ★★★ [핵심 수정] INSERT 구문에 class_name을 추가하여 저장합니다. ★★★
             cur.execute(
-                "INSERT INTO submissions (exercise_id, student_id, student_answer, score, ai_analysis_json) VALUES (%s, %s, %s, %s, %s)",
-                (exercise_id, student_id, student_answer, score, psycopg2.extras.Json(analysis, dumps=lambda x: json.dumps(x, ensure_ascii=False)))
+                "INSERT INTO submissions (exercise_id, student_id, student_answer, score, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s, %s)",
+                (exercise_id, student_id, student_answer, score, psycopg2.extras.Json(analysis, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
             )
             conn.commit()
 
@@ -244,14 +173,19 @@ def teacher_required(f):
 @app.route('/')
 def login(): return render_template('login.html')
 
+# ★★★ [핵심 수정] /quiz 라우트가 반 별로 문제를 필터링합니다. ★★★
 @app.route('/quiz')
 def quiz_page():
+    class_name = request.args.get('class_name')
+    if not class_name:
+        return redirect(url_for('login'))
+
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute("SELECT id, korean_sentence FROM exercises ORDER BY id;")
+            cur.execute("SELECT id, korean_sentence FROM exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             exercises = cur.fetchall()
-        return render_template('index.html', exercises=exercises)
+        return render_template('index.html', exercises=exercises, class_name=class_name)
     finally:
         if conn: conn.close()
 
@@ -281,7 +215,8 @@ def api_submissions():
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, s.created_at, e.korean_sentence FROM submissions s JOIN exercises e ON e.id = s.exercise_id WHERE s.id > %s ORDER BY s.id ASC LIMIT 50", (since_id,))
+            # ★★★ [핵심 수정] submissions 테이블에서 class_name도 함께 가져옵니다. ★★★
+            cur.execute("SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, s.created_at, e.korean_sentence, s.class_name FROM submissions s JOIN exercises e ON e.id = s.exercise_id WHERE s.id > %s ORDER BY s.id ASC LIMIT 50", (since_id,))
             rows = cur.fetchall()
         items = []
         for r in rows:
