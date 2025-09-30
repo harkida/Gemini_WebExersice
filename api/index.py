@@ -25,7 +25,7 @@ model = None
 if api_key:
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash-001')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
     except Exception as e:
         model = None
@@ -97,7 +97,8 @@ EVALUATION_PROMPT = """
     -   **사소한 의미 불일치:** 전체적인 의미는 맞지만, 특정 단어나 표현의 뉘앙스를 잘못 이해하여 약간의 의미 차이가 발생한 경우. (감점: -0.5 ~ -2.5점) # 감점 폭 미세 조정
 
 4.  **뉘앙스 및 격식 (Nuance & Formality):**
-    -   이것은 감점 요인이 아니다. 하지만 원문의 존댓말/반말, 어조, 관용적 표현의 느낌과 학생 답안의 차이가 있다면, 반드시 'evaluation_feedback'에 [교사용 참고] 태그를 사용하여 그 차이를 명시해야 한다.
+    -   **이것은 절대 감점 요인이 아니다.** 관용구의 번역(예: '표를 끊다' -> 'comprare i biglietti')이나, 존댓말/반말, 어조, 단어 선택의 미묘한 차이는 '오류'로 간주해서는 안 되며, 절대로 감점의 근거가 될 수 없다.
+    -   다만, 이러한 차이점이 교육적으로 의미가 있다고 판단될 경우, 반드시 'evaluation_feedback'에 **[교사용 참고]** 태그를 사용하여 그 차이점만 객관적으로 서술한다. (예: "[교사용 참고] 원문의 관용구 '표를 끊다'는 '표를 사다'는 의미로, 학생의 'comprare' 사용은 자연스럽고 올바른 번역입니다.")
 
 [입력 정보]
 - 한국어 원문: "{Korean_Question}"
