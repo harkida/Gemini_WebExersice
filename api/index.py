@@ -25,7 +25,7 @@ model = None
 if api_key:
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
     except Exception as e:
         model = None
