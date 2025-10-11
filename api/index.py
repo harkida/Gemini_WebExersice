@@ -50,19 +50,70 @@ def init_db():
     if conn:
         try:
             with conn.cursor() as cur:
-                # exercises 테이블에 class_name 컬럼이 없으면 추가합니다.
-                cur.execute("ALTER TABLE exercises ADD COLUMN IF NOT EXISTS class_name VARCHAR(50);")
-                # submissions 테이블에 class_name 컬럼이 없으면 추가합니다.
-                cur.execute("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS class_name VARCHAR(50);")
+                # 1. 기존 테이블 이름 변경 (오류 발생 시에도 계속 진행)
+                try:
+                    cur.execute("ALTER TABLE exercises RENAME TO translation_exercises;")
+                    print("✅ 'exercises' 테이블을 'translation_exercises'로 변경했습니다.")
+                except psycopg2.Error as e:
+                    print(f"ℹ️ 'exercises' 테이블 이름 변경 건너뛰기: {e}")
+                    conn.rollback() # 트랜잭션 리셋
                 
-                # 테이블이 존재하지 않을 경우를 대비한 생성 구문 (기존 구조와 호환)
-                cur.execute("CREATE TABLE IF NOT EXISTS exercises (id SERIAL PRIMARY KEY, korean_sentence TEXT NOT NULL, class_name VARCHAR(50), created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);")
-                cur.execute("CREATE TABLE IF NOT EXISTS submissions (id SERIAL PRIMARY KEY, exercise_id INTEGER REFERENCES exercises(id), student_id VARCHAR(255) NOT NULL, student_answer TEXT, score NUMERIC(3, 1), ai_analysis_json JSONB, class_name VARCHAR(50), created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);")
+                try:
+                    cur.execute("ALTER TABLE submissions RENAME TO translation_submissions;")
+                    print("✅ 'submissions' 테이블을 'translation_submissions'로 변경했습니다.")
+                except psycopg2.Error as e:
+                    print(f"ℹ️ 'submissions' 테이블 이름 변경 건너뛰기: {e}")
+                    conn.rollback() # 트랜잭션 리셋
+
+                # 2. '번역 퀴즈' 관련 테이블 생성 및 보강
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_exercises (
+                        id SERIAL PRIMARY KEY,
+                        korean_sentence TEXT NOT NULL,
+                        class_name VARCHAR(50),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_submissions (
+                        id SERIAL PRIMARY KEY,
+                        exercise_id INTEGER REFERENCES translation_exercises(id) ON DELETE SET NULL,
+                        student_id VARCHAR(255) NOT NULL,
+                        student_answer TEXT,
+                        score NUMERIC(3, 1),
+                        ai_analysis_json JSONB,
+                        class_name VARCHAR(50),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+
+                # 3. '이해력 퀴즈' 관련 테이블 생성
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS comprehension_exercises (
+                        id SERIAL PRIMARY KEY,
+                        korean_dialogue TEXT NOT NULL,
+                        audio_file_path VARCHAR(255),
+                        key_points JSONB,
+                        class_name VARCHAR(50),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS comprehension_submissions (
+                        id SERIAL PRIMARY KEY,
+                        comprehension_exercise_id INTEGER REFERENCES comprehension_exercises(id) ON DELETE SET NULL,
+                        student_id VARCHAR(255) NOT NULL,
+                        class_name VARCHAR(50),
+                        student_answer TEXT,
+                        ai_analysis_json JSONB,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
                 
                 conn.commit()
-                print("✅ 데이터베이스 테이블이 '반별 기능'에 맞게 성공적으로 확인/수정되었습니다.")
+                print("✅ 데이터베이스 테이블이 최종 블루프린트에 맞게 성공적으로 확인/생성되었습니다.")
         except Exception as e:
-            print(f"🚨 테이블 생성/수정 오류: {e}")
+            print(f"🚨 테이블 구조 설정 중 심각한 오류 발생: {e}")
             conn.rollback()
         finally:
             conn.close()
