@@ -384,21 +384,53 @@ def teacher_logout():
 @teacher_required
 def dashboard(): return render_template('dashboard.html')
 
-@app.route('/api/submissions')
+# ★★★ [핵심 수정] Phase 3 & 4: 분리된 대시보드 API ★★★
+@app.route('/api/get-translation-submissions')
 @teacher_required
-def api_submissions():
+def api_translation_submissions():
     if not session.get('is_teacher'): return jsonify({"error": "unauthorized"}), 401
-    since_id = request.args.get('since_id', 0, type=int)
+    
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # ★★★ [핵심 수정] submissions 테이블에서 class_name도 함께 가져옵니다. ★★★
-            cur.execute("SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, s.created_at, e.korean_sentence, s.class_name FROM submissions s JOIN exercises e ON e.id = s.exercise_id WHERE s.id > %s ORDER BY s.id ASC LIMIT 50", (since_id,))
+            cur.execute("""
+                SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, s.created_at, 
+                       e.korean_sentence, s.class_name 
+                FROM translation_submissions s 
+                JOIN translation_exercises e ON e.id = s.exercise_id 
+                ORDER BY s.id DESC LIMIT 100
+            """)
             rows = cur.fetchall()
+        
         items = []
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
             items.append(r)
-        return jsonify({"items": items})
+        return jsonify({"items": items, "quiz_type": "translation"})
+    finally:
+        if conn: conn.close()
+
+@app.route('/api/get-comprehension-submissions')
+@teacher_required
+def api_comprehension_submissions():
+    if not session.get('is_teacher'): return jsonify({"error": "unauthorized"}), 401
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, s.created_at, 
+                       e.korean_dialogue, s.class_name 
+                FROM comprehension_submissions s 
+                JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
+                ORDER BY s.id DESC LIMIT 100
+            """)
+            rows = cur.fetchall()
+        
+        items = []
+        for r in rows:
+            r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
+            items.append(r)
+        return jsonify({"items": items, "quiz_type": "comprehension"})
     finally:
         if conn: conn.close()

@@ -3,251 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>교사 대시보드 (Teacher Dashboard)</title>
+    <title>교사 대시보드</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            margin: 0;
-            padding: 2rem;
-        }
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #444;
-            padding-bottom: 1rem;
-            margin-bottom: 2rem;
-        }
-        h1 {
-            color: #ffffff;
-            margin: 0;
-        }
-        .header-buttons {
-            display: flex;
-            gap: 0.8rem;
-        }
-        .header-buttons button {
-            color: white;
-            border: none;
-            padding: 0.6rem 1.2rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-        #clear-btn {
-            background-color: #c0392b; /* Red */
-        }
-        #clear-btn:hover {
-            background-color: #e74c3c;
-        }
-        #logout-btn {
-            background-color: #555;
-        }
-        #logout-btn:hover {
-            background-color: #777;
-        }
-        #submissions-container {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-        .submission-card {
-            background-color: #2c2c2c;
-            border: 1px solid #444;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeIn 0.5s forwards;
-            overflow: hidden;
-        }
-        @keyframes fadeIn {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .card-main-content {
-            padding: 1.5rem;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid #444;
-            padding-bottom: 1rem;
-        }
-        .student-info {
-            font-size: 1.2rem;
-            font-weight: bold;
-            display: flex; /* ★★★ 수정을 위해 추가 ★★★ */
-            align-items: center; /* ★★★ 수정을 위해 추가 ★★★ */
-            gap: 0.8rem; /* ★★★ 수정을 위해 추가 ★★★ */
-        }
-        .student-info .id {
-            color: #87ceeb; /* Sky Blue */
-        }
-        /* ★★★ [핵심 추가] 반 정보를 위한 뱃지 스타일 ★★★ */
-        .class-badge {
-            background-color: #4f545c;
-            color: #e0e0e0;
-            padding: 0.3rem 0.7rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: normal;
-        }
-        .score {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        .score.high { color: #4CAF50; /* Green */ }
-        .score.low { color: #F44336; /* Red */ }
-        .card-body p {
-            margin: 0.8rem 0;
-            line-height: 1.6;
-        }
-        .card-body strong {
-            color: #b0b0b0; /* Lighter Gray */
-            display: inline-block;
-            width: 150px;
-        }
-        .korean-translation {
-            font-style: italic;
-            color: #a0d8ef;
-        }
-        .timestamp {
-            font-size: 0.8rem;
-            color: #888;
-            text-align: right;
-            margin-top: 1rem;
-        }
-        .feedback-section {
-            background-color: #383838;
-            padding: 1rem 1.5rem;
-            margin-top: 1.5rem;
-            border-top: 1px solid #555;
-        }
-        .feedback-section strong {
-            color: #ffffff;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-        .feedback-section p {
-            margin: 0;
-            line-height: 1.6;
-            color: #d0d0d0;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #1a1a1a; color: #e0e0e0; margin: 0; padding: 2rem; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #444; padding-bottom: 1rem; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+        h1 { color: #ffffff; margin: 0; }
+        .controls { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; }
+        .controls button { color: white; border: 1px solid #555; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 1rem; background-color: #333; transition: background-color 0.2s, border-color 0.2s; }
+        .controls button.active { background-color: #7289da; border-color: #7289da; font-weight: bold; }
+        .controls button:hover:not(.active) { background-color: #444; }
+        #logout-btn { background-color: #555; border: none; }
+        #logout-btn:hover { background-color: #777; }
+        
+        .view-container { display: none; }
+        .view-container.active { display: block; }
+        
+        .submission-card { background-color: #2c2c2c; border: 1px solid #444; border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden; }
+        .card-main-content { padding: 1.5rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #444; padding-bottom: 1rem; }
+        .student-info { font-size: 1.2rem; font-weight: bold; display: flex; align-items: center; gap: 0.8rem; }
+        .student-info .id { color: #87ceeb; }
+        .class-badge { background-color: #4f545c; color: #e0e0e0; padding: 0.3rem 0.7rem; border-radius: 12px; font-size: 0.8rem; font-weight: normal; }
+        .score { font-size: 2rem; font-weight: bold; }
+        .score.high { color: #4CAF50; }
+        .score.low { color: #F44336; }
+        .card-body p { margin: 0.8rem 0; line-height: 1.6; }
+        .card-body strong { color: #b0b0b0; display: inline-block; min-width: 150px; }
+        .timestamp { font-size: 0.8rem; color: #888; margin-top: 1rem; }
+        .feedback-section { background-color: #383838; padding: 1rem 1.5rem; border-top: 1px solid #555; }
+        .feedback-section strong { color: #ffffff; display: block; margin-bottom: 0.5rem; }
+        .feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }
+        .empty-message { text-align: center; padding: 3rem; color: #888; font-size: 1.1rem; }
     </style>
 </head>
 <body>
-
     <header>
         <h1>실시간 제출 현황</h1>
-        <div class="header-buttons">
-            <button id="clear-btn" onclick="clearDashboard()">화면 지우기</button>
+        <div class="controls">
+            <button id="btn-translation" class="active" onclick="switchView('translation')">번역 퀴즈 결과</button>
+            <button id="btn-comprehension" onclick="switchView('comprehension')">이해력 퀴즈 결과</button>
             <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
         </div>
     </header>
 
-    <div id="submissions-container">
-        <!-- 새로운 제출물이 여기에 동적으로 추가됩니다 -->
-    </div>
+    <!-- 번역 퀴즈 결과 영역 -->
+    <div id="translation-view" class="view-container active"></div>
+
+    <!-- 이해력 퀴즈 결과 영역 -->
+    <div id="comprehension-view" class="view-container"></div>
 
     <script>
-        let lastSubmissionId = 0;
+        let currentView = 'translation';
 
-        function clearDashboard() {
-            const container = document.getElementById('submissions-container');
-            container.innerHTML = '';
-            console.log('대시보드 화면이 초기화되었습니다.');
+        function switchView(viewType) {
+            currentView = viewType;
+            
+            // 버튼 상태 업데이트
+            document.querySelectorAll('.controls button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${viewType}`).classList.add('active');
+
+            // 뷰 전환
+            document.querySelectorAll('.view-container').forEach(container => container.classList.remove('active'));
+            document.getElementById(`${viewType}-view`).classList.add('active');
+
+            // 데이터 로드
+            loadSubmissions(viewType);
         }
 
-        async function fetchNewSubmissions() {
+        async function loadSubmissions(quizType) {
+            const container = document.getElementById(`${quizType}-view`);
+            container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
+            
             try {
-                const response = await fetch(`/api/submissions?since_id=${lastSubmissionId}`);
+                const response = await fetch(`/api/get-${quizType}-submissions`);
                 if (!response.ok) {
                     if (response.status === 401) window.location.href = '/teacher-login';
                     throw new Error(`서버 응답 오류: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                const container = document.getElementById('submissions-container');
+                container.innerHTML = '';
 
                 if (data.items && data.items.length > 0) {
-                    const reversedItems = [...data.items].reverse();
-
-                    reversedItems.forEach(item => {
-                        const card = document.createElement('div');
-                        card.className = 'submission-card';
-
-                        const scoreValue = parseFloat(item.score);
-                        const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
-                        const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
-                        const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
-
-                        const analysis = item.ai_analysis_json || {};
-                        const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
-                        const vocabItalian = analysis.key_vocabularies_italian || [];
-                        const vocabKorean = analysis.key_vocabularies_korean_translation || [];
-                        
-                        const evaluationFeedback = analysis.evaluation_feedback || '(AI 피드백 없음)';
-
-                        let keywordsString = '';
-                        if (vocabItalian.length > 0) {
-                            const keywordsArray = vocabItalian.map((vocab, index) => {
-                                return `${vocab}(${vocabKorean[index] || '뜻 없음'})`;
-                            });
-                            keywordsString = keywordsArray.join(', ');
-                        }
-
-                        const keywordsHtml = keywordsString 
-                            ? `<p><strong>키워드 :</strong> ${keywordsString}</p>`
-                            : '';
-                        
-                        const feedbackHtml = `
-                            <div class="feedback-section">
-                                <strong>AI 평가 피드백:</strong>
-                                <p>${evaluationFeedback}</p>
-                            </div>
-                        `;
-
-                        // ★★★ [핵심 수정] card.innerHTML에 반 정보(class_name) 뱃지를 추가합니다. ★★★
-                        card.innerHTML = `
-                            <div class="card-main-content">
-                                <div class="card-header">
-                                    <div class="student-info">
-                                        <span>학생 ID: <span class="id">${item.student_id}</span></span>
-                                        <span class="class-badge">${item.class_name || '반 없음'}</span>
-                                    </div>
-                                    <div class="score ${scoreClass}">${scoreDisplay}</div>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>원본 한국어 문장:</strong> ${item.korean_sentence}</p>
-                                    <p><strong>학생 제출 답안:</strong> ${item.student_answer}</p>
-                                    ${keywordsHtml}
-                                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
-                                </div>
-                                <div class="timestamp">${formattedDate}</div>
-                            </div>
-                            ${feedbackHtml}
-                        `;
-                        
-                        container.prepend(card);
+                    data.items.forEach(item => {
+                        const card = createSubmissionCard(item, quizType);
+                        container.appendChild(card);
                     });
-
-                    lastSubmissionId = data.items[data.items.length - 1].id;
+                } else {
+                    container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
                 }
             } catch (error) {
-                console.error('제출물을 가져오는 중 오류 발생:', error);
+                console.error(`${quizType} 제출물 로딩 오류:`, error);
+                container.innerHTML = `<p class="empty-message" style="color: #e74c3c;">데이터를 불러오는 데 실패했습니다.</p>`;
             }
         }
 
-        setInterval(fetchNewSubmissions, 3000);
-        fetchNewSubmissions();
-    </script>
+        function createSubmissionCard(item, quizType) {
+            const card = document.createElement('div');
+            card.className = 'submission-card';
 
+            const analysis = item.ai_analysis_json || {};
+            let scoreValue, questionText, feedbackText;
+
+            if (quizType === 'translation') {
+                scoreValue = parseFloat(item.score);
+                questionText = item.korean_sentence;
+                feedbackText = analysis.evaluation_feedback || '(피드백 없음)';
+            } else {
+                scoreValue = parseFloat(analysis.score);
+                questionText = item.korean_dialogue;
+                feedbackText = analysis.evaluation || '(평가 없음)';
+            }
+
+            const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
+            const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
+            const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
+
+            card.innerHTML = `
+                <div class="card-main-content">
+                    <div class="card-header">
+                        <div class="student-info">
+                            <span>학생 ID: <span class="id">${item.student_id}</span></span>
+                            <span class="class-badge">${item.class_name || '반 없음'}</span>
+                        </div>
+                        <div class="score ${scoreClass}">${scoreDisplay}</div>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>원본:</strong> ${questionText}</p>
+                        <p><strong>학생 답안:</strong> ${item.student_answer}</p>
+                    </div>
+                    <div class="timestamp">${formattedDate}</div>
+                </div>
+                <div class="feedback-section">
+                    <strong>AI 평가 (교수용):</strong>
+                    <p>${feedbackText}</p>
+                </div>
+            `;
+            return card;
+        }
+
+        // 페이지 로드 시 기본 뷰(번역 퀴즈) 로드
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSubmissions('translation');
+        });
+    </script>
 </body>
 </html>
