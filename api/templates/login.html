@@ -78,11 +78,16 @@
         <form id="login-form">
             <select id="class-name" class="input-field" required>
                 <option value="" disabled selected>반을 선택하세요</option>
-                <!-- ★★★ [핵심 수정] '초급반' 옵션을 추가했습니다. ★★★ -->
                 <option value="siena-beginner">초급반 (Principianti)</option>
                 <option value="siena-3">3학년 (Triennale)</option>
                 <option value="siena-master-1">석사 1학년 (Magistrale 1)</option>
                 <option value="siena-master-2">석사 2학년 (Magistrale 2)</option>
+            </select>
+            
+            <select id="quiz-type" class="input-field" required>
+                <option value="" disabled selected>퀴즈 유형을 선택하세요</option>
+                <option value="translation">번역 퀴즈 (Traduzione)</option>
+                <option value="comprehension">이해력 퀴즈 (Comprensione)</option>
             </select>
 
             <input type="text" id="student-id" class="input-field" placeholder="이름 또는 ID를 입력하세요" required>
@@ -91,22 +96,24 @@
     </div>
 
     <script>
-        // --- 교수님의 효율적인 자바스크립트 로직을 그대로 유지합니다 ---
         document.getElementById('login-form').addEventListener('submit', function(event) {
             event.preventDefault(); 
 
             const studentId = document.getElementById('student-id').value;
             const className = document.getElementById('class-name').value;
+            const quizType = document.getElementById('quiz-type').value; // ★★★ [핵심 추가] 퀴즈 유형 값 가져오기
 
-            if (!className) {
-                alert('반을 선택해주세요!');
+            if (!className || !quizType) {
+                alert('반과 퀴즈 유형을 모두 선택해주세요!');
                 return;
             }
 
             localStorage.setItem('studentId', studentId);
             localStorage.setItem('className', className);
+            localStorage.setItem('quizType', quizType); // ★★★ [핵심 추가] 퀴즈 유형도 로컬 스토리지에 저장
 
-            window.location.href = `/quiz?class_name=${encodeURIComponent(className)}`;
+            // ★★★ [핵심 수정] URL에 quiz_type 파라미터 추가
+            window.location.href = `/quiz?class_name=${encodeURIComponent(className)}&quiz_type=${encodeURIComponent(quizType)}`;
         });
     </script>
 </body>
