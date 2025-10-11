@@ -172,59 +172,148 @@ JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다. 점수 �
 }}
 """
 
+# --- 이해력(Comprehension) 퀴즈용 채점 프롬프트 (블루프린트 부록 반영) ---
+COMPREHENSION_EVALUATION_PROMPT = """
+You are an expert AI assistant specializing in Korean language education for Italian students. Your mission is to evaluate how well a student has understood a Korean dialogue based on specific scoring criteria (`key_points`) set by the professor.
+
+[Input Information]
+- Student's Italian Answer: "{student_answer}"
+- Professor's Scoring Criteria (key_points): {key_points_json}
+
+[Evaluation Guidelines]
+1. **Vocabulary Assessment (1단계):** Check if the student's answer includes the Italian equivalents (or valid synonyms) of the words in `target_vocabulary` from `key_points`. Award basic points based on vocabulary usage.
+
+2. **Contextual Assessment (2단계):** Evaluate if the overall meaning of the student's answer aligns with the core ideas described in `meaning_points` from `key_points`. Award additional points or deduct based on meaning accuracy.
+
+3. **Core Scoring Principles (핵심 평가 원칙):**
+   - **Synonyms (유의어):** If the student uses valid synonyms not present in `target_vocabulary`, and the context is correct, award high scores. Mention the original target vocabulary in `feedback`.
+   - **Context Drift (문맥 이탈):** If the student uses key vocabulary but writes content unrelated to `meaning_points`, award low scores and guide them in `feedback`.
+   - **Subject/Object Confusion (주체/객체 혼동):** Confusing the subject or object is a critical error. Award very low scores.
+   - **Over-Inference (과잉 추론):** If the answer includes facts not present in the original dialogue (student's inference), consider it a failure to summarize key points. Award low scores.
+   - **Sentence Structure Variation (문장 구조 변형):** If grammatical structure differs (e.g., active to passive) but meaning is perfectly preserved, full marks can be awarded.
+
+4. **Scoring:** Synthesize the above assessments to assign a score out of 10.0 (e.g., 9.5, 8.0, 7.5). The score MUST have one decimal place.
+
+5. **Output Format:** Your response MUST be ONLY a single JSON object. Do NOT add any explanatory text before or after the JSON.
+
+[Required JSON Output Format]
+```json
+{{
+  "score": 8.5,
+  "evaluation": "(한국어로) 핵심 어휘 '복잡하다(difficile)'와 '찾다(trovare)' 사용. 핵심 의미 '키아라가 지하철역을 복잡하게 생각함'을 정확히 파악. 높은 점수 부여.",
+  "feedback": "(이탈리아어로) Ottima comprensione! Hai capito il punto chiave della conversazione. Per una risposta perfetta, prova a usare il vocabolario target come 'stazione della metropolitana'. Continua così!"
+}}
+
+Important Notes:
+score: A number (float) out of 10.0, with one decimal place.
+evaluation: (In Korean) An objective summary of the scoring process for the professor's review, based strictly on key_points.
+feedback: (In Italian) Encouraging and constructive feedback for the student.
+"""
+
+
 @app.route('/api/submit-answer', methods=['POST'])
 def submit_answer():
     data = request.get_json(silent=True) or {}
     student_id = data.get('student_id')
     student_answer = data.get('student_answer')
     exercise_id = data.get('exercise_id')
-    # ★★★ [핵심 수정] 요청 본문에서 class_name을 가져옵니다. ★★★
     class_name = data.get('class_name')
+    quiz_type = data.get('quiz_type')  # ★★★ [핵심 추가] quiz_type 받기
 
-    # ★★★ [핵심 수정] class_name도 필수 정보로 확인합니다. ★★★
-    if not all([student_id, student_answer, exercise_id, class_name]):
-        return jsonify({"error": "필수 정보 누락 (반 정보 포함)"}), 400
+    # ★★★ [핵심 수정] quiz_type도 필수 정보로 확인
+    if not all([student_id, student_answer, exercise_id, class_name, quiz_type]):
+        return jsonify({"error": "필수 정보 누락 (퀴즈 유형 포함)"}), 400
 
     conn = None
     try:
         conn = get_db_connection()
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
-
-        with conn.cursor() as cur:
-            cur.execute("SELECT korean_sentence FROM exercises WHERE id = %s;", (exercise_id,))
-            row = cur.fetchone()
-            if not row: return jsonify({"error": "문제 ID 없음"}), 404
-            korean_question = row[0]
-
         if not model: return jsonify({"error": "AI 모델 미설정"}), 500
 
-        prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
-        response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
-        raw_text = getattr(response, 'text', '').strip()
-        json_str = extract_first_json_block(raw_text) or raw_text
-        ai_result = json.loads(json_str)
-        score_raw = ai_result.get('score')
-        score = None
-        if score_raw is not None:
-            score = round(float(str(score_raw).strip().replace(',', '.')), 1)
-        analysis = ai_result.get('analysis', {})
-        if 'original_korean_question' not in analysis: analysis['original_korean_question'] = korean_question
-        if 'student_answer_original' not in analysis: analysis['student_answer_original'] = student_answer
-        if 'score' not in analysis and score is not None: analysis['score'] = str(score)
-        
+        # ★★★ [핵심 분기] quiz_type에 따라 다른 테이블 조회 및 저장
         with conn.cursor() as cur:
-            # ★★★ [핵심 수정] INSERT 구문에 class_name을 추가하여 저장합니다. ★★★
-            cur.execute(
-                "INSERT INTO submissions (exercise_id, student_id, student_answer, score, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s, %s)",
-                (exercise_id, student_id, student_answer, score, psycopg2.extras.Json(analysis, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
-            )
+            if quiz_type == 'translation':
+                # 번역 퀴즈: translation_exercises에서 원문 조회
+                cur.execute("SELECT korean_sentence FROM translation_exercises WHERE id = %s;", (exercise_id,))
+                row = cur.fetchone()
+                if not row: return jsonify({"error": "문제 ID 없음"}), 404
+                korean_question = row[0]
+
+                # AI 채점 (번역용 프롬프트)
+                prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
+                response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
+                raw_text = getattr(response, 'text', '').strip()
+                json_str = extract_first_json_block(raw_text) or raw_text
+                ai_result = json.loads(json_str)
+                
+                score_raw = ai_result.get('score')
+                score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
+                analysis = ai_result.get('analysis', {})
+                
+                # translation_submissions 테이블에 저장
+                cur.execute(
+                    "INSERT INTO translation_submissions (exercise_id, student_id, student_answer, score, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (exercise_id, student_id, student_answer, score, psycopg2.extras.Json(analysis, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
+                )
+                
+            elif quiz_type == 'comprehension':
+                # 이해력 퀴즈: comprehension_exercises에서 대화문과 key_points 조회
+                cur.execute("SELECT korean_dialogue, key_points FROM comprehension_exercises WHERE id = %s;", (exercise_id,))
+                row = cur.fetchone()
+                if not row: return jsonify({"error": "문제 ID 없음"}), 404
+                korean_dialogue, key_points = row[0], row[1]
+
+                # AI 채점 (이해력용 프롬프트 사용)
+                prompt_text = COMPREHENSION_EVALUATION_PROMPT.format(student_answer=student_answer, key_points_json=json.dumps(key_points, ensure_ascii=False))
+                response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
+                raw_text = getattr(response, 'text', '').strip()
+                json_str = extract_first_json_block(raw_text) or raw_text
+                ai_result = json.loads(json_str)
+                
+                score_raw = ai_result.get('score')
+                score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
+                
+                # comprehension_submissions 테이블에 저장 (ai_analysis_json에 전체 결과 저장)
+                cur.execute(
+                    "INSERT INTO comprehension_submissions (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s)",
+                    (exercise_id, student_id, student_answer, psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
+                )
+            else:
+                return jsonify({"error": "잘못된 퀴즈 유형"}), 400
+
             conn.commit()
 
-        return jsonify({"success": True, "score": score})
+        # ★★★ [핵심 추가] 교수님께서 정해주신 5단계 평가 기준 적용
+        def get_rating_details(score):
+            score = float(score) if score else 0
+            if score >= 8.6: return {"category": "Eccellente", "color": "teal"}
+            if score >= 7.1: return {"category": "Buono", "color": "lightgreen"}
+            if score >= 5.6: return {"category": "Sufficiente", "color": "gold"}
+            if score >= 4.1: return {"category": "Da migliorare", "color": "orange"}
+            return {"category": "Riprova", "color": "red"}
+
+        rating_info = get_rating_details(score)
+
+        # 학생에게 보낼 피드백 추출
+        if quiz_type == 'translation':
+            student_feedback = analysis.get('evaluation_feedback', 'Nessun feedback disponibile.')
+        elif quiz_type == 'comprehension':
+            student_feedback = ai_result.get('feedback', 'Nessun feedback disponibile.')
+        else:
+            student_feedback = 'Feedback non disponibile.'
+
+        return jsonify({
+            "success": True, 
+            "score": score,
+            "rating_category": rating_info["category"],
+            "rating_color": rating_info["color"],
+            "feedback": student_feedback
+        })    
 
     except Exception as e:
-        print(f"🚨 /api/submit-answer 의 예측하지 못한 위치에서 오류 발생: {e}")
+        print(f"🚨 /api/submit-answer 오류: {e}")
         traceback.print_exc()
+        if conn: conn.rollback()
         return jsonify({"error": "서버 내부 오류가 발생했습니다."}), 500
     finally:
         if conn: conn.close()
@@ -244,17 +333,38 @@ def login(): return render_template('login.html')
 @app.route('/quiz')
 def quiz_page():
     class_name = request.args.get('class_name')
-    if not class_name:
+    quiz_type = request.args.get('quiz_type')
+    
+    if not class_name or not quiz_type:
+        # 필수 정보가 없으면 로그인 페이지로 돌려보냅니다.
         return redirect(url_for('login'))
 
     conn = get_db_connection()
+    if not conn:
+        return "데이터베이스 연결에 실패했습니다.", 500
+        
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute("SELECT id, korean_sentence FROM exercises WHERE class_name = %s ORDER BY id;", (class_name,))
+            if quiz_type == 'translation':
+                # 번역 퀴즈 문제 목록을 불러옵니다.
+                cur.execute("SELECT id, korean_sentence AS question_text FROM translation_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
+            elif quiz_type == 'comprehension':
+                # 이해력 퀴즈 문제 목록을 불러옵니다.
+                cur.execute("SELECT id, korean_dialogue AS question_text FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
+            else:
+                # 잘못된 퀴즈 유형일 경우 에러를 표시합니다.
+                return "잘못된 퀴즈 유형입니다.", 400
+            
             exercises = cur.fetchall()
-        return render_template('index.html', exercises=exercises, class_name=class_name)
+        
+        # 퀴즈 유형(quiz_type)을 HTML 템플릿으로 함께 전달합니다.
+        return render_template('index.html', exercises=exercises, class_name=class_name, quiz_type=quiz_type)
+    except Exception as e:
+        print(f"🚨 /quiz 페이지 로딩 오류: {e}")
+        return "퀴즈를 불러오는 중 오류가 발생했습니다.", 500
     finally:
-        if conn: conn.close()
+        if conn:
+            conn.close()
 
 @app.route('/teacher-login', methods=['GET', 'POST'])
 def teacher_login():
