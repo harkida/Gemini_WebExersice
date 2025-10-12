@@ -95,7 +95,7 @@
         async function loadSubmissions(quizType) {
             const container = document.getElementById(`${quizType}-view`);
             
-            // ★★★ 첫 로딩일 때만 "데이터를 불러오는 중..." 표시 ★★★
+            // 첫 로딩일 때만 "데이터를 불러오는 중..." 표시
             if (container.children.length === 0) {
                 container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
             }
@@ -109,15 +109,38 @@
                 
                 const data = await response.json();
 
-                // ★★★ 데이터를 받은 후 한 번에 업데이트 ★★★
                 if (data.items && data.items.length > 0) {
-                    container.innerHTML = '';  // 새 데이터로 교체하기 직전에만 지움
-                    data.items.forEach(item => {
-                        const card = createSubmissionCard(item, quizType);
-                        container.appendChild(card);
-                    });
+                    // ★★★ 현재 뷰의 마지막 ID 가져오기 ★★★
+                    const lastId = quizType === 'translation' ? lastTranslationId : lastComprehensionId;
+                    
+                    // ★★★ 새로운 제출물만 필터링 ★★★
+                    const newItems = data.items.filter(item => item.id > lastId);
+                    
+                    if (newItems.length > 0) {
+                        // ★★★ "데이터를 불러오는 중..." 메시지 제거 (첫 로딩 시) ★★★
+                        const emptyMessage = container.querySelector('.empty-message');
+                        if (emptyMessage) {
+                            container.innerHTML = '';
+                        }
+                        
+                        // ★★★ 새 카드만 추가 (기존 카드는 유지) ★★★
+                        newItems.reverse().forEach(item => {
+                            const card = createSubmissionCard(item, quizType);
+                            container.prepend(card);  // 맨 위에 추가
+                        });
+                        
+                        // ★★★ 마지막 ID 업데이트 ★★★
+                        const maxId = Math.max(...data.items.map(item => item.id));
+                        if (quizType === 'translation') {
+                            lastTranslationId = maxId;
+                        } else {
+                            lastComprehensionId = maxId;
+                        }
+                    }
                 } else {
-                    container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
+                    if (container.children.length === 0) {
+                        container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
+                    }
                 }
             } catch (error) {
                 console.error(`${quizType} 제출물 로딩 오류:`, error);
