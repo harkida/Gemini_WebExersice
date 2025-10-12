@@ -78,7 +78,11 @@
 
         async function loadSubmissions(quizType) {
             const container = document.getElementById(`${quizType}-view`);
-            container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
+            
+            // ★★★ 첫 로딩일 때만 "데이터를 불러오는 중..." 표시 ★★★
+            if (container.children.length === 0) {
+                container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
+            }
             
             try {
                 const response = await fetch(`/api/get-${quizType}-submissions`);
@@ -88,9 +92,10 @@
                 }
                 
                 const data = await response.json();
-                container.innerHTML = '';
 
+                // ★★★ 데이터를 받은 후 한 번에 업데이트 ★★★
                 if (data.items && data.items.length > 0) {
+                    container.innerHTML = '';  // 새 데이터로 교체하기 직전에만 지움
                     data.items.forEach(item => {
                         const card = createSubmissionCard(item, quizType);
                         container.appendChild(card);
