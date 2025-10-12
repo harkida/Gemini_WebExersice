@@ -163,7 +163,7 @@ JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다. 점수 �
 }}
 """
 
-# --- 이해력(Comprehension) 퀴즈용 채점 프롬프트 (블루프린트 부록 반영) ---
+# --- ★★★ [핵심 수정] 이해력(Comprehension) 퀴즈용 채점 프롬프트 ★★★ ---
 COMPREHENSION_EVALUATION_PROMPT = """
 You are an expert AI assistant specializing in Korean language education for Italian students. Your mission is to evaluate how well a student has understood a Korean dialogue based on specific scoring criteria (`key_points`) set by the professor.
 
@@ -191,14 +191,22 @@ You are an expert AI assistant specializing in Korean language education for Ita
 ```json
 {{
   "score": 8.5,
+  "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
+  "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
+  "key_vocabularies_italian": ["학생 답안에서 추출된 핵심 이탈리아어 어휘의 기본형"],
+  "key_vocabularies_korean_translation": ["위 이탈리아어 어휘들의 한국어 뜻"],
   "evaluation": "(한국어로) 핵심 어휘 '복잡하다(difficile)'와 '찾다(trovare)' 사용. 핵심 의미 '키아라가 지하철역을 복잡하게 생각함'을 정확히 파악. 높은 점수 부여.",
   "feedback": "(이탈리아어로) Ottima comprensione! Hai capito il punto chiave della conversazione. Per una risposta perfetta, prova a usare il vocabolario target come 'stazione della metropolitana'. Continua così!"
 }}
 
 Important Notes:
-score: A number (float) out of 10.0, with one decimal place.
-evaluation: (In Korean) An objective summary of the scoring process for the professor's review, based strictly on key_points.
-feedback: (In Italian) Encouraging and constructive feedback for the student.
+- score: A number (float) out of 10.0, with one decimal place.
+- student_answer_original: The exact Italian answer submitted by the student.
+- student_answer_korean_translation: A natural Korean translation of the student's Italian answer.
+- key_vocabularies_italian: An array of key Italian vocabulary (base forms) extracted from the student's answer.
+- key_vocabularies_korean_translation: An array of Korean meanings for the above Italian vocabulary.
+- evaluation: (In Korean) An objective summary of the scoring process for the professor's review, based strictly on key_points.
+- feedback: (In Italian) Encouraging and constructive feedback for the student.
 """
 
 

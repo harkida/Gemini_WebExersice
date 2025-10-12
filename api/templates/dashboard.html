@@ -34,6 +34,7 @@
         .feedback-section strong { color: #ffffff; display: block; margin-bottom: 0.5rem; }
         .feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }
         .empty-message { text-align: center; padding: 3rem; color: #888; font-size: 1.1rem; }
+        .korean-translation { font-style: italic; color: #a0d8ef; }
     </style>
 </head>
 <body>
@@ -46,10 +47,7 @@
         </div>
     </header>
 
-    <!-- 번역 퀴즈 결과 영역 -->
     <div id="translation-view" class="view-container active"></div>
-
-    <!-- 이해력 퀴즈 결과 영역 -->
     <div id="comprehension-view" class="view-container"></div>
 
     <script>
@@ -57,16 +55,10 @@
 
         function switchView(viewType) {
             currentView = viewType;
-            
-            // 버튼 상태 업데이트
             document.querySelectorAll('.controls button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`btn-${viewType}`).classList.add('active');
-
-            // 뷰 전환
             document.querySelectorAll('.view-container').forEach(container => container.classList.remove('active'));
             document.getElementById(`${viewType}-view`).classList.add('active');
-
-            // 데이터 로드
             loadSubmissions(viewType);
         }
 
@@ -104,15 +96,38 @@
 
             const analysis = item.ai_analysis_json || {};
             let scoreValue, questionText, feedbackText;
+            
+            // ★★★ [핵심 수정] 퀴즈 유형에 관계없이 공통으로 사용할 변수들 ★★★
+            const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
+            const vocabItalian = analysis.key_vocabularies_italian || [];
+            const vocabKorean = analysis.key_vocabularies_korean_translation || [];
+            
+            let keywordsString = '';
+            if (vocabItalian.length > 0) {
+                keywordsString = vocabItalian.map((vocab, index) => 
+                    `${vocab}(${vocabKorean[index] || '뜻 없음'})`
+                ).join(', ');
+            }
 
+            const keywordsHtml = keywordsString 
+                ? `<p><strong>핵심 어휘:</strong> ${keywordsString}</p>`
+                : '';
+            
+            // 공통 상세 분석 HTML
+            const cardBodyExtraHtml = `
+                <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
+                ${keywordsHtml}
+            `;
+
+            // 퀴즈 유형별로 다른 데이터 설정
             if (quizType === 'translation') {
                 scoreValue = parseFloat(item.score);
                 questionText = item.korean_sentence;
                 feedbackText = analysis.evaluation_feedback || '(피드백 없음)';
-            } else {
-                scoreValue = parseFloat(analysis.score);
+            } else { // comprehension
+                scoreValue = parseFloat(analysis.score); // 이해력 퀴즈는 analysis 객체 안의 score를 사용
                 questionText = item.korean_dialogue;
-                feedbackText = analysis.evaluation || '(평가 없음)';
+                feedbackText = analysis.evaluation || '(평가 없음)'; // 이해력 퀴즈는 'evaluation' 필드 사용
             }
 
             const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
@@ -131,6 +146,8 @@
                     <div class="card-body">
                         <p><strong>원본:</strong> ${questionText}</p>
                         <p><strong>학생 답안:</strong> ${item.student_answer}</p>
+                        <!-- ★★★ [핵심 수정] 상세 분석 HTML이 모든 카드에 공통으로 적용됩니다 ★★★ -->
+                        ${cardBodyExtraHtml}
                     </div>
                     <div class="timestamp">${formattedDate}</div>
                 </div>
@@ -142,7 +159,6 @@
             return card;
         }
 
-        // 페이지 로드 시 기본 뷰(번역 퀴즈) 로드
         document.addEventListener('DOMContentLoaded', () => {
             loadSubmissions('translation');
         });
