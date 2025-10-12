@@ -149,27 +149,26 @@ def translate_italian_to_korean(italian_text):
 
 # --- 채점 프롬프트 (교수님 지시대로 축약) ---
 EVALUATION_PROMPT = """
-
 너는 한국어와 이탈리아어에 모두 능통한 언어 평가 전문가이다. 너의 유일한 임무는 '한국어 원문'을 듣고 학생이 작성한 '이탈리아어 답안'이 원문의 의미를 얼마나 정확하게 이해하고 반영했는지를 평가하는 것이다.
+
+[입력 정보]
+- 한국어 원문: "{Korean_Question}"
+- 학생의 이탈리아어 답안: "{Student_Answer}"
 
 [핵심 원칙]
 이것은 이탈리아어 작문 시험이 아니다. 학생의 이탈리아어 문법이 다소 어색하거나 사소한 오류가 있더라도, 원문의 의미를 이해했다고 판단되면 절대 감점하지 마라. 평가는 오직 '의미의 정확성' 하나만을 기준으로 한다.
 
 [채점 기준: 의미의 정확성 (Semantic Accuracy) - 100%]
-1.  만점(10.0)에서 시작한다.
-2.  **점수는 반드시 소수점 첫째 자리까지 평가해야 한다 (예: 9.6, 8.1, 7.3). 정수(7, 8, 9)로만 점수를 매기는 것은 허용되지 않는다.**
-3.  아래 기준에 따라 오류를 발견할 때마다 점수를 차감한다.
-    -   **완전한 오역 또는 의미 왜곡:** 원문의 핵심 의미를 완전히 잘못 이해하여 정반대의 의미나 전혀 다른 의미로 번역한 경우. (감점: -5.1 ~ -8.0점)
-    -   **핵심 정보 누락/오류:** 문장의 주어, 목적어, 동사 등 핵심적인 구성 요소나 정보를 빠뜨리거나 틀리게 번역한 경우. (감점: -2.6 ~ -5.0점)
-    -   **사소한 의미 불일치:** 전체적인 의미는 맞지만, 특정 단어나 표현의 뉘앙스를 잘못 이해하여 약간의 의미 차이가 발생한 경우. (감점: -0.5 ~ -2.5점)
+    1.  만점(10.0)에서 시작한다.
+    2.  **점수는 반드시 소수점 첫째 자리까지 평가해야 한다 (예: 9.6, 8.1, 7.3). 정수(7, 8, 9)로만 점수를 매기는 것은 허용되지 않는다.**
+    3.  아래 기준에 따라 오류를 발견할 때마다 점수를 차감한다.
+        -   **완전한 오역 또는 의미 왜곡:** 원문의 핵심 의미를 완전히 잘못 이해하여 정반대의 의미나 전혀 다른 의미로 번역한 경우. (감점: -5.1 ~ -8.0점)
+        -   **핵심 정보 누락/오류:** 문장의 주어, 목적어, 동사 등 핵심적인 구성 요소나 정보를 빠뜨리거나 틀리게 번역한 경우. (감점: -2.6 ~ -5.0점)
+        -   **사소한 의미 불일치:** 전체적인 의미는 맞지만, 특정 단어나 표현의 뉘앙스를 잘못 이해하여 약간의 의미 차이가 발생한 경우. (감점: -0.5 ~ -2.5점)
 
-4.  **뉘앙스 및 격식 (Nuance & Formality):**
-    -   **이것은 절대 감점 요인이 아니다.** 관용구의 번역(예: '표를 끊다' -> 'comprare i biglietti')이나, 존댓말/반말, 어조, 단어 선택의 미묘한 차이는 '오류'로 간주해서는 안 되며, 절대로 감점의 근거가 될 수 없다.
-    -   다만, 이러한 차이점이 교육적으로 의미가 있다고 판단될 경우, 반드시 'evaluation_feedback'에 **[교사용 참고]** 태그를 사용하여 그 차이점만 객관적으로 서술한다.
-
-[입력 정보]
-- 한국어 원문: "{Korean_Question}"
-- 학생의 이탈리아어 답안: "{Student_Answer}"
+    4.  **뉘앙스 및 격식 (Nuance & Formality):**
+        -   **이것은 절대 감점 요인이 아니다.** 관용구의 번역(예: '표를 끊다' -> 'comprare i biglietti')이나, 존댓말/반말, 어조, 단어 선택의 미묘한 차이는 '오류'로 간주해서는 안 되며, 절대로 감점의 근거가 될 수 없다.
+        -   다만, 이러한 차이점이 교육적으로 의미가 있다고 판단될 경우, 반드시 'evaluation_feedback'에 **[교사용 참고]** 태그를 사용하여 그 차이점만 객관적으로 서술한다.
 
 [출력 형식]
 JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
@@ -195,46 +194,101 @@ You are an expert AI assistant specializing in Korean language education for Ita
 - **Student's Italian Answer:** "{student_answer}"
 - **Professor's Scoring Criteria (key_points):** {key_points_json}
 
-[Evaluation Guidelines]
-1. **Dialogue Comprehension (대화 이해도):** First, thoroughly read the original Korean dialogue to understand its full context, nuances, and key points.
+[Scoring Structure - Total: 10.0 points]
 
-2. **Vocabulary Assessment (1단계):** Check if the student's answer includes the Italian equivalents (or valid synonyms) of the words in `target_vocabulary` from `key_points`. Award basic points based on vocabulary usage.
+1. Target Vocabulary Assessment (목표 어휘 평가) - 30% (3.0 points)
+   
+   Calculate the vocabulary coverage ratio: 
+    - vocabulary_score = (number of target vocabulary used / total target vocabulary) × 3.0
+    - Valid synonyms count as "used"
+    - If a student uses a different but semantically correct word, award full credit for that vocabulary item
+    - Partial credit is NOT given per vocabulary item (it's either used correctly or not)
 
-3. **Contextual Assessment (2단계):** Evaluate if the overall meaning of the student's answer aligns with the core ideas described in `meaning_points` from `key_points`. Award additional points or deduct based on meaning accuracy.
+    **Examples:**
+    - 4 target words, student used 3 correctly → (3/4) × 3.0 = 2.25 points
+    - 2 target words, student used 2 correctly → (2/2) × 3.0 = 3.0 points
+    - 6 target words, student used 4 correctly → (4/6) × 3.0 = 2.0 points
 
-4. **Core Scoring Principles (핵심 평가 원칙):**
-   - **Synonyms (유의어):** If the student uses valid synonyms not present in `target_vocabulary`, and the context is correct, award decent scores. Mention the original target vocabulary in `feedback`.
-   - **Context Drift (문맥 이탈):** If the student uses key vocabulary but writes content unrelated to `meaning_points`, award low scores and guide them in `feedback`.
-   - **Subject/Object Confusion (주체/객체 혼동):** Confusing the subject or object is a critical error. Award very low scores.
-   - **Over-Inference (과잉 추론):** If the answer includes facts not present in the original dialogue (student's inference), consider it a failure to summarize key points. Award low scores.
-   - **Sentence Structure Variation (문장 구조 변형):** If grammatical structure differs (e.g., active to passive) but meaning is perfectly preserved, decent marks can be awarded.
+2. Meaning Points Coverage (핵심 의미 포괄도) - 60% (6.0 points)
 
-5. **Scoring:** Synthesize the above assessments to assign a score out of 10.0 (e.g., 9.6, 8.1, 7.3). The score MUST have one decimal place.
+    Evaluate each meaning_point individually, then calculate: 
+        - meaning_score = (sum of individual meaning_point scores / total number of meaning_points) × 6.0
+    For each meaning_point, assign a score from 0.0 to 1.0:
+        - **1.0:** Fully covered (all aspects of the meaning_point are clearly present)
+        - **0.5-0.7:** Partially covered (some aspects mentioned, but key details missing)
+        - Example: A meaning_point states "기기는 옛날에는 자주 사용되었지만, 지금은 잘 사용되지 않는다"
+        - Student only mentions "지금은 사용 안 함" → 0.5-0.6
+        - Student mentions both past and present → 1.0
+        - **0.0:** Not covered at all
 
-6. **Output Format:** Your response MUST be ONLY a single JSON object. Do NOT add any explanatory text before or after the JSON.
+    **Examples:**
+        - 4 meaning_points, scores: [1.0, 0.6, 1.0, 0.0] → (2.6/4) × 6.0 = 3.9 points
+        - 2 meaning_points, scores: [1.0, 1.0] → (2.0/2) × 6.0 = 6.0 points
+        - 5 meaning_points, scores: [1.0, 0.7, 1.0, 0.5, 0.0] → (3.2/5) × 6.0 = 3.84 points
 
-[Required JSON Output Format]
-```json
+    **Critical Rule:** 
+        - If meaning_points coverage is below 80% (sum/total < 0.8), the final score is CAPPED at 8.0
+        - This ensures that superficial summaries cannot achieve top scores
+
+3. Factual Accuracy (사실 정확성) - 10% (1.0 point baseline)
+
+    Start with 1.0 points, then apply deductions:
+        - **Over-inference (과잉 추론):** Student adds information NOT stated in the dialogue
+            → Deduct 0.5-1.0 points per instance
+
+        - **Factual error (사실 오류):** Student states incorrect information
+            → Deduct 1.0-2.0 points per error
+
+        - **Subject/object confusion (주체/객체 혼동):** Critical error
+            → Deduct 1.5-2.0 points
+
+    The accuracy score can go below 0.0 (resulting in negative contribution to total score)
+
+    Critical Rule:
+        - If there are ANY factual errors or over-inferences, final score is CAPPED at 7.5
+        - This prevents students from writing verbose but inaccurate answers
+
+4. Bonus Points (추가 정확한 정보) - Maximum +0.5 points
+
+    If the student mentions accurate details from the dialogue NOT listed in `meaning_points`:
+        - Award +0.1 to +0.3 per accurate additional fact
+        - Maximum total bonus: +0.5 points
+
+    Important: Bonus points are awarded ONLY if:
+        - The information is explicitly stated in the dialogue
+        - The information is factually correct
+        - No accuracy deductions have been applied (errors disqualify bonus points)
+
+[Evaluation Process]
+1. Count total number of `target_vocabulary` items
+2. Count how many the student used correctly → Calculate vocabulary_score
+3. Count total number of `meaning_points`
+4. Evaluate each meaning_point (0.0 to 1.0) → Calculate meaning_score
+5. Start with accuracy_score = 1.0, apply deductions for errors
+6. Check for bonus-worthy additional accurate information
+7. Calculate preliminary score: vocabulary_score + meaning_score + accuracy_score + bonus
+8. **Apply score caps:**
+    - If meaning_points coverage < 80% → cap at 8.0
+    - If factual errors exist → cap at 7.5
+9. Round to one decimal place (e.g., 7.3, 8.5, 9.2)
+
+[Output Format - JSON Only]
+
 {{
   "score": 8.5,
   "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
   "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
   "key_vocabularies_italian": ["학생 답안에서 추출된 핵심 이탈리아어 어휘의 기본형"],
   "key_vocabularies_korean_translation": ["위 이탈리아어 어휘들의 한국어 뜻"],
-  "evaluation": "(한국어로) 객관적인 채점 근거",
+  "evaluation": "(한국어로) 상세한 채점 근거",
   "feedback": "(이탈리아어로) 학생을 위한 격려와 건설적 피드백"
 }}
 
-Important Notes:
-- score: A number (float) out of 10.0, with one decimal place.
-- student_answer_original: The exact Italian answer submitted by the student.
-- student_answer_korean_translation: A natural Korean translation of the student's Italian answer.
-- key_vocabularies_italian: An array of key Italian vocabulary (base forms) extracted from the student's answer.
-- key_vocabularies_korean_translation: An array of Korean meanings for the above Italian vocabulary.
-- evaluation: (In Korean) An objective summary of the scoring process for the professor's review, based strictly on key_points.
-- feedback: (In Italian) Encouraging and constructive feedback for the student.
+Important:
+- The evaluation field MUST show detailed calculations with actual numbers
+- Clearly state the coverage percentage for meaning_points
+- If a score cap is applied, explain why
 """
-
 
 @app.route('/api/submit-answer', methods=['POST'])
 def submit_answer():
@@ -395,13 +449,6 @@ def quiz_page():
             
             exercises = cur.fetchall()
         
-            print("=" * 60)
-            print(f"🔍 [디버깅] quiz_type: {quiz_type}, class_name: {class_name}")
-            print(f"🔍 [디버깅] 가져온 문제 수: {len(exercises)}")
-            for i, ex in enumerate(exercises):
-                print(f"  문제 {i+1}: ID={ex.get('id')}, audio_file_path={ex.get('audio_file_path')}")
-            print("=" * 60)
-
         return render_template('index.html', exercises=exercises, class_name=class_name, quiz_type=quiz_type)
     except Exception as e:
         print(f"🚨 /quiz 페이지 로딩 오류: {e}")
@@ -462,7 +509,6 @@ def api_comprehension_submissions():
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # ★★★ key_points도 함께 가져옵니다 ★★★
             cur.execute("""
                 SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, s.created_at, 
                        e.korean_dialogue, e.key_points, s.class_name 
@@ -476,12 +522,12 @@ def api_comprehension_submissions():
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
             
-            # ★★★ 학생 피드백을 한국어로 번역 ★★★
             analysis = r.get('ai_analysis_json', {})
             feedback_italian = analysis.get('feedback', '')
-            if feedback_italian:
-                feedback_korean = translate_italian_to_korean(feedback_italian)
-                r['feedback_korean'] = feedback_korean
+            
+            # ★★★ 빈 피드백은 번역 안 함 ★★★
+            if feedback_italian and feedback_italian != 'Nessun feedback disponibile.':
+                r['feedback_korean'] = translate_italian_to_korean(feedback_italian)
             else:
                 r['feedback_korean'] = '(피드백 없음)'
             
