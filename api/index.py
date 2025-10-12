@@ -1,6 +1,11 @@
-from dotenv import load_dotenv
-load_dotenv()
 import os
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # Vercel에서는 dotenv 불필요
+
 import json
 import pathlib
 import traceback
