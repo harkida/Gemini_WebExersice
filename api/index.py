@@ -57,22 +57,6 @@ def init_db():
     if conn:
         try:
             with conn.cursor() as cur:
-                # 1. 기존 테이블 이름 변경 (오류 발생 시에도 계속 진행)
-                try:
-                    cur.execute("ALTER TABLE exercises RENAME TO translation_exercises;")
-                    print("✅ 'exercises' 테이블을 'translation_exercises'로 변경했습니다.")
-                except psycopg2.Error as e:
-                    print(f"ℹ️ 'exercises' 테이블 이름 변경 건너뛰기: {e}")
-                    conn.rollback() # 트랜잭션 리셋
-                
-                try:
-                    cur.execute("ALTER TABLE submissions RENAME TO translation_submissions;")
-                    print("✅ 'submissions' 테이블을 'translation_submissions'로 변경했습니다.")
-                except psycopg2.Error as e:
-                    print(f"ℹ️ 'submissions' 테이블 이름 변경 건너뛰기: {e}")
-                    conn.rollback() # 트랜잭션 리셋
-
-                # 2. '번역 퀴즈' 관련 테이블 생성 및 보강
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS translation_exercises (
                         id SERIAL PRIMARY KEY,
