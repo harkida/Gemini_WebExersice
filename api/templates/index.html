@@ -11,7 +11,6 @@
 
     <style>
         body { 
-            /* Lora 폰트 적용 */
             font-family: 'Lora', serif; 
             background-color: #1e2124; 
             color: #e0e0e0; 
@@ -20,7 +19,6 @@
         }
         .container { max-width: 800px; margin: 20px auto; padding: 30px; background-color: #282c34; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25); }
         h1 { 
-            /* 제목 폰트 적용 */
             font-family: 'Montserrat', sans-serif;
             color: #ffffff; 
             text-align: center; 
@@ -30,7 +28,7 @@
         .quiz-item:last-child { border-bottom: none; }
         .quiz-header { display: flex; align-items: center; margin-bottom: 15px; }
         .quiz-number { font-size: 1.5em; font-weight: bold; color: #7289da; margin-right: 15px; }
-        .instruction-text { font-size: 1.1em; } /* 지시문 텍스트 스타일 */
+        .instruction-text { font-size: 1.1em; }
         .question-text { display: none !important; }
         .audio-player {
             width: 100%;
@@ -39,6 +37,8 @@
             background-color: #40444b;
             border-radius: 8px;
             border: 2px solid #7289da;
+            /* ★★★ [핵심 수정] 정렬 문제를 해결하기 위해 box-sizing 속성 추가 ★★★ */
+            box-sizing: border-box; 
         }
         .audio-player audio {
             width: 100%;
@@ -68,14 +68,12 @@
 </head>
 <body>
   <div class="container">
-    <!-- 제목 번역 -->
     <h1>Test di Comprensione Coreana</h1>
     <div id="quiz-list">
       {% for quiz in quizzes %}
       <div class="quiz-item" id="item-{{ quiz.id }}">
         <div class="quiz-header">
           <span class="quiz-number">{{ loop.index }}.</span>
-          <!-- ★★★ [핵심 수정] 퀴즈 유형에 따라 다른 이탈리아어 안내 문구 표시 ★★★ -->
           <p class="instruction-text">
             {% if quiz_type == 'translation' %}
               Ascolta la frase e traducila in italiano.
@@ -89,26 +87,20 @@
 
         <div class="audio-player">
           <audio controls preload="metadata">
-            <!-- content 필드에 URL이 담겨있으므로, content를 직접 사용합니다. -->
             <source src="{{ quiz.content }}" type="audio/mpeg">
-            <!-- 오디오 재생 실패 시 메시지 번역 -->
             Il tuo browser non supporta la riproduzione audio.
           </audio>
         </div>
 
-        <!-- question_text는 더 이상 사용되지 않으므로 숨겨진 상태로 둡니다. -->
         <div class="question-text">{{ quiz.content }}</div>
         <form class="answer-form" data-quiz-id="{{ quiz.id }}">
-          <!-- placeholder 번역 -->
           <textarea class="answer-input" placeholder="Inserisci qui la tua risposta..." required></textarea>
-          <!-- 버튼 텍스트 번역 -->
           <button type="submit" class="submit-btn">Invia</button>
           
           <div class="result-container"></div>
         </form>
       </div>
       {% else %}
-      <!-- 문제 없을 시 메시지 번역 -->
       <p>Non ci sono ancora quiz per questa classe. Contatta il professore.</p>
       {% endfor %}
     </div>
@@ -120,7 +112,6 @@
     const quizType = "{{ quiz_type }}";
 
     if (!studentId || !className || !quizType) {
-        // 경고 메시지 번역
         alert('Informazioni sullo studente o tipo di quiz mancanti. Si prega di tornare alla pagina di login.');
         window.location.href = '/';
     }
@@ -136,13 +127,11 @@
         const submitButton = this.querySelector('.submit-btn');
 
         if (!studentAnswer.trim()) {
-          // 경고 메시지 번역
           alert('Per favore, inserisci una risposta.');
           return;
         }
 
         submitButton.disabled = true;
-        // 버튼 텍스트 번역
         submitButton.textContent = 'Valutazione in corso...';
         resultContainer.style.display = 'none';
 
@@ -152,7 +141,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 student_id: studentId, 
-                quiz_id: quizId, // exercise_id -> quiz_id 로 변경
+                quiz_id: quizId,
                 student_answer: studentAnswer,
                 class_name: className,
                 quiz_type: quizType
@@ -173,17 +162,14 @@
             `;
           } else {
             resultContainer.style.borderColor = '#e74c3c';
-            // 오류 메시지 번역
             resultContainer.innerHTML = `<p class="error-message">Errore: ${result.error || 'Problema sconosciuto'}</p>`;
           }
         } catch (error) {
           resultContainer.style.display = 'block';
           resultContainer.style.borderColor = '#e74c3c';
-          // 오류 메시지 번역
           resultContainer.innerHTML = `<p class="error-message">Errore di connessione al server.</p>`;
           console.error('Fetch Error:', error);
         } finally {
-          // 버튼 텍스트 번역
           submitButton.textContent = 'Inviato';
         }
       });
