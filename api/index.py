@@ -26,16 +26,22 @@ app = Flask(__name__, template_folder=str(TEMPLATES_DIR))
 app.secret_key = os.environ.get('SECRET_KEY', 'change-this-in-prod')
 TEACHER_PASSWORD = os.environ.get('TEACHER_PASSWORD')
 
-# --- AI 모델 설정 ---
+# --- AI 모델 설정 (★★★ 핵심 수정: 두 개의 모델 사용) ---
 api_key = os.environ.get('GEMINI_API_KEY')
-model = None
+flash_model = None
+pro_model = None
+
 if api_key:
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        flash_model = genai.GenerativeModel('gemini-2.5-flash')
+        pro_model = genai.GenerativeModel('gemini-2.5-pro')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
+        print("   📌 번역 퀴즈: gemini-2.5-flash (빠르고 경제적)")
+        print("   📌 이해력 퀴즈: gemini-2.5-pro (정밀한 평가)")
     except Exception as e:
-        model = None
+        flash_model = None
+        pro_model = None
         print(f"🚨 Gemini AI 모델 설정 오류: {e}")
 else:
     print("⚠️ GEMINI_API_KEY 미설정: 채점 기능이 비활성화됩니다.")
@@ -120,10 +126,10 @@ def extract_first_json_block(text: str):
     if start != -1 and end != -1 and end > start: return t[start:end+1]
     return None
 
-# ★★★ [추가] 이탈리아어를 한국어로 번역하는 함수 ★★★
+# ★★★ [수정] 이탈리아어를 한국어로 번역하는 함수 (Flash 모델 사용) ★★★
 def translate_italian_to_korean(italian_text):
     """AI를 사용하여 이탈리아어 텍스트를 한국어로 번역"""
-    if not model or not italian_text:
+    if not flash_model or not italian_text:
         return "(번역 불가)"
     
     try:
@@ -134,7 +140,7 @@ def translate_italian_to_korean(italian_text):
 
 한국어 번역:"""
         
-        response = model.generate_content(prompt)
+        response = flash_model.generate_content(prompt)
         korean_translation = getattr(response, 'text', '').strip()
         return korean_translation if korean_translation else "(번역 실패)"
     except Exception as e:
@@ -243,7 +249,19 @@ def submit_answer():
     try:
         conn = get_db_connection()
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
-        if not model: return jsonify({"error": "AI 모델 미설정"}), 500
+        
+        # ★★★ [핵심 추가] 퀴즈 유형에 따라 모델 선택 ★★★
+        if quiz_type == 'translation':
+            selected_model = flash_model
+            model_name = "Flash"
+        elif quiz_type == 'comprehension':
+            selected_model = pro_model
+            model_name = "Pro"
+        else:
+            return jsonify({"error": "잘못된 퀴즈 유형"}), 400
+        
+        if not selected_model:
+            return jsonify({"error": f"AI 모델 미설정 ({model_name})"}), 500
 
         with conn.cursor() as cur:
             if quiz_type == 'translation':
@@ -253,7 +271,9 @@ def submit_answer():
                 korean_question = row[0]
 
                 prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
-                response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
+                response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
+                print(f"🤖 [번역 퀴즈] gemini-2.5-flash 사용 - 학생: {student_id}")
+                
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
                 ai_result = json.loads(json_str)
@@ -274,7 +294,9 @@ def submit_answer():
                 korean_dialogue, key_points = row[0], row[1]
 
                 prompt_text = COMPREHENSION_EVALUATION_PROMPT.format(student_answer=student_answer, key_points_json=json.dumps(key_points, ensure_ascii=False))
-                response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
+                response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
+                print(f"🤖 [이해력 퀴즈] gemini-2.5-pro 사용 - 학생: {student_id}")
+                
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
                 ai_result = json.loads(json_str)
@@ -286,8 +308,6 @@ def submit_answer():
                     "INSERT INTO comprehension_submissions (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s)",
                     (exercise_id, student_id, student_answer, psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
                 )
-            else:
-                return jsonify({"error": "잘못된 퀴즈 유형"}), 400
 
             conn.commit()
 
