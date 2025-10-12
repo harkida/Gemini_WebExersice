@@ -1,17 +1,36 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>한국어 듣기 퀴즈</title>
+    <title>Quiz di Ascolto Coreano</title>
+    <!-- 이탈리아어 폰트 Lora, Montserrat 추가 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #1e2124; color: #e0e0e0; margin: 0; padding: 20px; }
+        body { 
+            /* Lora 폰트 적용 */
+            font-family: 'Lora', serif; 
+            background-color: #1e2124; 
+            color: #e0e0e0; 
+            margin: 0; 
+            padding: 20px; 
+        }
         .container { max-width: 800px; margin: 20px auto; padding: 30px; background-color: #282c34; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25); }
-        h1 { color: #ffffff; text-align: center; margin-bottom: 30px; }
+        h1 { 
+            /* 제목 폰트 적용 */
+            font-family: 'Montserrat', sans-serif;
+            color: #ffffff; 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
         .quiz-item { margin-bottom: 25px; padding-bottom: 25px; border-bottom: 1px solid #4f545c; }
         .quiz-item:last-child { border-bottom: none; }
         .quiz-header { display: flex; align-items: center; margin-bottom: 15px; }
         .quiz-number { font-size: 1.5em; font-weight: bold; color: #7289da; margin-right: 15px; }
+        .instruction-text { font-size: 1.1em; } /* 지시문 텍스트 스타일 */
         .question-text { display: none !important; }
         .audio-player {
             width: 100%;
@@ -25,22 +44,21 @@
             width: 100%;
             outline: none;
         }
-        .answer-input { width: 100%; padding: 12px; background-color: #40444b; border: 1px solid #4f545c; color: #e0e0e0; border-radius: 5px; font-size: 1em; box-sizing: border-box; resize: vertical; min-height: 80px; }
-        .submit-btn { background-color: #7289da; color: white; border: none; padding: 12px 20px; font-size: 1em; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; margin-top: 10px; width: 100%; }
+        .answer-input { width: 100%; padding: 12px; background-color: #40444b; border: 1px solid #4f545c; color: #e0e0e0; border-radius: 5px; font-size: 1em; box-sizing: border-box; resize: vertical; min-height: 80px; font-family: 'Lora', serif; }
+        .submit-btn { background-color: #7289da; color: white; border: none; padding: 12px 20px; font-size: 1em; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; margin-top: 10px; width: 100%; font-family: 'Montserrat', sans-serif; }
         .submit-btn:hover { background-color: #677bc4; }
         .submit-btn:disabled { background-color: #555; cursor: not-allowed; }
         
-        /* ★★★ [핵심 추가] 새로운 결과 표시 영역 스타일 ★★★ */
         .result-container {
             margin-top: 20px;
             padding: 20px;
             background-color: #36393f;
             border-radius: 8px;
-            border-left: 5px solid #555; /* 기본 색상 */
-            display: none; /* 평소에는 숨김 */
+            border-left: 5px solid #555;
+            display: none;
             transition: all 0.3s ease-in-out;
         }
-        .result-container h2 { margin: 0 0 10px; font-size: 1.8em; font-weight: bold; }
+        .result-container h2 { margin: 0 0 10px; font-size: 1.8em; font-weight: bold; font-family: 'Montserrat', sans-serif; }
         .result-container h3 { margin: 0 0 15px; font-size: 1.3em; font-weight: normal; }
         .feedback-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid #4f545c; }
         .feedback-box h4 { margin: 0 0 5px; color: #b0b0b0; }
@@ -50,48 +68,60 @@
 </head>
 <body>
   <div class="container">
-    <h1>한국어 퀴즈</h1>
+    <!-- 제목 번역 -->
+    <h1>Test di Comprensione Coreana</h1>
     <div id="quiz-list">
-      {% for exercise in exercises %}
-      <div class="quiz-item" id="item-{{ exercise.id }}">
+      {% for quiz in quizzes %}
+      <div class="quiz-item" id="item-{{ quiz.id }}">
         <div class="quiz-header">
           <span class="quiz-number">{{ loop.index }}.</span>
-          <!-- ★★★ [핵심 수정] 문제 유형에 따라 다른 안내 문구 표시 (향후 확장 고려) ★★★ -->
-          <p>아래 내용을 듣고, 이탈리아어로 답하세요.</p>
+          <!-- ★★★ [핵심 수정] 퀴즈 유형에 따라 다른 이탈리아어 안내 문구 표시 ★★★ -->
+          <p class="instruction-text">
+            {% if quiz_type == 'translation' %}
+              Ascolta la frase e traducila in italiano.
+            {% elif quiz_type == 'comprehension' %}
+              Ascolta il dialogo e riassumi in italiano di cosa tratta.
+            {% else %}
+              Ascolta il brano e rispondi in italiano.
+            {% endif %}
+          </p>
         </div>
 
         <div class="audio-player">
           <audio controls preload="metadata">
-            <source src="{{ exercise.audio_file_path }}" type="audio/wav">
-            <source src="{{ exercise.audio_file_path }}" type="audio/mpeg">
-            귀하의 브라우저는 오디오 재생을 지원하지 않습니다.
+            <!-- content 필드에 URL이 담겨있으므로, content를 직접 사용합니다. -->
+            <source src="{{ quiz.content }}" type="audio/mpeg">
+            <!-- 오디오 재생 실패 시 메시지 번역 -->
+            Il tuo browser non supporta la riproduzione audio.
           </audio>
         </div>
 
-        <!-- ★★★ [핵심 수정] 백엔드에서 통일된 'question_text' 컬럼 사용 ★★★ -->
-        <div class="question-text">{{ exercise.question_text }}</div>
-        <form class="answer-form" data-exercise-id="{{ exercise.id }}">
-          <textarea class="answer-input" placeholder="여기에 이탈리아어 답안을 입력하세요..." required></textarea>
-          <button type="submit" class="submit-btn">제출</button>
+        <!-- question_text는 더 이상 사용되지 않으므로 숨겨진 상태로 둡니다. -->
+        <div class="question-text">{{ quiz.content }}</div>
+        <form class="answer-form" data-quiz-id="{{ quiz.id }}">
+          <!-- placeholder 번역 -->
+          <textarea class="answer-input" placeholder="Inserisci qui la tua risposta..." required></textarea>
+          <!-- 버튼 텍스트 번역 -->
+          <button type="submit" class="submit-btn">Invia</button>
           
-          <!-- ★★★ [핵심 수정] 상세 결과를 표시할 새로운 컨테이너 ★★★ -->
           <div class="result-container"></div>
         </form>
       </div>
       {% else %}
-      <p>이 반에는 아직 문제가 없습니다. 선생님께 문의하세요.</p>
+      <!-- 문제 없을 시 메시지 번역 -->
+      <p>Non ci sono ancora quiz per questa classe. Contatta il professore.</p>
       {% endfor %}
     </div>
   </div>
 
   <script>
-    // ★★★ [핵심 수정] 로컬 스토리지가 아닌, 백엔드가 직접 전달한 정보 사용 ★★★
     const studentId = localStorage.getItem('studentId');
     const className = "{{ class_name }}";
     const quizType = "{{ quiz_type }}";
 
     if (!studentId || !className || !quizType) {
-        alert('학생 정보 또는 퀴즈 유형이 없습니다. 로그인 페이지로 돌아갑니다.');
+        // 경고 메시지 번역
+        alert('Informazioni sullo studente o tipo di quiz mancanti. Si prega di tornare alla pagina di login.');
         window.location.href = '/';
     }
 
@@ -99,19 +129,21 @@
       form.addEventListener('submit', async function(event) {
         event.preventDefault();
         
-        const exerciseId = this.dataset.exerciseId;
+        const quizId = this.dataset.quizId;
         const textarea = this.querySelector('.answer-input');
         const studentAnswer = textarea.value;
         const resultContainer = this.querySelector('.result-container');
         const submitButton = this.querySelector('.submit-btn');
 
         if (!studentAnswer.trim()) {
-          alert('답안을 입력해주세요.');
+          // 경고 메시지 번역
+          alert('Per favore, inserisci una risposta.');
           return;
         }
 
         submitButton.disabled = true;
-        submitButton.textContent = '채점 중...';
+        // 버튼 텍스트 번역
+        submitButton.textContent = 'Valutazione in corso...';
         resultContainer.style.display = 'none';
 
         try {
@@ -120,17 +152,16 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 student_id: studentId, 
-                exercise_id: exerciseId, 
+                quiz_id: quizId, // exercise_id -> quiz_id 로 변경
                 student_answer: studentAnswer,
                 class_name: className,
-                quiz_type: quizType // ★★★ [핵심 추가] 퀴즈 유형 전송
+                quiz_type: quizType
             })
           });
           const result = await response.json();
           resultContainer.style.display = 'block';
 
           if (response.ok) {
-            // ★★★ [핵심 수정] 상세 결과 UI 동적 생성 ★★★
             resultContainer.style.borderColor = result.rating_color;
             resultContainer.innerHTML = `
                 <h2 style="color: ${result.rating_color};">${result.rating_category}</h2>
@@ -142,16 +173,18 @@
             `;
           } else {
             resultContainer.style.borderColor = '#e74c3c';
-            resultContainer.innerHTML = `<p class="error-message">오류: ${result.error || '알 수 없는 문제'}</p>`;
+            // 오류 메시지 번역
+            resultContainer.innerHTML = `<p class="error-message">Errore: ${result.error || 'Problema sconosciuto'}</p>`;
           }
         } catch (error) {
           resultContainer.style.display = 'block';
           resultContainer.style.borderColor = '#e74c3c';
-          resultContainer.innerHTML = `<p class="error-message">서버 연결 오류.</p>`;
+          // 오류 메시지 번역
+          resultContainer.innerHTML = `<p class="error-message">Errore di connessione al server.</p>`;
           console.error('Fetch Error:', error);
         } finally {
-          // 재제출을 막기 위해 버튼을 비활성화 상태로 둡니다.
-          submitButton.textContent = '제출 완료';
+          // 버튼 텍스트 번역
+          submitButton.textContent = 'Inviato';
         }
       });
     });
