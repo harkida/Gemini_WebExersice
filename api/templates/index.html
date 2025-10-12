@@ -68,14 +68,40 @@
         .feedback-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid #4f545c; }
         .feedback-box h4 { margin: 0 0 5px; color: #b0b0b0; }
         .feedback-box p { margin: 0; line-height: 1.6; font-style: italic; }
-        .error-message { color: #e74c3c; font-weight: bold; }        
+        .error-message { color: #e74c3c; font-weight: bold; }
+        
+        /* ★★★ 원본 대화문 박스 스타일 추가 ★★★ */
+        .original-text-box {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #40444b;
+            border-radius: 5px;
+            border-left: 3px solid #7289da;
+        }
+        .original-text-box h4 {
+            color: #b0b0b0;
+            margin: 0 0 10px;
+            font-size: 1.1em;
+        }
+        .original-text-box p {
+            white-space: pre-line;
+            line-height: 1.8;
+            margin: 0;
+            color: #e0e0e0;
+        }
+        
+        /* ★★★ 구분선 스타일 ★★★ */
+        .divider {
+            border: 0;
+            border-top: 1px solid #4f545c;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body data-quiz-type="{{ quiz_type }}">
   <div class="container">
     <h1>Test di Comprensione Coreana</h1>
     <div id="quiz-list">
-      <!-- ★★★ [핵심 수정] 변수명을 다시 exercises로 되돌립니다 ★★★ -->
       {% for exercise in exercises %}
       <div class="quiz-item" id="item-{{ exercise.id }}">
         <div class="quiz-header">
@@ -93,15 +119,12 @@
 
         <div class="audio-player">
           <audio controls preload="metadata">
-            <!-- ★★★ [핵심 수정] 속성명을 원래대로 되돌립니다 ★★★ -->
             <source src="{{ exercise.audio_file_path }}" type="audio/mpeg">
             Il tuo browser non supporta la riproduzione audio.
           </audio>
         </div>
 
-        <!-- ★★★ [핵심 수정] 속성명을 원래대로 되돌립니다 ★★★ -->
         <div class="question-text">{{ exercise.question_text }}</div>
-        <!-- ★★★ [핵심 수정] data 속성과 변수명을 원래대로 되돌립니다 ★★★ -->
         <form class="answer-form" data-exercise-id="{{ exercise.id }}">
           <textarea class="answer-input" placeholder="Inserisci qui la tua risposta..." required></textarea>
           <button type="submit" class="submit-btn">Invia</button>
@@ -129,7 +152,6 @@
       form.addEventListener('submit', async function(event) {
         event.preventDefault();
         
-        // ★★★ [핵심 수정] 변수명을 원래대로 되돌립니다 ★★★
         const exerciseId = this.dataset.exerciseId;
         const textarea = this.querySelector('.answer-input');
         const studentAnswer = textarea.value;
@@ -151,7 +173,6 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 student_id: studentId, 
-                // ★★★ [핵심 수정] 파라미터명과 변수를 원래대로 되돌립니다 ★★★
                 exercise_id: exerciseId,
                 student_answer: studentAnswer,
                 class_name: className,
@@ -181,10 +202,23 @@
                 `;
             }
             
+            // ★★★ [핵심 추가] 이해력 퀴즈에만 원본 대화문 표시 ★★★
+            let originalTextHtml = '';
+            if (quizType === 'comprehension') {
+                originalTextHtml = `
+                    <hr class="divider">
+                    <div class="original-text-box">
+                        <h4>📝 원본 대화 (한국어)</h4>
+                        <p>${result.korean_text || '원본 텍스트를 불러올 수 없습니다.'}</p>
+                    </div>
+                `;
+            }
+            
             resultContainer.innerHTML = `
                 <h2 style="color: ${displayColor};">${result.rating_category}</h2>
                 <h3>Il tuo punteggio: ${result.score.toFixed(1)} / 10.0</h3>
                 ${feedbackHtml}
+                ${originalTextHtml}
             `;
           } else {
             resultContainer.style.borderColor = '#e74c3c';

@@ -191,24 +191,27 @@ COMPREHENSION_EVALUATION_PROMPT = """
 You are an expert AI assistant specializing in Korean language education for Italian students. Your mission is to evaluate how well a student has understood a Korean dialogue based on specific scoring criteria (`key_points`) set by the professor.
 
 [Input Information]
-- Student's Italian Answer: "{student_answer}"
-- Professor's Scoring Criteria (key_points): {key_points_json}
+- **Original Korean Dialogue:** "{korean_dialogue}"
+- **Student's Italian Answer:** "{student_answer}"
+- **Professor's Scoring Criteria (key_points):** {key_points_json}
 
 [Evaluation Guidelines]
-1. **Vocabulary Assessment (1단계):** Check if the student's answer includes the Italian equivalents (or valid synonyms) of the words in `target_vocabulary` from `key_points`. Award basic points based on vocabulary usage.
+1. **Dialogue Comprehension (대화 이해도):** First, thoroughly read the original Korean dialogue to understand its full context, nuances, and key points.
 
-2. **Contextual Assessment (2단계):** Evaluate if the overall meaning of the student's answer aligns with the core ideas described in `meaning_points` from `key_points`. Award additional points or deduct based on meaning accuracy.
+2. **Vocabulary Assessment (1단계):** Check if the student's answer includes the Italian equivalents (or valid synonyms) of the words in `target_vocabulary` from `key_points`. Award basic points based on vocabulary usage.
 
-3. **Core Scoring Principles (핵심 평가 원칙):**
+3. **Contextual Assessment (2단계):** Evaluate if the overall meaning of the student's answer aligns with the core ideas described in `meaning_points` from `key_points`. Award additional points or deduct based on meaning accuracy.
+
+4. **Core Scoring Principles (핵심 평가 원칙):**
    - **Synonyms (유의어):** If the student uses valid synonyms not present in `target_vocabulary`, and the context is correct, award decent scores. Mention the original target vocabulary in `feedback`.
    - **Context Drift (문맥 이탈):** If the student uses key vocabulary but writes content unrelated to `meaning_points`, award low scores and guide them in `feedback`.
    - **Subject/Object Confusion (주체/객체 혼동):** Confusing the subject or object is a critical error. Award very low scores.
    - **Over-Inference (과잉 추론):** If the answer includes facts not present in the original dialogue (student's inference), consider it a failure to summarize key points. Award low scores.
    - **Sentence Structure Variation (문장 구조 변형):** If grammatical structure differs (e.g., active to passive) but meaning is perfectly preserved, decent marks can be awarded.
 
-4. **Scoring:** Synthesize the above assessments to assign a score out of 10.0 (e.g., 9.6, 8.1, 7.3). The score MUST have one decimal place.
+5. **Scoring:** Synthesize the above assessments to assign a score out of 10.0 (e.g., 9.6, 8.1, 7.3). The score MUST have one decimal place.
 
-5. **Output Format:** Your response MUST be ONLY a single JSON object. Do NOT add any explanatory text before or after the JSON.
+6. **Output Format:** Your response MUST be ONLY a single JSON object. Do NOT add any explanatory text before or after the JSON.
 
 [Required JSON Output Format]
 ```json
@@ -246,6 +249,9 @@ def submit_answer():
         return jsonify({"error": "필수 정보 누락 (퀴즈 유형 포함)"}), 400
 
     conn = None
+    # ★★★ [핵심 추가] korean_text 변수 초기화 ★★★
+    korean_text = ""
+    
     try:
         conn = get_db_connection()
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
@@ -269,6 +275,8 @@ def submit_answer():
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
                 korean_question = row[0]
+                # ★★★ [핵심 추가] 원본 텍스트 저장 ★★★
+                korean_text = korean_question
 
                 prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
                 response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
@@ -292,8 +300,16 @@ def submit_answer():
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
                 korean_dialogue, key_points = row[0], row[1]
+                # ★★★ [핵심 추가] 원본 텍스트 저장 ★★★
+                korean_text = korean_dialogue
 
-                prompt_text = COMPREHENSION_EVALUATION_PROMPT.format(student_answer=student_answer, key_points_json=json.dumps(key_points, ensure_ascii=False))
+                # ★★★ [핵심 수정] korean_dialogue를 프롬프트에 포함 ★★★
+                prompt_text = COMPREHENSION_EVALUATION_PROMPT.format(
+                    korean_dialogue=korean_dialogue,
+                    student_answer=student_answer, 
+                    key_points_json=json.dumps(key_points, ensure_ascii=False)
+                )
+
                 response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
                 print(f"🤖 [이해력 퀴즈] gemini-2.5-pro 사용 - 학생: {student_id}")
                 
@@ -328,12 +344,14 @@ def submit_answer():
         else:
             student_feedback = 'Feedback non disponibile.'
 
+        # ★★★ [핵심 수정] korean_text 추가 ★★★
         return jsonify({
             "success": True, 
             "score": score,
             "rating_category": rating_info["category"],
             "rating_color": rating_info["color"],
-            "feedback": student_feedback
+            "feedback": student_feedback,
+            "korean_text": korean_text  # ★★★ 원본 한국어 텍스트 추가 ★★★
         })    
 
     except Exception as e:
