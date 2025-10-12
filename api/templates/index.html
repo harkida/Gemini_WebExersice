@@ -43,6 +43,12 @@
             width: 100%;
             outline: none;
         }
+
+        /* ★★★ 번역 퀴즈에서 오디오 플레이어 숨기기 ★★★ */
+        body[data-quiz-type="translation"] .audio-player {
+            display: none;
+        }
+
         .answer-input { width: 100%; padding: 12px; background-color: #40444b; border: 1px solid #4f545c; color: #e0e0e0; border-radius: 5px; font-size: 1em; box-sizing: border-box; resize: vertical; min-height: 80px; font-family: 'Lora', serif; }
         .submit-btn { background-color: #7289da; color: white; border: none; padding: 12px 20px; font-size: 1em; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; margin-top: 10px; width: 100%; font-family: 'Montserrat', sans-serif; }
         .submit-btn:hover { background-color: #677bc4; }
@@ -65,7 +71,7 @@
         .error-message { color: #e74c3c; font-weight: bold; }        
     </style>
 </head>
-<body>
+<body data-quiz-type="{{ quiz_type }}">
   <div class="container">
     <h1>Test di Comprensione Coreana</h1>
     <div id="quiz-list">
@@ -156,14 +162,29 @@
           resultContainer.style.display = 'block';
 
           if (response.ok) {
-            resultContainer.style.borderColor = result.rating_color;
+            // ★★★ 색상 보정: Eccellente일 때 더 밝은 초록색 사용 ★★★
+            let displayColor = result.rating_color;
+            if (result.rating_category === 'Eccellente') {
+                displayColor = '#00ff7f'; // 더 밝은 Spring Green
+            }
+            
+            resultContainer.style.borderColor = displayColor;
+            
+            // ★★★ 번역 퀴즈에서는 점수만, 이해력 퀴즈에서는 피드백도 표시 ★★★
+            let feedbackHtml = '';
+            if (quizType === 'comprehension') {
+                feedbackHtml = `
+                    <div class="feedback-box">
+                        <h4>Feedback dall'IA:</h4>
+                        <p>${result.feedback}</p>
+                    </div>
+                `;
+            }
+            
             resultContainer.innerHTML = `
-                <h2 style="color: ${result.rating_color};">${result.rating_category}</h2>
+                <h2 style="color: ${displayColor};">${result.rating_category}</h2>
                 <h3>Il tuo punteggio: ${result.score.toFixed(1)} / 10.0</h3>
-                <div class="feedback-box">
-                    <h4>Feedback dall'IA:</h4>
-                    <p>${result.feedback}</p>
-                </div>
+                ${feedbackHtml}
             `;
           } else {
             resultContainer.style.borderColor = '#e74c3c';
