@@ -40,7 +40,7 @@
         .student-feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }
         .empty-message { text-align: center; padding: 3rem; color: #888; font-size: 1.1rem; }
         .korean-translation { font-style: italic; color: #a0d8ef; }
-        .criteria-info { background-color: #252525; padding: 0.8rem; border-radius: 6px; margin: 0.8rem 0; }
+        .criteria-info { margin: 0.8rem 0; }
         .criteria-info strong { color: #ffa500; }
     </style>
 </head>
@@ -197,7 +197,7 @@
                     <div class="card-body">
                         <p><strong>원본:</strong> ${questionText}</p>
                         ${criteriaHtml}
-                        <p><strong>학생 답안:</strong> ${item.student_answer}</p>
+                        <p><strong>학생 답안:</strong> <span class="korean-translation"> ${item.student_answer}</span></p>
                         ${cardBodyExtraHtml}
                     </div>
                     <div class="timestamp">${formattedDate}</div>
