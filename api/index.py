@@ -364,6 +364,14 @@ def quiz_page():
             
             exercises = cur.fetchall()
         
+            # ★★★ 디버깅 출력 ★★★
+            print("=" * 60)
+            print(f"🔍 [디버깅] quiz_type: {quiz_type}, class_name: {class_name}")
+            print(f"🔍 [디버깅] 가져온 문제 수: {len(exercises)}")
+            for i, ex in enumerate(exercises):
+                print(f"  문제 {i+1}: ID={ex.get('id')}, audio_file_path={ex.get('audio_file_path')}")
+            print("=" * 60)
+
         # 퀴즈 유형(quiz_type)을 HTML 템플릿으로 함께 전달합니다.
         return render_template('index.html', exercises=exercises, class_name=class_name, quiz_type=quiz_type)
     except Exception as e:
