@@ -211,6 +211,13 @@
             return card;
         }
 
+        // 실시간 업데이트를 위한 폴링 함수
+        function startAutoRefresh() {
+            setInterval(() => {
+                loadSubmissions(currentView);  // 현재 보고 있는 뷰만 자동 갱신
+            }, 2000);  // 3초마다 갱신
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadSubmissions('translation');
         });
