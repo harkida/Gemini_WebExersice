@@ -350,7 +350,7 @@ def quiz_page():
                 cur.execute("SELECT id, korean_sentence AS question_text FROM translation_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             elif quiz_type == 'comprehension':
                 # 이해력 퀴즈 문제 목록을 불러옵니다.
-                cur.execute("SELECT id, korean_dialogue AS question_text FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
+                cur.execute("SELECT id, korean_dialogue AS question_text, audio_file_path FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             else:
                 # 잘못된 퀴즈 유형일 경우 에러를 표시합니다.
                 return "잘못된 퀴즈 유형입니다.", 400
