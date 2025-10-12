@@ -51,6 +51,65 @@ def get_db_connection():
         print(f"🚨 데이터베이스 연결 오류: {e}")
         return None
 
+# ★★★ [핵심 수정] 데이터베이스 초기화 로직을 '반별 기능'에 맞게 전면 수정합니다. ★★★
+def init_db():
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_exercises (
+                        id SERIAL PRIMARY KEY,
+                        korean_sentence TEXT NOT NULL,
+                        class_name VARCHAR(50),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_submissions (
+                        id SERIAL PRIMARY KEY,
+                        exercise_id INTEGER REFERENCES translation_exercises(id) ON DELETE SET NULL,
+                        student_id VARCHAR(255) NOT NULL,
+                        student_answer TEXT,
+                        score NUMERIC(3, 1),
+                        ai_analysis_json JSONB,
+                        class_name VARCHAR(50),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+
+                # 3. '이해력 퀴즈' 관련 테이블 생성
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS comprehension_exercises (
+                        id SERIAL PRIMARY KEY,
+                        korean_dialogue TEXT NOT NULL,
+                        audio_file_path VARCHAR(255),
+                        key_points JSONB,
+                        class_name VARCHAR(50),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS comprehension_submissions (
+                        id SERIAL PRIMARY KEY,
+                        comprehension_exercise_id INTEGER REFERENCES comprehension_exercises(id) ON DELETE SET NULL,
+                        student_id VARCHAR(255) NOT NULL,
+                        class_name VARCHAR(50),
+                        student_answer TEXT,
+                        ai_analysis_json JSONB,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                
+                conn.commit()
+                print("✅ 데이터베이스 테이블이 최종 블루프린트에 맞게 성공적으로 확인/생성되었습니다.")
+        except Exception as e:
+            print(f"🚨 테이블 구조 설정 중 심각한 오류 발생: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+init_db()
+
 def extract_first_json_block(text: str):
     if not text: return None
     t = text.replace("```json", "```").strip()
@@ -374,64 +433,6 @@ def api_comprehension_submissions():
         return jsonify({"items": items, "quiz_type": "comprehension"})
     finally:
         if conn: conn.close()
-
-@app.cli.command("init-db")
-def init_db_command():
-    """데이터베이스를 초기화합니다."""
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                # 번역 퀴즈 테이블 생성
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS translation_exercises (
-                        id SERIAL PRIMARY KEY,
-                        korean_sentence TEXT NOT NULL,
-                        class_name VARCHAR(50),
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS translation_submissions (
-                        id SERIAL PRIMARY KEY,
-                        exercise_id INTEGER REFERENCES translation_exercises(id) ON DELETE SET NULL,
-                        student_id VARCHAR(255) NOT NULL,
-                        student_answer TEXT,
-                        score NUMERIC(3, 1),
-                        ai_analysis_json JSONB,
-                        class_name VARCHAR(50),
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                # 이해력 퀴즈 테이블 생성
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS comprehension_exercises (
-                        id SERIAL PRIMARY KEY,
-                        korean_dialogue TEXT NOT NULL,
-                        audio_file_path VARCHAR(255),
-                        key_points JSONB,
-                        class_name VARCHAR(50),
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS comprehension_submissions (
-                        id SERIAL PRIMARY KEY,
-                        comprehension_exercise_id INTEGER REFERENCES comprehension_exercises(id) ON DELETE SET NULL,
-                        student_id VARCHAR(255) NOT NULL,
-                        class_name VARCHAR(50),
-                        student_answer TEXT,
-                        ai_analysis_json JSONB,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                conn.commit()
-                print("✅ 데이터베이스 테이블이 성공적으로 확인/생성되었습니다.")
-        except Exception as e:
-            print(f"🚨 테이블 구조 설정 중 오류 발생: {e}")
-            conn.rollback()
-        finally:
-            conn.close()
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
