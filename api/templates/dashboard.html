@@ -20,7 +20,16 @@
         .view-container { display: none; }
         .view-container.active { display: block; }
         
-        .submission-card { background-color: #2c2c2c; border: 1px solid #444; border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden; }
+        .submission-card { background-color: #2c2c2c; 
+            border: 1px solid #444; 
+            border-radius: 8px; 
+            margin-bottom: 1.5rem; 
+            overflow: hidden; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.5s forwards;
+        }
         .card-main-content { padding: 1.5rem; }
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #444; padding-bottom: 1rem; }
         .student-info { font-size: 1.2rem; font-weight: bold; display: flex; align-items: center; gap: 0.8rem; }
@@ -42,6 +51,13 @@
         .korean-translation { font-style: italic; color: #a0d8ef; }
         .criteria-info { margin: 0.8rem 0; }
         .criteria-info strong { color: #ffa500; }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }        
+
     </style>
 </head>
 <body>
