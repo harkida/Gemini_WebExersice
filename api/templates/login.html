@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>퀴즈 시작하기</title>
+    <title>Inizia il Quiz</title>
     <style>
         /* --- 교수님의 훌륭한 다크 모드 스타일을 그대로 유지합니다 --- */
         body {
@@ -74,10 +74,10 @@
 </head>
 <body>
     <div class="login-container">
-        <h1>한국어 듣기 퀴즈</h1>
+        <h1>Quiz di Ascolto in Coreano</h1>
         <form id="login-form">
             <select id="class-name" class="input-field" required>
-                <option value="" disabled selected>반을 선택하세요</option>
+                <option value="" disabled selected>Seleziona la tua classe</option>
                 <option value="siena-beginner">초급반 (Principianti)</option>
                 <option value="siena-3">3학년 (Triennale)</option>
                 <option value="siena-master-1">석사 1학년 (Magistrale 1)</option>
@@ -85,13 +85,13 @@
             </select>
             
             <select id="quiz-type" class="input-field" required>
-                <option value="" disabled selected>퀴즈 유형을 선택하세요</option>
+                <option value="" disabled selected>Seleziona il tipo di quiz</option>
                 <option value="translation">번역 퀴즈 (Traduzione)</option>
                 <option value="comprehension">이해력 퀴즈 (Comprensione)</option>
             </select>
 
-            <input type="text" id="student-id" class="input-field" placeholder="이름 또는 ID를 입력하세요" required>
-            <button type="submit" class="start-btn">퀴즈 시작하기</button>
+            <input type="text" id="student-id" class="input-field" placeholder="Inserisci il tuo nome o ID" required>
+            <button type="submit" class="start-btn">Inizia il Quiz</button>
         </form>
     </div>
 
@@ -104,7 +104,7 @@
             const quizType = document.getElementById('quiz-type').value; // ★★★ [핵심 추가] 퀴즈 유형 값 가져오기
 
             if (!className || !quizType) {
-                alert('반과 퀴즈 유형을 모두 선택해주세요!');
+                alert('Seleziona sia la classe che il tipo di quiz!');
                 return;
             }
 
