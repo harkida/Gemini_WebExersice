@@ -4,7 +4,7 @@ try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass  # Vercel에서는 dotenv 불필요
+    pass
 
 import json
 import pathlib
@@ -15,7 +15,6 @@ import psycopg2
 import psycopg2.extras
 import google.generativeai as genai
 
-# --- Flask 템플릿 경로 설정 ---
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR.parent / "templates"
 if not TEMPLATES_DIR.exists():
@@ -26,7 +25,6 @@ app = Flask(__name__, template_folder=str(TEMPLATES_DIR))
 app.secret_key = os.environ.get('SECRET_KEY', 'change-this-in-prod')
 TEACHER_PASSWORD = os.environ.get('TEACHER_PASSWORD')
 
-# --- AI 모델 설정 (★★★ 핵심 수정: 두 개의 모델 사용) ---
 api_key = os.environ.get('GEMINI_API_KEY')
 flash_model = None
 pro_model = None
@@ -46,7 +44,6 @@ if api_key:
 else:
     print("⚠️ GEMINI_API_KEY 미설정: 채점 기능이 비활성화됩니다.")
 
-# --- 데이터베이스 설정 ---
 DATABASE_URL = os.environ.get('POSTGRES_URL')
 
 def get_db_connection():
@@ -101,8 +98,14 @@ def init_db():
                         class_name VARCHAR(50),
                         student_answer TEXT,
                         ai_analysis_json JSONB,
+                        feedback_korean TEXT,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                     );
+                """)
+                
+                cur.execute("""
+                    ALTER TABLE comprehension_submissions 
+                    ADD COLUMN IF NOT EXISTS feedback_korean TEXT;
                 """)
                 
                 conn.commit()
@@ -126,7 +129,6 @@ def extract_first_json_block(text: str):
     if start != -1 and end != -1 and end > start: return t[start:end+1]
     return None
 
-# ★★★ [수정] 이탈리아어를 한국어로 번역하는 함수 (Flash 모델 사용) ★★★
 def translate_italian_to_korean(italian_text):
     """AI를 사용하여 이탈리아어 텍스트를 한국어로 번역"""
     if not flash_model or not italian_text:
@@ -147,7 +149,6 @@ def translate_italian_to_korean(italian_text):
         print(f"🚨 번역 오류: {e}")
         return "(번역 오류)"
 
-# --- 채점 프롬프트 (교수님 지시대로 축약) ---
 EVALUATION_PROMPT = """
 너는 한국어와 이탈리아어에 모두 능통한 언어 평가 전문가이다. 너의 유일한 임무는 '한국어 원문'을 듣고 학생이 작성한 '이탈리아어 답안'이 원문의 의미를 얼마나 정확하게 이해하고 반영했는지를 평가하는 것이다.
 
@@ -303,14 +304,12 @@ def submit_answer():
         return jsonify({"error": "필수 정보 누락 (퀴즈 유형 포함)"}), 400
 
     conn = None
-    # ★★★ [핵심 추가] korean_text 변수 초기화 ★★★
     korean_text = ""
     
     try:
         conn = get_db_connection()
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
         
-        # ★★★ [핵심 추가] 퀴즈 유형에 따라 모델 선택 ★★★
         if quiz_type == 'translation':
             selected_model = flash_model
             model_name = "Flash"
@@ -329,7 +328,6 @@ def submit_answer():
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
                 korean_question = row[0]
-                # ★★★ [핵심 추가] 원본 텍스트 저장 ★★★
                 korean_text = korean_question
 
                 prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
@@ -354,10 +352,8 @@ def submit_answer():
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
                 korean_dialogue, key_points = row[0], row[1]
-                # ★★★ [핵심 추가] 원본 텍스트 저장 ★★★
                 korean_text = korean_dialogue
 
-                # ★★★ [핵심 수정] korean_dialogue를 프롬프트에 포함 ★★★
                 prompt_text = COMPREHENSION_EVALUATION_PROMPT.format(
                     korean_dialogue=korean_dialogue,
                     student_answer=student_answer, 
@@ -374,9 +370,20 @@ def submit_answer():
                 score_raw = ai_result.get('score')
                 score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
                 
+                feedback_italian = ai_result.get('feedback', 'Nessun feedback disponibile.')
+                if feedback_italian and feedback_italian != 'Nessun feedback disponibile.':
+                    feedback_korean = translate_italian_to_korean(feedback_italian)
+                    print(f"📝 피드백 번역 완료: {len(feedback_korean)}자")
+                else:
+                    feedback_korean = '(피드백 없음)'
+                
                 cur.execute(
-                    "INSERT INTO comprehension_submissions (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s)",
-                    (exercise_id, student_id, student_answer, psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
+                    """INSERT INTO comprehension_submissions 
+                       (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, feedback_korean, class_name) 
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (exercise_id, student_id, student_answer, 
+                     psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False)), 
+                     feedback_korean, class_name)
                 )
 
             conn.commit()
@@ -398,14 +405,13 @@ def submit_answer():
         else:
             student_feedback = 'Feedback non disponibile.'
 
-        # ★★★ [핵심 수정] korean_text 추가 ★★★
         return jsonify({
             "success": True, 
             "score": score,
             "rating_category": rating_info["category"],
             "rating_color": rating_info["color"],
             "feedback": student_feedback,
-            "korean_text": korean_text  # ★★★ 원본 한국어 텍스트 추가 ★★★
+            "korean_text": korean_text
         })    
 
     except Exception as e:
@@ -500,7 +506,6 @@ def api_translation_submissions():
     finally:
         if conn: conn.close()
 
-# ★★★ [핵심 수정] key_points와 번역된 feedback을 함께 반환 ★★★
 @app.route('/api/get-comprehension-submissions')
 @teacher_required
 def api_comprehension_submissions():
@@ -510,7 +515,8 @@ def api_comprehension_submissions():
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, s.created_at, 
+                SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
+                       s.feedback_korean, s.created_at, 
                        e.korean_dialogue, e.key_points, s.class_name 
                 FROM comprehension_submissions s 
                 JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
@@ -521,16 +527,7 @@ def api_comprehension_submissions():
         items = []
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
-            
-            analysis = r.get('ai_analysis_json', {})
-            feedback_italian = analysis.get('feedback', '')
-            
-            # ★★★ 빈 피드백은 번역 안 함 ★★★
-            if feedback_italian and feedback_italian != 'Nessun feedback disponibile.':
-                r['feedback_korean'] = translate_italian_to_korean(feedback_italian)
-            else:
-                r['feedback_korean'] = '(피드백 없음)'
-            
+            r['feedback_korean'] = r.get('feedback_korean') or '(피드백 없음)'
             items.append(r)
         return jsonify({"items": items, "quiz_type": "comprehension"})
     finally:
