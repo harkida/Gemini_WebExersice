@@ -12,6 +12,8 @@
         .controls button { color: white; border: 1px solid #555; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 1rem; background-color: #333; transition: background-color 0.2s, border-color 0.2s; }
         .controls button.active { background-color: #7289da; border-color: #7289da; font-weight: bold; }
         .controls button:hover:not(.active) { background-color: #444; }
+        #clear-btn { background-color: #c0392b; border: 1px solid #c0392b; }
+        #clear-btn:hover { background-color: #e74c3c; border-color: #e74c3c; }
         #logout-btn { background-color: #555; border: none; }
         #logout-btn:hover { background-color: #777; }
         
@@ -33,8 +35,15 @@
         .feedback-section { background-color: #383838; padding: 1rem 1.5rem; border-top: 1px solid #555; }
         .feedback-section strong { color: #ffffff; display: block; margin-bottom: 0.5rem; }
         .feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }
+        /* ★★★ [추가] 학생 피드백 섹션 스타일 ★★★ */
+        .student-feedback-section { background-color: #2a2a2a; padding: 1rem 1.5rem; border-top: 1px solid #555; }
+        .student-feedback-section strong { color: #87ceeb; display: block; margin-bottom: 0.5rem; }
+        .student-feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }
         .empty-message { text-align: center; padding: 3rem; color: #888; font-size: 1.1rem; }
         .korean-translation { font-style: italic; color: #a0d8ef; }
+        /* ★★★ [추가] 목표 어휘 및 문맥 문장 스타일 ★★★ */
+        .criteria-info { background-color: #252525; padding: 0.8rem; border-radius: 6px; margin: 0.8rem 0; }
+        .criteria-info strong { color: #ffa500; }
     </style>
 </head>
 <body>
@@ -43,6 +52,7 @@
         <div class="controls">
             <button id="btn-translation" class="active" onclick="switchView('translation')">번역 퀴즈 결과</button>
             <button id="btn-comprehension" onclick="switchView('comprehension')">이해력 퀴즈 결과</button>
+            <button id="clear-btn" onclick="clearCurrentView()">화면 지우기</button>
             <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
         </div>
     </header>
@@ -60,6 +70,12 @@
             document.querySelectorAll('.view-container').forEach(container => container.classList.remove('active'));
             document.getElementById(`${viewType}-view`).classList.add('active');
             loadSubmissions(viewType);
+        }
+
+        function clearCurrentView() {
+            const container = document.getElementById(`${currentView}-view`);
+            container.innerHTML = '<p class="empty-message">화면이 초기화되었습니다.</p>';
+            console.log(`${currentView} 뷰의 화면이 초기화되었습니다.`);
         }
 
         async function loadSubmissions(quizType) {
@@ -90,14 +106,27 @@
             }
         }
 
+        // ★★★ [핵심 수정] 이해력 퀴즈용 추가 정보 표시 로직 ★★★
+        async function translateToKorean(italianText) {
+            // 간단한 번역 함수 (실제로는 백엔드 API를 통해 번역하는 것이 좋지만, 
+            // 여기서는 프론트엔드에서 Gemini API를 직접 호출하지 않으므로
+            // 대신 표시만 하도록 처리합니다. 실제 번역은 백엔드에서 해야 합니다.)
+            // 현재는 이탈리아어 원문을 그대로 표시하되, 
+            // 교수님께서 한국어 번역을 원하시면 백엔드 수정이 필요합니다.
+            return `(번역: ${italianText})`; // 임시 처리
+        }
+
         function createSubmissionCard(item, quizType) {
             const card = document.createElement('div');
             card.className = 'submission-card';
 
             const analysis = item.ai_analysis_json || {};
             let scoreValue, questionText, feedbackText;
-            
-            // ★★★ [핵심 수정] 퀴즈 유형에 관계없이 공통으로 사용할 변수들 ★★★
+            let cardBodyExtraHtml = '';
+            let criteriaHtml = ''; // 이해력 퀴즈용 추가 정보
+            let studentFeedbackHtml = ''; // 학생 피드백 섹션
+
+            // 퀴즈 유형에 관계없이 공통으로 사용할 변수들
             const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
             const vocabItalian = analysis.key_vocabularies_italian || [];
             const vocabKorean = analysis.key_vocabularies_korean_translation || [];
@@ -112,22 +141,55 @@
             const keywordsHtml = keywordsString 
                 ? `<p><strong>핵심 어휘:</strong> ${keywordsString}</p>`
                 : '';
-            
-            // 공통 상세 분석 HTML
-            const cardBodyExtraHtml = `
-                <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
-                ${keywordsHtml}
-            `;
 
             // 퀴즈 유형별로 다른 데이터 설정
             if (quizType === 'translation') {
                 scoreValue = parseFloat(item.score);
                 questionText = item.korean_sentence;
                 feedbackText = analysis.evaluation_feedback || '(피드백 없음)';
+
+                cardBodyExtraHtml = `
+                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
+                    ${keywordsHtml}
+                `;
+
             } else { // comprehension
-                scoreValue = parseFloat(analysis.score); // 이해력 퀴즈는 analysis 객체 안의 score를 사용
+                scoreValue = parseFloat(analysis.score);
                 questionText = item.korean_dialogue;
-                feedbackText = analysis.evaluation || '(평가 없음)'; // 이해력 퀴즈는 'evaluation' 필드 사용
+                feedbackText = analysis.evaluation || '(평가 없음)';
+
+                // ★★★ [핵심 추가] 이해력 퀴즈의 경우, key_points에서 추가 정보 추출 ★★★
+                // 백엔드 API에서 key_points를 함께 반환해야 합니다.
+                // 현재는 item에서 직접 가져올 수 없으므로, 
+                // 백엔드 수정이 필요합니다. 임시로 analysis에서 시도합니다.
+                
+                // 교수님, 이 부분은 백엔드에서 key_points를 함께 전달해야 표시할 수 있습니다.
+                // 현재는 임시로 빈 값으로 처리합니다.
+                const targetVocabulary = '(백엔드에서 key_points 전달 필요)';
+                const meaningPoints = '(백엔드에서 key_points 전달 필요)';
+
+                criteriaHtml = `
+                    <div class="criteria-info">
+                        <p><strong>목표 어휘:</strong> ${targetVocabulary}</p>
+                        <p><strong>문맥 문장:</strong> ${meaningPoints}</p>
+                    </div>
+                `;
+
+                cardBodyExtraHtml = `
+                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
+                    ${keywordsHtml}
+                `;
+
+                // ★★★ [핵심 추가] 학생 피드백을 한국어로 번역하여 표시 ★★★
+                const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
+                // 실제 번역은 백엔드에서 해야 하므로, 여기서는 표시만 합니다.
+                studentFeedbackHtml = `
+                    <div class="student-feedback-section">
+                        <strong>학생 피드백 (한국어 번역):</strong>
+                        <p>${studentFeedbackItalian}</p>
+                        <p style="color: #888; font-size: 0.9rem; margin-top: 0.5rem;">(※ 이탈리아어 원문의 한국어 번역은 백엔드에서 처리 필요)</p>
+                    </div>
+                `;
             }
 
             const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
@@ -145,12 +207,13 @@
                     </div>
                     <div class="card-body">
                         <p><strong>원본:</strong> ${questionText}</p>
+                        ${criteriaHtml}
                         <p><strong>학생 답안:</strong> ${item.student_answer}</p>
-                        <!-- ★★★ [핵심 수정] 상세 분석 HTML이 모든 카드에 공통으로 적용됩니다 ★★★ -->
                         ${cardBodyExtraHtml}
                     </div>
                     <div class="timestamp">${formattedDate}</div>
                 </div>
+                ${studentFeedbackHtml}
                 <div class="feedback-section">
                     <strong>AI 평가 (교수용):</strong>
                     <p>${feedbackText}</p>

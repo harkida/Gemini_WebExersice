@@ -51,7 +51,6 @@ def get_db_connection():
         print(f"🚨 데이터베이스 연결 오류: {e}")
         return None
 
-# ★★★ [핵심 수정] 데이터베이스 초기화 로직을 '반별 기능'에 맞게 전면 수정합니다. ★★★
 def init_db():
     conn = get_db_connection()
     if conn:
@@ -78,7 +77,6 @@ def init_db():
                     );
                 """)
 
-                # 3. '이해력 퀴즈' 관련 테이블 생성
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS comprehension_exercises (
                         id SERIAL PRIMARY KEY,
@@ -122,6 +120,27 @@ def extract_first_json_block(text: str):
     if start != -1 and end != -1 and end > start: return t[start:end+1]
     return None
 
+# ★★★ [추가] 이탈리아어를 한국어로 번역하는 함수 ★★★
+def translate_italian_to_korean(italian_text):
+    """AI를 사용하여 이탈리아어 텍스트를 한국어로 번역"""
+    if not model or not italian_text:
+        return "(번역 불가)"
+    
+    try:
+        prompt = f"""다음 이탈리아어 텍스트를 자연스러운 한국어로 번역해주세요. 번역문만 출력하고 다른 설명은 하지 마세요.
+
+이탈리아어 원문:
+{italian_text}
+
+한국어 번역:"""
+        
+        response = model.generate_content(prompt)
+        korean_translation = getattr(response, 'text', '').strip()
+        return korean_translation if korean_translation else "(번역 실패)"
+    except Exception as e:
+        print(f"🚨 번역 오류: {e}")
+        return "(번역 오류)"
+
 # --- 채점 프롬프트 (교수님 지시대로 축약) ---
 EVALUATION_PROMPT = """
 
@@ -136,19 +155,18 @@ EVALUATION_PROMPT = """
 3.  아래 기준에 따라 오류를 발견할 때마다 점수를 차감한다.
     -   **완전한 오역 또는 의미 왜곡:** 원문의 핵심 의미를 완전히 잘못 이해하여 정반대의 의미나 전혀 다른 의미로 번역한 경우. (감점: -5.1 ~ -8.0점)
     -   **핵심 정보 누락/오류:** 문장의 주어, 목적어, 동사 등 핵심적인 구성 요소나 정보를 빠뜨리거나 틀리게 번역한 경우. (감점: -2.6 ~ -5.0점)
-    -   **사소한 의미 불일치:** 전체적인 의미는 맞지만, 특정 단어나 표현의 뉘앙스를 잘못 이해하여 약간의 의미 차이가 발생한 경우. (감점: -0.5 ~ -2.5점) # 감점 폭 미세 조정
+    -   **사소한 의미 불일치:** 전체적인 의미는 맞지만, 특정 단어나 표현의 뉘앙스를 잘못 이해하여 약간의 의미 차이가 발생한 경우. (감점: -0.5 ~ -2.5점)
 
 4.  **뉘앙스 및 격식 (Nuance & Formality):**
     -   **이것은 절대 감점 요인이 아니다.** 관용구의 번역(예: '표를 끊다' -> 'comprare i biglietti')이나, 존댓말/반말, 어조, 단어 선택의 미묘한 차이는 '오류'로 간주해서는 안 되며, 절대로 감점의 근거가 될 수 없다.
-    -   다만, 이러한 차이점이 교육적으로 의미가 있다고 판단될 경우, 반드시 'evaluation_feedback'에 **[교사용 참고]** 태그를 사용하여 그 차이점만 객관적으로 서술한다. (예: "[교사용 참고] 원문의 관용구 '표를 끊다'는 '표를 사다'는 의미로, 학생의 'comprare' 사용은 자연스럽고 올바른 번역입니다.")
+    -   다만, 이러한 차이점이 교육적으로 의미가 있다고 판단될 경우, 반드시 'evaluation_feedback'에 **[교사용 참고]** 태그를 사용하여 그 차이점만 객관적으로 서술한다.
 
 [입력 정보]
 - 한국어 원문: "{Korean_Question}"
 - 학생의 이탈리아어 답안: "{Student_Answer}"
 
 [출력 형식]
-JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다. 점수 계산 근거와 교육적 피드백을 'evaluation_feedback'에 상세히 서술해야 한다.
-# ★★★ [핵심 수정 2] 출력 형식 예시에도 소수점 사용을 명확히 보여줍니다. ★★★
+JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
 {{
   "score": "9.5, 8.0, 7.5 등과 같은 10.0 형식의 숫자 문자열",
   "analysis": {{
@@ -158,12 +176,11 @@ JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다. 점수 �
     "score": "채점된 점수와 동일한 값",
     "key_vocabularies_italian": ["추출된 이탈리아어 어휘 기본형"],
     "key_vocabularies_korean_translation": ["위 이탈리아어 어휘의 한국어 뜻"],
-    "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술. 어떤 오류 때문에 몇 점이 감점되었는지 명확히 설명하고, 뉘앙스 차이는 [교사용 참고] 태그를 붙여 보고한다."
+    "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술."
   }}
 }}
 """
 
-# --- ★★★ [핵심 수정] 이해력(Comprehension) 퀴즈용 채점 프롬프트 ★★★ ---
 COMPREHENSION_EVALUATION_PROMPT = """
 You are an expert AI assistant specializing in Korean language education for Italian students. Your mission is to evaluate how well a student has understood a Korean dialogue based on specific scoring criteria (`key_points`) set by the professor.
 
@@ -177,13 +194,13 @@ You are an expert AI assistant specializing in Korean language education for Ita
 2. **Contextual Assessment (2단계):** Evaluate if the overall meaning of the student's answer aligns with the core ideas described in `meaning_points` from `key_points`. Award additional points or deduct based on meaning accuracy.
 
 3. **Core Scoring Principles (핵심 평가 원칙):**
-   - **Synonyms (유의어):** If the student uses valid synonyms not present in `target_vocabulary`, and the context is correct, award high scores. Mention the original target vocabulary in `feedback`.
+   - **Synonyms (유의어):** If the student uses valid synonyms not present in `target_vocabulary`, and the context is correct, award decent scores. Mention the original target vocabulary in `feedback`.
    - **Context Drift (문맥 이탈):** If the student uses key vocabulary but writes content unrelated to `meaning_points`, award low scores and guide them in `feedback`.
    - **Subject/Object Confusion (주체/객체 혼동):** Confusing the subject or object is a critical error. Award very low scores.
    - **Over-Inference (과잉 추론):** If the answer includes facts not present in the original dialogue (student's inference), consider it a failure to summarize key points. Award low scores.
-   - **Sentence Structure Variation (문장 구조 변형):** If grammatical structure differs (e.g., active to passive) but meaning is perfectly preserved, full marks can be awarded.
+   - **Sentence Structure Variation (문장 구조 변형):** If grammatical structure differs (e.g., active to passive) but meaning is perfectly preserved, decent marks can be awarded.
 
-4. **Scoring:** Synthesize the above assessments to assign a score out of 10.0 (e.g., 9.5, 8.0, 7.5). The score MUST have one decimal place.
+4. **Scoring:** Synthesize the above assessments to assign a score out of 10.0 (e.g., 9.6, 8.1, 7.3). The score MUST have one decimal place.
 
 5. **Output Format:** Your response MUST be ONLY a single JSON object. Do NOT add any explanatory text before or after the JSON.
 
@@ -195,8 +212,8 @@ You are an expert AI assistant specializing in Korean language education for Ita
   "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
   "key_vocabularies_italian": ["학생 답안에서 추출된 핵심 이탈리아어 어휘의 기본형"],
   "key_vocabularies_korean_translation": ["위 이탈리아어 어휘들의 한국어 뜻"],
-  "evaluation": "(한국어로) 핵심 어휘 '복잡하다(difficile)'와 '찾다(trovare)' 사용. 핵심 의미 '키아라가 지하철역을 복잡하게 생각함'을 정확히 파악. 높은 점수 부여.",
-  "feedback": "(이탈리아어로) Ottima comprensione! Hai capito il punto chiave della conversazione. Per una risposta perfetta, prova a usare il vocabolario target come 'stazione della metropolitana'. Continua così!"
+  "evaluation": "(한국어로) 객관적인 채점 근거",
+  "feedback": "(이탈리아어로) 학생을 위한 격려와 건설적 피드백"
 }}
 
 Important Notes:
@@ -217,9 +234,8 @@ def submit_answer():
     student_answer = data.get('student_answer')
     exercise_id = data.get('exercise_id')
     class_name = data.get('class_name')
-    quiz_type = data.get('quiz_type')  # ★★★ [핵심 추가] quiz_type 받기
+    quiz_type = data.get('quiz_type')
 
-    # ★★★ [핵심 수정] quiz_type도 필수 정보로 확인
     if not all([student_id, student_answer, exercise_id, class_name, quiz_type]):
         return jsonify({"error": "필수 정보 누락 (퀴즈 유형 포함)"}), 400
 
@@ -229,16 +245,13 @@ def submit_answer():
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
         if not model: return jsonify({"error": "AI 모델 미설정"}), 500
 
-        # ★★★ [핵심 분기] quiz_type에 따라 다른 테이블 조회 및 저장
         with conn.cursor() as cur:
             if quiz_type == 'translation':
-                # 번역 퀴즈: translation_exercises에서 원문 조회
                 cur.execute("SELECT korean_sentence FROM translation_exercises WHERE id = %s;", (exercise_id,))
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
                 korean_question = row[0]
 
-                # AI 채점 (번역용 프롬프트)
                 prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
                 response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
                 raw_text = getattr(response, 'text', '').strip()
@@ -249,20 +262,17 @@ def submit_answer():
                 score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
                 analysis = ai_result.get('analysis', {})
                 
-                # translation_submissions 테이블에 저장
                 cur.execute(
                     "INSERT INTO translation_submissions (exercise_id, student_id, student_answer, score, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s, %s)",
                     (exercise_id, student_id, student_answer, score, psycopg2.extras.Json(analysis, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
                 )
                 
             elif quiz_type == 'comprehension':
-                # 이해력 퀴즈: comprehension_exercises에서 대화문과 key_points 조회
                 cur.execute("SELECT korean_dialogue, key_points FROM comprehension_exercises WHERE id = %s;", (exercise_id,))
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
                 korean_dialogue, key_points = row[0], row[1]
 
-                # AI 채점 (이해력용 프롬프트 사용)
                 prompt_text = COMPREHENSION_EVALUATION_PROMPT.format(student_answer=student_answer, key_points_json=json.dumps(key_points, ensure_ascii=False))
                 response = model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
                 raw_text = getattr(response, 'text', '').strip()
@@ -272,7 +282,6 @@ def submit_answer():
                 score_raw = ai_result.get('score')
                 score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
                 
-                # comprehension_submissions 테이블에 저장 (ai_analysis_json에 전체 결과 저장)
                 cur.execute(
                     "INSERT INTO comprehension_submissions (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s)",
                     (exercise_id, student_id, student_answer, psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
@@ -282,7 +291,6 @@ def submit_answer():
 
             conn.commit()
 
-        # ★★★ [핵심 추가] 교수님께서 정해주신 5단계 평가 기준 적용
         def get_rating_details(score):
             score = float(score) if score else 0
             if score >= 8.6: return {"category": "Eccellente", "color": "teal"}
@@ -293,7 +301,6 @@ def submit_answer():
 
         rating_info = get_rating_details(score)
 
-        # 학생에게 보낼 피드백 추출
         if quiz_type == 'translation':
             student_feedback = analysis.get('evaluation_feedback', 'Nessun feedback disponibile.')
         elif quiz_type == 'comprehension':
@@ -317,7 +324,6 @@ def submit_answer():
     finally:
         if conn: conn.close()
         
-# --- 나머지 라우트 ---
 def teacher_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -328,14 +334,12 @@ def teacher_required(f):
 @app.route('/')
 def login(): return render_template('login.html')
 
-# ★★★ [핵심 수정] /quiz 라우트가 반 별로 문제를 필터링합니다. ★★★
 @app.route('/quiz')
 def quiz_page():
     class_name = request.args.get('class_name')
     quiz_type = request.args.get('quiz_type')
     
     if not class_name or not quiz_type:
-        # 필수 정보가 없으면 로그인 페이지로 돌려보냅니다.
         return redirect(url_for('login'))
 
     conn = get_db_connection()
@@ -345,18 +349,14 @@ def quiz_page():
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
             if quiz_type == 'translation':
-                # 번역 퀴즈 문제 목록을 불러옵니다.
                 cur.execute("SELECT id, korean_sentence AS question_text FROM translation_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             elif quiz_type == 'comprehension':
-                # 이해력 퀴즈 문제 목록을 불러옵니다.
                 cur.execute("SELECT id, korean_dialogue AS question_text, audio_file_path FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             else:
-                # 잘못된 퀴즈 유형일 경우 에러를 표시합니다.
                 return "잘못된 퀴즈 유형입니다.", 400
             
             exercises = cur.fetchall()
         
-            # ★★★ 디버깅 출력 ★★★
             print("=" * 60)
             print(f"🔍 [디버깅] quiz_type: {quiz_type}, class_name: {class_name}")
             print(f"🔍 [디버깅] 가져온 문제 수: {len(exercises)}")
@@ -364,7 +364,6 @@ def quiz_page():
                 print(f"  문제 {i+1}: ID={ex.get('id')}, audio_file_path={ex.get('audio_file_path')}")
             print("=" * 60)
 
-        # 퀴즈 유형(quiz_type)을 HTML 템플릿으로 함께 전달합니다.
         return render_template('index.html', exercises=exercises, class_name=class_name, quiz_type=quiz_type)
     except Exception as e:
         print(f"🚨 /quiz 페이지 로딩 오류: {e}")
@@ -391,7 +390,6 @@ def teacher_logout():
 @teacher_required
 def dashboard(): return render_template('dashboard.html')
 
-# ★★★ [핵심 수정] Phase 3 & 4: 분리된 대시보드 API ★★★
 @app.route('/api/get-translation-submissions')
 @teacher_required
 def api_translation_submissions():
@@ -417,6 +415,7 @@ def api_translation_submissions():
     finally:
         if conn: conn.close()
 
+# ★★★ [핵심 수정] key_points와 번역된 feedback을 함께 반환 ★★★
 @app.route('/api/get-comprehension-submissions')
 @teacher_required
 def api_comprehension_submissions():
@@ -425,9 +424,10 @@ def api_comprehension_submissions():
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # ★★★ key_points도 함께 가져옵니다 ★★★
             cur.execute("""
                 SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, s.created_at, 
-                       e.korean_dialogue, s.class_name 
+                       e.korean_dialogue, e.key_points, s.class_name 
                 FROM comprehension_submissions s 
                 JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
                 ORDER BY s.id DESC LIMIT 100
@@ -437,6 +437,16 @@ def api_comprehension_submissions():
         items = []
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
+            
+            # ★★★ 학생 피드백을 한국어로 번역 ★★★
+            analysis = r.get('ai_analysis_json', {})
+            feedback_italian = analysis.get('feedback', '')
+            if feedback_italian:
+                feedback_korean = translate_italian_to_korean(feedback_italian)
+                r['feedback_korean'] = feedback_korean
+            else:
+                r['feedback_korean'] = '(피드백 없음)'
+            
             items.append(r)
         return jsonify({"items": items, "quiz_type": "comprehension"})
     finally:
