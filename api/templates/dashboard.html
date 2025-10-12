@@ -76,6 +76,8 @@
 
     <script>
         let currentView = 'translation';
+        let lastTranslationId = 0;        // ← 여기 추가!
+        let lastComprehensionId = 0;      // ← 여기 추가!
 
         function switchView(viewType) {
             currentView = viewType;
