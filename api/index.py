@@ -433,3 +433,7 @@ def api_comprehension_submissions():
         return jsonify({"items": items, "quiz_type": "comprehension"})
     finally:
         if conn: conn.close()
+
+         ★★★ 이 부분을 추가 ★★★
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=5000, debug=True)
