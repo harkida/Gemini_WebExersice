@@ -34,11 +34,11 @@ if api_key:
     try:
         genai.configure(api_key=api_key)
         flash_model = genai.GenerativeModel('gemini-2.5-flash')
-        flash_preview_model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
+        flash_preview_model = genai.GenerativeModel('gemini-2.5-flash-lite')
         pro_model = genai.GenerativeModel('gemini-2.5-pro')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
         print("   📌 번역 퀴즈: gemini-2.5-flash (빠르고 경제적)")
-        print("   📌 번역 퀴즈: gemini-2.5-flash-preview-09-2025 (미리보기 - 별도 할당량)")
+        print("   📌 번역 퀴즈: gemini-2.5-flash-lite (더 빠르고 더 경제적)")
         print("   📌 이해력 퀴즈: gemini-2.5-pro (정밀한 평가)")
     except Exception as e:
         flash_model = None
