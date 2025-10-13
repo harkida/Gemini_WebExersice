@@ -27,22 +27,18 @@ TEACHER_PASSWORD = os.environ.get('TEACHER_PASSWORD')
 
 api_key = os.environ.get('GEMINI_API_KEY')
 flash_model = None
-flash_preview_model = None
 pro_model = None
 
 if api_key:
     try:
         genai.configure(api_key=api_key)
         flash_model = genai.GenerativeModel('gemini-2.5-flash')
-        flash_preview_model = genai.GenerativeModel('gemini-2.5-flash-lite')
         pro_model = genai.GenerativeModel('gemini-2.5-pro')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
         print("   📌 번역 퀴즈: gemini-2.5-flash (빠르고 경제적)")
-        print("   📌 번역 퀴즈: gemini-2.5-flash-lite (더 빠르고 더 경제적)")
         print("   📌 이해력 퀴즈: gemini-2.5-pro (정밀한 평가)")
     except Exception as e:
         flash_model = None
-        flash_preview_model = None
         pro_model = None
         print(f"🚨 Gemini AI 모델 설정 오류: {e}")
 else:
@@ -146,7 +142,7 @@ def translate_italian_to_korean(italian_text):
 
 한국어 번역:"""
         
-        response = flash_preview_model.generate_content(prompt)
+        response = flash_model.generate_content(prompt)
         korean_translation = getattr(response, 'text', '').strip()
         return korean_translation if korean_translation else "(번역 실패)"
     except Exception as e:
@@ -315,8 +311,8 @@ def submit_answer():
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
         
         if quiz_type == 'translation':
-            selected_model = flash_preview_model
-            model_name = "Flash Preview"
+            selected_model = flash_model
+            model_name = "Flash"
         elif quiz_type == 'comprehension':
             selected_model = pro_model
             model_name = "Pro"
@@ -336,7 +332,7 @@ def submit_answer():
 
                 prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
                 response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
-                print(f"🤖 [번역 퀴즈] gemini-2.5-flash-preview 사용 - 학생: {student_id}")
+                print(f"🤖 [번역 퀴즈] gemini-2.5-flash 사용 - 학생: {student_id}")
                 
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
