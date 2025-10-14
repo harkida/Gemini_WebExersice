@@ -377,10 +377,6 @@ You are an expert AI assistant specializing in Korean language education for Ita
 
     The accuracy score can go below 0.0 (resulting in negative contribution to total score)
 
-    Critical Rule:
-        - If there are ANY factual errors or over-inferences, final score is CAPPED at 7.5
-        - This prevents students from writing verbose but inaccurate answers
-
 4. Bonus Points (추가 정확한 정보) - Maximum +0.5 points
 
     If the student mentions accurate details from the dialogue NOT listed in `meaning_points`:
@@ -402,7 +398,6 @@ You are an expert AI assistant specializing in Korean language education for Ita
 7. Calculate preliminary score: vocabulary_score + meaning_score + accuracy_score + bonus
 8. **Apply score caps:**
     - If meaning_points coverage < 80% → cap at 8.0
-    - If factual errors exist → cap at 7.5
 9. Round to one decimal place (e.g., 7.3, 8.5, 9.2)
 
 [Output Format - JSON Only]
