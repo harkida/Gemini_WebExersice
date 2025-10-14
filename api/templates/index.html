@@ -164,7 +164,11 @@
         }
 
         submitButton.disabled = true;
-        submitButton.textContent = 'Valutazione in corso... Ci vorrà circa un minuto. Attenda un momento, per favore.';
+        if (quizType === 'translation') {
+            submitButton.textContent = 'Valutazione in corso... Attenda circa 25-30 secondi.';
+        } else if (quizType === 'comprehension') {
+            submitButton.textContent = 'Valutazione in corso... Ci vorrà circa un minuto. Attenda un momento, per favore.';
+        }
         resultContainer.style.display = 'none';
 
         try {

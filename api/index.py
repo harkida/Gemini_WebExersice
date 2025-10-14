@@ -129,26 +129,6 @@ def extract_first_json_block(text: str):
     if start != -1 and end != -1 and end > start: return t[start:end+1]
     return None
 
-def translate_italian_to_korean(italian_text):
-    """AI를 사용하여 이탈리아어 텍스트를 한국어로 번역"""
-    if not pro_model or not italian_text:
-        return "(번역 불가)"
-    
-    try:
-        prompt = f"""다음 이탈리아어 텍스트를 자연스러운 한국어로 번역해주세요. 번역문만 출력하고 다른 설명은 하지 마세요.
-
-이탈리아어 원문:
-{italian_text}
-
-한국어 번역:"""
-        
-        response = pro_model.generate_content(prompt)
-        korean_translation = getattr(response, 'text', '').strip()
-        return korean_translation if korean_translation else "(번역 실패)"
-    except Exception as e:
-        print(f"🚨 번역 오류: {e}")
-        return "(번역 오류)"
-
 EVALUATION_PROMPT = """
 너는 한국어와 이탈리아어에 모두 능통한 언어 평가 전문가이다. 너의 유일한 임무는 '한국어 원문'을 듣고 학생이 작성한 '이탈리아어 답안'이 원문의 의미를 얼마나 정확하게 이해하고 반영했는지를 평가하는 것이다.
 
@@ -370,20 +350,13 @@ def submit_answer():
                 score_raw = ai_result.get('score')
                 score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
                 
-                feedback_italian = ai_result.get('feedback', 'Nessun feedback disponibile.')
-                if feedback_italian and feedback_italian != 'Nessun feedback disponibile.':
-                    feedback_korean = translate_italian_to_korean(feedback_italian)
-                    print(f"📝 피드백 번역 완료 (Pro 사용): {len(feedback_korean)}자")
-                else:
-                    feedback_korean = '(피드백 없음)'
-                
                 cur.execute(
                     """INSERT INTO comprehension_submissions 
-                       (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, feedback_korean, class_name) 
-                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                       (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, class_name) 
+                       VALUES (%s, %s, %s, %s, %s)""",
                     (exercise_id, student_id, student_answer, 
                      psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False)), 
-                     feedback_korean, class_name)
+                     class_name)
                 )
 
             conn.commit()
@@ -516,7 +489,7 @@ def api_comprehension_submissions():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
-                       s.feedback_korean, s.created_at, 
+                       s.created_at, 
                        e.korean_dialogue, e.key_points, s.class_name 
                 FROM comprehension_submissions s 
                 JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
@@ -527,7 +500,6 @@ def api_comprehension_submissions():
         items = []
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
-            r['feedback_korean'] = r.get('feedback_korean') or '(피드백 없음)'
             items.append(r)
         return jsonify({"items": items, "quiz_type": "comprehension"})
     finally:
