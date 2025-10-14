@@ -131,7 +131,7 @@ def extract_first_json_block(text: str):
 
 def translate_italian_to_korean(italian_text):
     """AI를 사용하여 이탈리아어 텍스트를 한국어로 번역"""
-    if not flash_model or not italian_text:
+    if not pro_model or not italian_text:
         return "(번역 불가)"
     
     try:
@@ -142,7 +142,7 @@ def translate_italian_to_korean(italian_text):
 
 한국어 번역:"""
         
-        response = flash_model.generate_content(prompt)
+        response = pro_model.generate_content(prompt)
         korean_translation = getattr(response, 'text', '').strip()
         return korean_translation if korean_translation else "(번역 실패)"
     except Exception as e:
@@ -373,7 +373,7 @@ def submit_answer():
                 feedback_italian = ai_result.get('feedback', 'Nessun feedback disponibile.')
                 if feedback_italian and feedback_italian != 'Nessun feedback disponibile.':
                     feedback_korean = translate_italian_to_korean(feedback_italian)
-                    print(f"📝 피드백 번역 완료: {len(feedback_korean)}자")
+                    print(f"📝 피드백 번역 완료 (Pro 사용): {len(feedback_korean)}자")
                 else:
                     feedback_korean = '(피드백 없음)'
                 

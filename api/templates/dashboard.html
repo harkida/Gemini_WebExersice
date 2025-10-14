@@ -219,10 +219,13 @@
 
                 // ★★★ [핵심 수정] 학생 피드백을 이탈리아어 원문 그대로 표시 ★★★
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
+                const studentFeedbackKorean = item.feedback_korean || '(번역 없음)';  // ← DB에서 가져온 한국어 번역
                 studentFeedbackHtml = `
                     <div class="student-feedback-section">
                         <strong>학생의 피드백:</strong>
                         <p>${studentFeedbackItalian}</p>
+                        <strong style="margin-top: 1rem;">학생의 피드백 (번역):</strong>
+                        <p>${studentFeedbackKorean}</p>
                     </div>
                 `;
             }
