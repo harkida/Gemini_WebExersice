@@ -626,54 +626,97 @@ def teacher_logout():
 @teacher_required
 def dashboard(): return render_template('dashboard.html')
 
-@app.route('/api/get-translation-submissions')
+@app.route('/api/get-submissions')
 @teacher_required
-def api_translation_submissions():
-    if not session.get('is_teacher'): return jsonify({"error": "unauthorized"}), 401
+def api_get_submissions():
+    """페이지네이션 지원 - 특정 페이지의 10개 제출물 반환"""
+    if not session.get('is_teacher'): 
+        return jsonify({"error": "unauthorized"}), 401
+    
+    page = int(request.args.get('page', 1))
+    quiz_type = request.args.get('quiz_type', 'translation')
+    class_name = request.args.get('class_name', 'all')
+    
+    per_page = 10
+    offset = (page - 1) * per_page
     
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
-                SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, s.created_at, 
-                       e.korean_sentence, s.class_name 
-                FROM translation_submissions s 
-                JOIN translation_exercises e ON e.id = s.exercise_id 
-                ORDER BY s.id DESC LIMIT 100
-            """)
+            if quiz_type == 'translation':
+                # 전체 개수 조회
+                if class_name == 'all':
+                    cur.execute("SELECT COUNT(*) as total FROM translation_submissions")
+                else:
+                    cur.execute("SELECT COUNT(*) as total FROM translation_submissions WHERE class_name = %s", (class_name,))
+                total = cur.fetchone()['total']
+                
+                # 페이지네이션 데이터 조회
+                if class_name == 'all':
+                    cur.execute("""
+                        SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, 
+                               s.created_at, e.korean_sentence, s.class_name 
+                        FROM translation_submissions s 
+                        JOIN translation_exercises e ON e.id = s.exercise_id 
+                        ORDER BY s.id DESC 
+                        LIMIT %s OFFSET %s
+                    """, (per_page, offset))
+                else:
+                    cur.execute("""
+                        SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, 
+                               s.created_at, e.korean_sentence, s.class_name 
+                        FROM translation_submissions s 
+                        JOIN translation_exercises e ON e.id = s.exercise_id 
+                        WHERE s.class_name = %s
+                        ORDER BY s.id DESC 
+                        LIMIT %s OFFSET %s
+                    """, (class_name, per_page, offset))
+            
+            elif quiz_type == 'comprehension':
+                # 전체 개수 조회
+                if class_name == 'all':
+                    cur.execute("SELECT COUNT(*) as total FROM comprehension_submissions")
+                else:
+                    cur.execute("SELECT COUNT(*) as total FROM comprehension_submissions WHERE class_name = %s", (class_name,))
+                total = cur.fetchone()['total']
+                
+                # 페이지네이션 데이터 조회
+                if class_name == 'all':
+                    cur.execute("""
+                        SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
+                               s.created_at, e.korean_dialogue, e.key_points, s.class_name 
+                        FROM comprehension_submissions s 
+                        JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
+                        ORDER BY s.id DESC 
+                        LIMIT %s OFFSET %s
+                    """, (per_page, offset))
+                else:
+                    cur.execute("""
+                        SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
+                               s.created_at, e.korean_dialogue, e.key_points, s.class_name 
+                        FROM comprehension_submissions s 
+                        JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
+                        WHERE s.class_name = %s
+                        ORDER BY s.id DESC 
+                        LIMIT %s OFFSET %s
+                    """, (class_name, per_page, offset))
+            
             rows = cur.fetchall()
-        
+            
         items = []
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
             items.append(r)
-        return jsonify({"items": items, "quiz_type": "translation"})
-    finally:
-        if conn: conn.close()
-
-@app.route('/api/get-comprehension-submissions')
-@teacher_required
-def api_comprehension_submissions():
-    if not session.get('is_teacher'): return jsonify({"error": "unauthorized"}), 401
-    
-    conn = get_db_connection()
-    try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
-                SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
-                       s.created_at, 
-                       e.korean_dialogue, e.key_points, s.class_name 
-                FROM comprehension_submissions s 
-                JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
-                ORDER BY s.id DESC LIMIT 100
-            """)
-            rows = cur.fetchall()
         
-        items = []
-        for r in rows:
-            r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
-            items.append(r)
-        return jsonify({"items": items, "quiz_type": "comprehension"})
+        total_pages = (total + per_page - 1) // per_page
+        
+        return jsonify({
+            "items": items, 
+            "quiz_type": quiz_type,
+            "total": total,
+            "total_pages": total_pages,
+            "current_page": page
+        })
     finally:
         if conn: conn.close()
 

@@ -94,16 +94,16 @@
             console.log(`${currentView} 뷰의 화면이 초기화되었습니다.`);
         }
 
-        async function loadSubmissions(quizType) {
+        async function loadSubmissions(quizType, page = 1) {
             const container = document.getElementById(`${quizType}-view`);
             
             // 첫 로딩일 때만 "데이터를 불러오는 중..." 표시
-            if (container.children.length === 0) {
+            if (page === 1 && container.children.length === 0) {
                 container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
             }
             
             try {
-                const response = await fetch(`/api/get-${quizType}-submissions`);
+                const response = await fetch(`/api/get-submissions?quiz_type=${quizType}&page=${page}&class_name=all`);
                 if (!response.ok) {
                     if (response.status === 401) window.location.href = '/teacher-login';
                     throw new Error(`서버 응답 오류: ${response.status}`);
@@ -139,6 +139,12 @@
                             lastComprehensionId = maxId;
                         }
                     }
+                    
+                    // ★★★ 페이지네이션 버튼 추가 (첫 로딩 시에만) ★★★
+                    if (page === 1 && data.total_pages > 1) {
+                        addPaginationButtons(container, quizType, data.current_page, data.total_pages);
+                    }
+                    
                 } else {
                     if (container.children.length === 0) {
                         container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
@@ -148,6 +154,73 @@
                 console.error(`${quizType} 제출물 로딩 오류:`, error);
                 container.innerHTML = `<p class="empty-message" style="color: #e74c3c;">데이터를 불러오는 데 실패했습니다.</p>`;
             }
+        }
+
+        function addPaginationButtons(container, quizType, currentPage, totalPages) {
+            // 기존 페이지네이션 버튼 제거 (중복 방지)
+            const existingPagination = container.querySelector('.pagination-container');
+            if (existingPagination) {
+                existingPagination.remove();
+            }
+
+            // 페이지네이션 컨테이너 생성
+            const paginationDiv = document.createElement('div');
+            paginationDiv.className = 'pagination-container';
+            paginationDiv.style.cssText = 'text-align: center; margin: 2rem 0; padding: 1rem;';
+
+            // 이전 페이지 버튼
+            if (currentPage > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '← 이전';
+                prevBtn.style.cssText = 'margin: 0 0.5rem; padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                prevBtn.onclick = () => loadMoreSubmissions(quizType, currentPage - 1);
+                paginationDiv.appendChild(prevBtn);
+            }
+
+            // 페이지 정보
+            const pageInfo = document.createElement('span');
+            pageInfo.textContent = `${currentPage} / ${totalPages}`;
+            pageInfo.style.cssText = 'margin: 0 1rem; color: #e0e0e0; font-size: 1rem;';
+            paginationDiv.appendChild(pageInfo);
+
+            // 다음 페이지 버튼
+            if (currentPage < totalPages) {
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = '다음 →';
+                nextBtn.style.cssText = 'margin: 0 0.5rem; padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                nextBtn.onclick = () => loadMoreSubmissions(quizType, currentPage + 1);
+                paginationDiv.appendChild(nextBtn);
+            }
+
+            container.appendChild(paginationDiv);
+        }
+
+        function loadMoreSubmissions(quizType, page) {
+            const container = document.getElementById(`${quizType}-view`);
+            
+            // 기존 페이지네이션 제거
+            const existingPagination = container.querySelector('.pagination-container');
+            if (existingPagination) {
+                existingPagination.remove();
+            }
+
+            fetch(`/api/get-submissions?quiz_type=${quizType}&page=${page}&class_name=all`)
+                .then(response => response.json())
+                .then(data => {
+                    // 카드들을 추가 (prepend가 아니라 append로 아래에 추가)
+                    data.items.reverse().forEach(item => {
+                        const card = createSubmissionCard(item, quizType);
+                        container.appendChild(card);
+                    });
+
+                    // 페이지네이션 버튼 재생성
+                    if (data.total_pages > 1) {
+                        addPaginationButtons(container, quizType, data.current_page, data.total_pages);
+                    }
+                })
+                .catch(error => {
+                    console.error('페이지 로딩 오류:', error);
+                });
         }
 
         function createSubmissionCard(item, quizType) {
