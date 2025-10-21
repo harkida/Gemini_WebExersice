@@ -166,28 +166,88 @@
             // 페이지네이션 컨테이너 생성
             const paginationDiv = document.createElement('div');
             paginationDiv.className = 'pagination-container';
-            paginationDiv.style.cssText = 'text-align: center; margin: 2rem 0; padding: 1rem;';
+            paginationDiv.style.cssText = 'text-align: center; margin: 2rem 0; padding: 1rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem;';
 
             // 이전 페이지 버튼
             if (currentPage > 1) {
                 const prevBtn = document.createElement('button');
-                prevBtn.textContent = '← 이전';
-                prevBtn.style.cssText = 'margin: 0 0.5rem; padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                prevBtn.textContent = '←';
+                prevBtn.style.cssText = 'padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.2rem;';
+                prevBtn.onmouseover = () => prevBtn.style.background = '#666';
+                prevBtn.onmouseout = () => prevBtn.style.background = '#555';
                 prevBtn.onclick = () => loadMoreSubmissions(quizType, currentPage - 1);
                 paginationDiv.appendChild(prevBtn);
             }
 
-            // 페이지 정보
-            const pageInfo = document.createElement('span');
-            pageInfo.textContent = `${currentPage} / ${totalPages}`;
-            pageInfo.style.cssText = 'margin: 0 1rem; color: #e0e0e0; font-size: 1rem;';
-            paginationDiv.appendChild(pageInfo);
+            // ★★★ 페이지 번호 버튼들 생성 ★★★
+            const maxVisiblePages = 10; // 한 번에 보여줄 최대 페이지 수
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+            // startPage 재조정 (끝쪽에서 10개가 안 보이는 경우)
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            // 첫 페이지로 가는 버튼 (startPage가 1이 아닐 때)
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.textContent = '1';
+                firstBtn.style.cssText = 'padding: 0.5rem 0.8rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;';
+                firstBtn.onmouseover = () => firstBtn.style.background = '#666';
+                firstBtn.onmouseout = () => firstBtn.style.background = '#555';
+                firstBtn.onclick = () => loadMoreSubmissions(quizType, 1);
+                paginationDiv.appendChild(firstBtn);
+
+                // "..." 표시
+                const dots = document.createElement('span');
+                dots.textContent = '...';
+                dots.style.cssText = 'color: #888; padding: 0 0.5rem;';
+                paginationDiv.appendChild(dots);
+            }
+
+            // 페이지 번호 버튼들
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                
+                // 현재 페이지는 크고 볼드 처리
+                if (i === currentPage) {
+                    pageBtn.style.cssText = 'padding: 0.6rem 1rem; background: #7289da; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.3rem; font-weight: bold;';
+                } else {
+                    pageBtn.style.cssText = 'padding: 0.5rem 0.8rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;';
+                    pageBtn.onmouseover = () => pageBtn.style.background = '#666';
+                    pageBtn.onmouseout = () => pageBtn.style.background = '#555';
+                }
+                
+                pageBtn.onclick = () => loadMoreSubmissions(quizType, i);
+                paginationDiv.appendChild(pageBtn);
+            }
+
+            // 마지막 페이지로 가는 버튼 (endPage가 totalPages가 아닐 때)
+            if (endPage < totalPages) {
+                // "..." 표시
+                const dots = document.createElement('span');
+                dots.textContent = '...';
+                dots.style.cssText = 'color: #888; padding: 0 0.5rem;';
+                paginationDiv.appendChild(dots);
+
+                const lastBtn = document.createElement('button');
+                lastBtn.textContent = totalPages;
+                lastBtn.style.cssText = 'padding: 0.5rem 0.8rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;';
+                lastBtn.onmouseover = () => lastBtn.style.background = '#666';
+                lastBtn.onmouseout = () => lastBtn.style.background = '#555';
+                lastBtn.onclick = () => loadMoreSubmissions(quizType, totalPages);
+                paginationDiv.appendChild(lastBtn);
+            }
 
             // 다음 페이지 버튼
             if (currentPage < totalPages) {
                 const nextBtn = document.createElement('button');
-                nextBtn.textContent = '다음 →';
-                nextBtn.style.cssText = 'margin: 0 0.5rem; padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                nextBtn.textContent = '→';
+                nextBtn.style.cssText = 'padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.2rem;';
+                nextBtn.onmouseover = () => nextBtn.style.background = '#666';
+                nextBtn.onmouseout = () => nextBtn.style.background = '#555';
                 nextBtn.onclick = () => loadMoreSubmissions(quizType, currentPage + 1);
                 paginationDiv.appendChild(nextBtn);
             }
@@ -198,28 +258,47 @@
         function loadMoreSubmissions(quizType, page) {
             const container = document.getElementById(`${quizType}-view`);
             
+            // ★★★ 기존 카드들을 모두 제거 (새 페이지 내용으로 교체) ★★★
+            const cards = container.querySelectorAll('.submission-card');
+            cards.forEach(card => card.remove());
+
             // 기존 페이지네이션 제거
             const existingPagination = container.querySelector('.pagination-container');
             if (existingPagination) {
                 existingPagination.remove();
             }
 
+            // 로딩 메시지 표시
+            const loadingMsg = document.createElement('p');
+            loadingMsg.className = 'empty-message';
+            loadingMsg.textContent = '데이터를 불러오는 중...';
+            container.appendChild(loadingMsg);
+
             fetch(`/api/get-submissions?quiz_type=${quizType}&page=${page}&class_name=all`)
                 .then(response => response.json())
                 .then(data => {
-                    // 카드들을 추가 (prepend가 아니라 append로 아래에 추가)
-                    data.items.reverse().forEach(item => {
-                        const card = createSubmissionCard(item, quizType);
-                        container.appendChild(card);
-                    });
+                    // 로딩 메시지 제거
+                    loadingMsg.remove();
 
-                    // 페이지네이션 버튼 재생성
-                    if (data.total_pages > 1) {
-                        addPaginationButtons(container, quizType, data.current_page, data.total_pages);
+                    // 카드들을 추가
+                    if (data.items && data.items.length > 0) {
+                        data.items.reverse().forEach(item => {
+                            const card = createSubmissionCard(item, quizType);
+                            container.appendChild(card);
+                        });
+
+                        // 페이지네이션 버튼 재생성
+                        if (data.total_pages > 1) {
+                            addPaginationButtons(container, quizType, data.current_page, data.total_pages);
+                        }
+                    } else {
+                        container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
                     }
                 })
                 .catch(error => {
                     console.error('페이지 로딩 오류:', error);
+                    loadingMsg.textContent = '데이터를 불러오는 데 실패했습니다.';
+                    loadingMsg.style.color = '#e74c3c';
                 });
         }
 
