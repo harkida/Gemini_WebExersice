@@ -125,10 +125,10 @@
                             container.innerHTML = '';
                         }
                         
-                        // ★★★ 새 카드만 추가 (기존 카드는 유지) ★★★
-                        newItems.reverse().forEach(item => {
+                        // ★★★ [수정] reverse() 제거하고 prepend → appendChild로 변경 ★★★
+                        newItems.forEach(item => {
                             const card = createSubmissionCard(item, quizType);
-                            container.prepend(card);  // 맨 위에 추가
+                            container.prepend(card);  // ★★★ 맨 위에 추가 (최신순) ★★★
                         });
                         
                         // ★★★ 마지막 ID 업데이트 ★★★
@@ -258,17 +258,14 @@
         function loadMoreSubmissions(quizType, page) {
             const container = document.getElementById(`${quizType}-view`);
             
-            // ★★★ 기존 카드들을 모두 제거 (새 페이지 내용으로 교체) ★★★
             const cards = container.querySelectorAll('.submission-card');
             cards.forEach(card => card.remove());
 
-            // 기존 페이지네이션 제거
             const existingPagination = container.querySelector('.pagination-container');
             if (existingPagination) {
                 existingPagination.remove();
             }
 
-            // 로딩 메시지 표시
             const loadingMsg = document.createElement('p');
             loadingMsg.className = 'empty-message';
             loadingMsg.textContent = '데이터를 불러오는 중...';
@@ -277,17 +274,28 @@
             fetch(`/api/get-submissions?quiz_type=${quizType}&page=${page}&class_name=all`)
                 .then(response => response.json())
                 .then(data => {
-                    // 로딩 메시지 제거
+                    // ★★★ [디버깅] 백엔드가 반환하는 current_page 값 확인 ★★★
+                    console.log('=== 페이지네이션 디버깅 ===');
+                    console.log('요청한 페이지:', page);
+                    console.log('백엔드가 반환한 current_page:', data.current_page);
+                    console.log('총 페이지 수:', data.total_pages);
+                    console.log('============================');
+                    
                     loadingMsg.remove();
 
-                    // 카드들을 추가
                     if (data.items && data.items.length > 0) {
-                        data.items.reverse().forEach(item => {
+                        data.items.forEach(item => {
                             const card = createSubmissionCard(item, quizType);
                             container.appendChild(card);
                         });
 
-                        // 페이지네이션 버튼 재생성
+                        const maxId = Math.max(...data.items.map(item => item.id));
+                        if (quizType === 'translation') {
+                            lastTranslationId = Math.max(lastTranslationId, maxId);
+                        } else {
+                            lastComprehensionId = Math.max(lastComprehensionId, maxId);
+                        }
+
                         if (data.total_pages > 1) {
                             addPaginationButtons(container, quizType, data.current_page, data.total_pages);
                         }
