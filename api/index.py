@@ -328,10 +328,49 @@ EVALUATION_PROMPT = """
 • 최종 점수는 반드시 0.0 ~ 10.0 사이여야 한다.
 • 점수는 반드시 소수점 첫째 자리까지 표기한다 (예: 7.5, 8.3, 9.1).
 
+---
+
+[학생용 힌트 생성 규칙]
+
+• "student_hint" 필드는 반드시 다음 규칙을 따라 생성해야 한다:
+
+1. **Level 4, 5 (사소한 오류 또는 오류 없음):**
+   - student_hint: "" (빈 문자열)
+   - 학생에게 피드백을 보여주지 않는다.
+
+2. **Level 1, 2, 3 (심각한 오류):**
+   - student_hint: "한 문장으로 핵심 오류만 지적"
+   - **반드시 이탈리아어로만 작성**
+   - 최대 1문장, 20단어 이내
+   - 친절한 설명 없이, 오류의 종류만 간단히 힌트
+   
+3. **힌트 작성 예시 (모두 이탈리아어):**
+   - **완전한 오역**: "Hai tradotto il contrario del significato originale."
+   - **시제가 정반대**: "Il tempo verbale è opposto: passato ≠ futuro."
+   - **주어 누락**: "Manca il soggetto della frase."
+   - **목적어 누락**: "Manca l'oggetto principale."
+   - **장소 누락**: "Manca l'informazione del luogo."
+   - **시간 누락**: "Manca l'informazione temporale."
+   - **핵심 동사 오역**: "Il verbo principale è stato tradotto in modo errato."
+   - **원문에 없는 정보 추가 (사소한)**: "Hai aggiunto dettagli non presenti nel testo."
+   - **원문에 없는 정보 추가 (심각한)**: "Hai inventato informazioni che non esistono nell'originale."
+
+4. **절대 금지 사항:**
+   - 정답을 직접 제시하지 마라
+   - 격려나 칭찬 문구를 포함하지 마라
+   - 설명을 길게 늘리지 마라
+   - 단순히 "오류가 있습니다"라고만 하지 마라 (구체적이어야 함)
+   - **한국어나 영어를 절대 사용하지 마라 (100% 이탈리아어)**
+
+5. **student_hint는 반드시 이탈리아어로 작성한다.**
+
+---
+
 [출력 형식]
 JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
 {{
   "score": "9.5, 8.0, 7.5 등과 같은 10.0 형식의 숫자 문자열",
+  "student_hint": "학생용 힌트 (Level 1, 2, 3일 때만, 이탈리아어)",
   "analysis": {{
     "original_korean_question": "채점의 기준이 된 한국어 원문",
     "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
@@ -544,10 +583,13 @@ def submit_answer():
         rating_info = get_rating_details(score)
 
         if quiz_type == 'translation':
+            student_hint = ai_result.get('student_hint', '')  # ★★★ 추가 ★★★
             student_feedback = analysis.get('evaluation_feedback', 'Nessun feedback disponibile.')
         elif quiz_type == 'comprehension':
+            student_hint = ''  # ★★★ 추가 필수 ★★★
             student_feedback = ai_result.get('feedback', 'Nessun feedback disponibile.')
         else:
+            student_hint = ''  # ★★★ 추가 필수 ★★★
             student_feedback = 'Feedback non disponibile.'
 
         return jsonify({
@@ -555,6 +597,7 @@ def submit_answer():
             "score": score,
             "rating_category": rating_info["category"],
             "rating_color": rating_info["color"],
+            "student_hint": student_hint,  # ★★★ 추가 ★★★
             "feedback": student_feedback,
             "korean_text": korean_text
         })    

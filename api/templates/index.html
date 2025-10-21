@@ -197,7 +197,16 @@
             
             // ★★★ 번역 퀴즈에서는 점수만, 이해력 퀴즈에서는 피드백도 표시 ★★★
             let feedbackHtml = '';
-            if (quizType === 'comprehension') {
+
+            if (quizType === 'translation' && result.student_hint) {
+              // 번역 퀴즈: Level 1,2,3 오류 시 힌트 표시
+              feedbackHtml = `
+                  <div class="feedback-box">
+                      <h4>💡 Suggerimento:</h4>
+                      <p style="color: #ff6b6b; font-weight: bold;">${result.student_hint}</p>
+                  </div>
+              `;
+            } else if (quizType === 'comprehension') {
                 feedbackHtml = `
                     <div class="feedback-box">
                         <h4>Feedback dall'IA:</h4>
