@@ -57,7 +57,6 @@
                 transform: translateY(0);
             }
         }        
-
     </style>
 </head>
 <body>
@@ -76,8 +75,11 @@
 
     <script>
         let currentView = 'translation';
-        let lastTranslationId = 0;        // ← 여기 추가!
-        let lastComprehensionId = 0;      // ← 여기 추가!
+        let lastTranslationId = 0;
+        let lastComprehensionId = 0;
+        let currentTranslationPage = 1;  // ★★★ 현재 페이지 추적 ★★★
+        let currentComprehensionPage = 1;  // ★★★ 현재 페이지 추적 ★★★
+        let autoRefreshInterval = null;  // ★★★ 자동 새로고침 타이머 ID ★★★
 
         function switchView(viewType) {
             currentView = viewType;
@@ -85,20 +87,31 @@
             document.getElementById(`btn-${viewType}`).classList.add('active');
             document.querySelectorAll('.view-container').forEach(container => container.classList.remove('active'));
             document.getElementById(`${viewType}-view`).classList.add('active');
-            loadSubmissions(viewType);
+            
+            // ★★★ 뷰 전환 시 현재 페이지로 로드 ★★★
+            const currentPage = viewType === 'translation' ? currentTranslationPage : currentComprehensionPage;
+            loadSubmissions(viewType, currentPage);
         }
 
         function clearCurrentView() {
             const container = document.getElementById(`${currentView}-view`);
             container.innerHTML = '<p class="empty-message">화면이 초기화되었습니다.</p>';
+            
+            // ★★★ 현재 뷰의 페이지를 1로 리셋 ★★★
+            if (currentView === 'translation') {
+                currentTranslationPage = 1;
+            } else {
+                currentComprehensionPage = 1;
+            }
+            
             console.log(`${currentView} 뷰의 화면이 초기화되었습니다.`);
         }
 
         async function loadSubmissions(quizType, page = 1) {
             const container = document.getElementById(`${quizType}-view`);
             
-            // 첫 로딩일 때만 "데이터를 불러오는 중..." 표시
-            if (page === 1 && container.children.length === 0) {
+            // ★★★ 페이지 전환 시에는 기존 내용 제거 ★★★
+            if (page !== 1 || container.children.length === 0) {
                 container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
             }
             
@@ -112,43 +125,31 @@
                 const data = await response.json();
 
                 if (data.items && data.items.length > 0) {
-                    // ★★★ 현재 뷰의 마지막 ID 가져오기 ★★★
-                    const lastId = quizType === 'translation' ? lastTranslationId : lastComprehensionId;
+                    // ★★★ 페이지 전환 시에는 전체 카드를 새로 그림 ★★★
+                    container.innerHTML = '';
                     
-                    // ★★★ 새로운 제출물만 필터링 ★★★
-                    const newItems = data.items.filter(item => item.id > lastId);
+                    data.items.forEach(item => {
+                        const card = createSubmissionCard(item, quizType);
+                        container.appendChild(card);
+                    });
                     
-                    if (newItems.length > 0) {
-                        // ★★★ "데이터를 불러오는 중..." 메시지 제거 (첫 로딩 시) ★★★
-                        const emptyMessage = container.querySelector('.empty-message');
-                        if (emptyMessage) {
-                            container.innerHTML = '';
-                        }
-                        
-                        // ★★★ [수정] reverse() 제거하고 prepend → appendChild로 변경 ★★★
-                        newItems.forEach(item => {
-                            const card = createSubmissionCard(item, quizType);
-                            container.prepend(card);  // ★★★ 맨 위에 추가 (최신순) ★★★
-                        });
-                        
-                        // ★★★ 마지막 ID 업데이트 ★★★
-                        const maxId = Math.max(...data.items.map(item => item.id));
-                        if (quizType === 'translation') {
-                            lastTranslationId = maxId;
-                        } else {
-                            lastComprehensionId = maxId;
-                        }
+                    // ★★★ 마지막 ID 업데이트 ★★★
+                    const maxId = Math.max(...data.items.map(item => item.id));
+                    if (quizType === 'translation') {
+                        lastTranslationId = Math.max(lastTranslationId, maxId);
+                        currentTranslationPage = page;
+                    } else {
+                        lastComprehensionId = Math.max(lastComprehensionId, maxId);
+                        currentComprehensionPage = page;
                     }
                     
-                    // ★★★ 페이지네이션 버튼 추가 (첫 로딩 시에만) ★★★
-                    if (page === 1 && data.total_pages > 1) {
+                    // ★★★ 페이지네이션 버튼 추가 ★★★
+                    if (data.total_pages > 1) {
                         addPaginationButtons(container, quizType, data.current_page, data.total_pages);
                     }
                     
                 } else {
-                    if (container.children.length === 0) {
-                        container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
-                    }
+                    container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
                 }
             } catch (error) {
                 console.error(`${quizType} 제출물 로딩 오류:`, error);
@@ -157,7 +158,6 @@
         }
 
         function addPaginationButtons(container, quizType, currentPage, totalPages) {
-
             currentPage = parseInt(currentPage);
             totalPages = parseInt(totalPages);
 
@@ -179,31 +179,29 @@
                 prevBtn.style.cssText = 'padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.2rem;';
                 prevBtn.onmouseover = () => prevBtn.style.background = '#666';
                 prevBtn.onmouseout = () => prevBtn.style.background = '#555';
-                prevBtn.onclick = () => loadMoreSubmissions(quizType, currentPage - 1);
+                prevBtn.onclick = () => loadSubmissions(quizType, currentPage - 1);
                 paginationDiv.appendChild(prevBtn);
             }
 
             // ★★★ 페이지 번호 버튼들 생성 ★★★
-            const maxVisiblePages = 10; // 한 번에 보여줄 최대 페이지 수
+            const maxVisiblePages = 10;
             let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
             let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-            // startPage 재조정 (끝쪽에서 10개가 안 보이는 경우)
             if (endPage - startPage < maxVisiblePages - 1) {
                 startPage = Math.max(1, endPage - maxVisiblePages + 1);
             }
 
-            // 첫 페이지로 가는 버튼 (startPage가 1이 아닐 때)
+            // 첫 페이지로 가는 버튼
             if (startPage > 1) {
                 const firstBtn = document.createElement('button');
                 firstBtn.textContent = '1';
                 firstBtn.style.cssText = 'padding: 0.5rem 0.8rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;';
                 firstBtn.onmouseover = () => firstBtn.style.background = '#666';
                 firstBtn.onmouseout = () => firstBtn.style.background = '#555';
-                firstBtn.onclick = () => loadMoreSubmissions(quizType, 1);
+                firstBtn.onclick = () => loadSubmissions(quizType, 1);
                 paginationDiv.appendChild(firstBtn);
 
-                // "..." 표시
                 const dots = document.createElement('span');
                 dots.textContent = '...';
                 dots.style.cssText = 'color: #888; padding: 0 0.5rem;';
@@ -215,7 +213,6 @@
                 const pageBtn = document.createElement('button');
                 pageBtn.textContent = i;
                 
-                // ★★★ [수정] 현재 페이지 강조 효과 강화 ★★★
                 if (i === currentPage) {
                     pageBtn.style.cssText = `
                         padding: 0.7rem 1.1rem; 
@@ -235,13 +232,12 @@
                     pageBtn.onmouseout = () => pageBtn.style.background = '#555';
                 }
                 
-                pageBtn.onclick = () => loadMoreSubmissions(quizType, i);
+                pageBtn.onclick = () => loadSubmissions(quizType, i);
                 paginationDiv.appendChild(pageBtn);
             }
 
-            // 마지막 페이지로 가는 버튼 (endPage가 totalPages가 아닐 때)
+            // 마지막 페이지로 가는 버튼
             if (endPage < totalPages) {
-                // "..." 표시
                 const dots = document.createElement('span');
                 dots.textContent = '...';
                 dots.style.cssText = 'color: #888; padding: 0 0.5rem;';
@@ -252,7 +248,7 @@
                 lastBtn.style.cssText = 'padding: 0.5rem 0.8rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;';
                 lastBtn.onmouseover = () => lastBtn.style.background = '#666';
                 lastBtn.onmouseout = () => lastBtn.style.background = '#555';
-                lastBtn.onclick = () => loadMoreSubmissions(quizType, totalPages);
+                lastBtn.onclick = () => loadSubmissions(quizType, totalPages);
                 paginationDiv.appendChild(lastBtn);
             }
 
@@ -263,76 +259,14 @@
                 nextBtn.style.cssText = 'padding: 0.5rem 1rem; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.2rem;';
                 nextBtn.onmouseover = () => nextBtn.style.background = '#666';
                 nextBtn.onmouseout = () => nextBtn.style.background = '#555';
-                nextBtn.onclick = () => loadMoreSubmissions(quizType, currentPage + 1);
+                nextBtn.onclick = () => loadSubmissions(quizType, currentPage + 1);
                 paginationDiv.appendChild(nextBtn);
             }
 
             container.appendChild(paginationDiv);
         }
 
-        function loadMoreSubmissions(quizType, page) {
-            const container = document.getElementById(`${quizType}-view`);
-            
-            const cards = container.querySelectorAll('.submission-card');
-            cards.forEach(card => card.remove());
-
-            const existingPagination = container.querySelector('.pagination-container');
-            if (existingPagination) {
-                existingPagination.remove();
-            }
-
-            const loadingMsg = document.createElement('p');
-            loadingMsg.className = 'empty-message';
-            loadingMsg.textContent = '데이터를 불러오는 중...';
-            container.appendChild(loadingMsg);
-
-            fetch(`/api/get-submissions?quiz_type=${quizType}&page=${page}&class_name=all`)
-                .then(response => response.json())
-                .then(data => {
-                    // ★★★ [디버깅] 백엔드가 반환하는 current_page 값 확인 ★★★
-                    console.log('=== 페이지네이션 디버깅 ===');
-                    console.log('요청한 페이지:', page);
-                    console.log('백엔드가 반환한 current_page:', data.current_page);
-                    console.log('총 페이지 수:', data.total_pages);
-                    console.log('============================');
-                    
-                    loadingMsg.remove();
-
-                    if (data.items && data.items.length > 0) {
-                        data.items.forEach(item => {
-                            const card = createSubmissionCard(item, quizType);
-                            container.appendChild(card);
-                        });
-
-                        const maxId = Math.max(...data.items.map(item => item.id));
-                        if (quizType === 'translation') {
-                            lastTranslationId = Math.max(lastTranslationId, maxId);
-                        } else {
-                            lastComprehensionId = Math.max(lastComprehensionId, maxId);
-                        }
-
-                        if (data.total_pages > 1) {
-                            addPaginationButtons(container, quizType, data.current_page, data.total_pages);
-                        }
-                    } else {
-                        container.innerHTML = '<p class="empty-message">아직 제출된 결과가 없습니다.</p>';
-                    }
-                })
-                .catch(error => {
-                    console.error('페이지 로딩 오류:', error);
-                    loadingMsg.textContent = '데이터를 불러오는 데 실패했습니다.';
-                    loadingMsg.style.color = '#e74c3c';
-                });
-        }
-
         function createSubmissionCard(item, quizType) {
-
-            // ★★★ [디버깅] key_points 확인 ★★★
-            console.log('=== 카드 생성 디버깅 ===');
-            console.log('quiz_type:', quizType);
-            console.log('item.key_points:', item.key_points);
-            console.log('========================');
-
             const card = document.createElement('div');
             card.className = 'submission-card';
 
@@ -342,7 +276,6 @@
             let criteriaHtml = '';
             let studentFeedbackHtml = '';
 
-            // 퀴즈 유형에 관계없이 공통으로 사용할 변수들
             const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
             const vocabItalian = analysis.key_vocabularies_italian || [];
             const vocabKorean = analysis.key_vocabularies_korean_translation || [];
@@ -358,7 +291,6 @@
                 ? `<p><strong>핵심 어휘:</strong> ${keywordsString}</p>`
                 : '';
 
-            // 퀴즈 유형별로 다른 데이터 설정
             if (quizType === 'translation') {
                 scoreValue = parseFloat(item.score);
                 questionText = item.korean_sentence;
@@ -369,12 +301,11 @@
                     ${keywordsHtml}
                 `;
 
-            } else { // comprehension
+            } else {
                 scoreValue = parseFloat(analysis.score);
                 questionText = item.korean_dialogue;
                 feedbackText = analysis.evaluation || '(평가 없음)';
 
-                // ★★★ [핵심 수정] key_points에서 목표 어휘와 문맥 문장 추출 ★★★
                 const keyPoints = item.key_points || {};
                 const targetVocabulary = keyPoints.target_vocabulary || [];
                 const meaningPoints = keyPoints.meaning_points || [];
@@ -399,14 +330,13 @@
                     ${keywordsHtml}
                 `;
 
-                // ★★★ [핵심 수정] 학생 피드백을 이탈리아어 원문 그대로 표시 ★★★
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
-                const studentFeedbackKorean = item.feedback_korean || '(번역 없음)';  // ← 현재는 NULL (번역 기능 제거됨)
+                const studentFeedbackKorean = item.feedback_korean || '(번역 없음)';
                 studentFeedbackHtml = `
                     <div class="student-feedback-section">
-                        <strong>학생의 피드백:</strong>
+                        <strong>학생에게 보낸 피드백:</strong>
                         <p>${studentFeedbackItalian}</p>
-                        <strong style="margin-top: 1rem;">학생의 피드백 (번역):</strong>
+                        <strong style="margin-top: 1rem;">학생에게 보낸 피드백 (번역):</strong>
                         <p>${studentFeedbackKorean}</p>
                     </div>
                 `;
@@ -428,7 +358,7 @@
                     <div class="card-body">
                         <p><strong>원본:</strong> ${questionText}</p>
                         ${criteriaHtml}
-                        <p><strong>학생 답안:</strong> ${item.student_answer}</p>
+                        <p><strong>학생 답안 (원문):</strong> ${item.student_answer}</p>
                         ${cardBodyExtraHtml}
                     </div>
                     <div class="timestamp">${formattedDate}</div>
@@ -442,16 +372,20 @@
             return card;
         }
 
-        // 실시간 업데이트를 위한 폴링 함수
+        // ★★★ 자동 새로고침 (현재 페이지 유지) ★★★
         function startAutoRefresh() {
-            setInterval(() => {
-                loadSubmissions(currentView);  // 현재 보고 있는 뷰만 자동 갱신
-            }, 2000);  // 3초마다 갱신
+            // ★★★ 1페이지에 있을 때만 자동 새로고침 ★★★
+            autoRefreshInterval = setInterval(() => {
+                const currentPage = currentView === 'translation' ? currentTranslationPage : currentComprehensionPage;
+                if (currentPage === 1) {
+                    loadSubmissions(currentView, 1);
+                }
+            }, 3000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadSubmissions('translation');
-            startAutoRefresh();  // ★★★ 이 줄을 추가하세요! ★★★
+            loadSubmissions('translation', 1);
+            startAutoRefresh();
         });
     </script>
 </body>
