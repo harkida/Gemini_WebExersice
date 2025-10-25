@@ -108,6 +108,37 @@ def init_db():
                     ADD COLUMN IF NOT EXISTS feedback_korean TEXT;
                 """)
                 
+                # 1. 말하기 문제 테이블 (Speaking Exercises)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS speaking_exercises (
+                        id SERIAL PRIMARY KEY,
+                        class_name VARCHAR(50) NOT NULL,
+                        situation_description TEXT NOT NULL,
+                        required_expression TEXT NOT NULL,
+                        expected_korean_answer TEXT NOT NULL,
+                        target_vocabulary JSONB NOT NULL,
+                        teacher_criterion TEXT,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+
+                # 2. 말하기 제출 테이블 (Speaking Submissions)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS speaking_submissions (
+                        id SERIAL PRIMARY KEY,
+                        exercise_id INTEGER REFERENCES speaking_exercises(id) ON DELETE SET NULL,
+                        class_name VARCHAR(50) NOT NULL,
+                        student_id VARCHAR(100) NOT NULL,
+                        audio_file_url TEXT NOT NULL,
+                        recognized_korean_text TEXT,
+                        ai_analysis_json JSONB,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(student_id, exercise_id)
+                    );
+                """)
+
+                print("✅ 말하기 퀴즈 테이블(speaking_exercises, speaking_submissions)이 생성되었습니다.")
+
                 conn.commit()
                 print("✅ 데이터베이스 테이블이 최종 블루프린트에 맞게 성공적으로 확인/생성되었습니다.")
         except Exception as e:
