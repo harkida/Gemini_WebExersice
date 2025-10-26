@@ -14,6 +14,9 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 import psycopg2
 import psycopg2.extras
 import google.generativeai as genai
+import requests
+import hashlib
+from datetime import datetime
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR.parent / "templates"
@@ -834,17 +837,57 @@ def submit_speaking_answer():
             
             situation_desc, required_expr, expected_ans, target_vocab, teacher_crit = row
             
-            # 4. Vercel Blob에 음성 파일 업로드 (TODO: 나중에 구현)
-            # 지금은 임시로 로컬 저장 또는 더미 URL
-            audio_url = "https://placeholder-audio-url.com/temp.webm"
-            
+            # 음성 파일을 Gemini에 업로드
+            audio_bytes = audio_file.read()
+
+            # 4. Vercel Blob에 음성 파일 업로드
+            BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN')
+            if not BLOB_TOKEN:
+                print("🚨 BLOB_READ_WRITE_TOKEN 환경변수 미설정")
+                return jsonify({"error": "Blob storage 미설정"}), 500
+
+            # 파일명 생성 (중복 방지)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            file_hash = hashlib.md5(f"{student_id}_{exercise_id}_{timestamp}".encode()).hexdigest()[:8]
+            filename = f"speaking/{class_name}/{student_id}_{exercise_id}_{file_hash}.webm"
+
+            # Vercel Blob API 호출
+            try:
+                print(f"📤 Blob 업로드 시작: {filename}")
+                
+                upload_response = requests.put(
+                    f"https://blob.vercel-storage.com/{filename}",
+                    headers={
+                        "Authorization": f"Bearer {BLOB_TOKEN}",
+                        "Content-Type": "audio/webm",
+                        "x-vercel-blob-add-random-suffix": "1"
+                    },
+                    data=audio_bytes
+                )
+                
+                if upload_response.status_code not in [200, 201]:
+                    print(f"🚨 Blob 업로드 실패: {upload_response.status_code}")
+                    print(f"응답: {upload_response.text}")
+                    return jsonify({"error": "음성 파일 업로드 실패"}), 500
+                
+                blob_response = upload_response.json()
+                audio_url = blob_response.get('url')
+                
+                if not audio_url:
+                    print(f"🚨 URL 없음: {blob_response}")
+                    return jsonify({"error": "파일 URL 생성 실패"}), 500
+                
+                print(f"✅ Blob 업로드 성공: {audio_url}")
+                
+            except Exception as e:
+                print(f"🚨 Blob 업로드 오류: {e}")
+                traceback.print_exc()
+                return jsonify({"error": f"파일 저장 실패: {str(e)}"}), 500            
+
             # 5. Gemini API 호출 (음성 → 텍스트 → 평가)
             if not pro_model:
                 return jsonify({"error": "AI 모델 미설정"}), 500
-            
-            # 음성 파일을 Gemini에 업로드
-            audio_bytes = audio_file.read()
-            
+                        
             # Gemini 파일 업로드 (임시 파일로 저장 후 업로드)
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as tmp_file:
