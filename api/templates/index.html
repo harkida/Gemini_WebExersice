@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz di Ascolto Coreano</title>
-    <!-- 이탈리아어 폰트 Lora, Montserrat 추가 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
@@ -44,13 +43,11 @@
             outline: none;
         }
 
-        /* ★★★ 번역/말하기 퀴즈에서 오디오 플레이어 숨기기 ★★★ */
         body[data-quiz-type="translation"] .audio-player,
         body[data-quiz-type="speaking"] .audio-player {
             display: none;
         }
 
-        /* ★★★ 말하기 퀴즈 전용 스타일 ★★★ */
         .situation-box {
             background-color: #40444b;
             padding: 20px;
@@ -89,7 +86,6 @@
             margin-top: 10px;
         }
 
-        /* ★★★ 말하기 퀴즈에서 텍스트 입력창 숨기기 ★★★ */
         body[data-quiz-type="speaking"] .answer-input {
             display: none;
         }
@@ -115,7 +111,6 @@
         .feedback-box p { margin: 0; line-height: 1.6; font-style: italic; }
         .error-message { color: #e74c3c; font-weight: bold; }
         
-        /* ★★★ 원본 대화문 박스 스타일 추가 ★★★ */
         .original-text-box {
             margin-top: 15px;
             padding: 15px;
@@ -135,7 +130,6 @@
             color: #e0e0e0;
         }
         
-        /* ★★★ 구분선 스타일 ★★★ */
         .divider {
             border: 0;
             border-top: 1px solid #4f545c;
@@ -171,7 +165,6 @@
           </audio>
         </div>
 
-        <!-- ★★★ 말하기 퀴즈 전용 UI ★★★ -->
         {% if quiz_type == 'speaking' %}
         <div class="situation-box">
           <h3>📖 Situazione:</h3>
@@ -212,7 +205,6 @@
         window.location.href = '/';
     }
 
-    // ★★★ 말하기 퀴즈 녹음 로직 ★★★
     if (quizType === 'speaking') {
       let mediaRecorder = null;
       let audioChunks = [];
@@ -284,7 +276,6 @@
 
         let studentAnswer;
 
-        // ★★★ 말하기 퀴즈: 녹음 파일 확인만 ★★★
         if (quizType === 'speaking') {
           const playbackAudio = this.closest('.quiz-item').querySelector('.playback-audio');
           if (!playbackAudio || !playbackAudio.audioBlob) {
@@ -293,7 +284,6 @@
           }
           studentAnswer = '(음성 파일)';
         } else {
-          // 번역/이해력: 텍스트 입력 확인
           const textarea = this.querySelector('.answer-input');
           studentAnswer = textarea.value;
           if (!studentAnswer.trim()) {
@@ -316,7 +306,6 @@
           let response;
           
           if (quizType === 'speaking') {
-            // ★★★ 말하기 퀴즈: FormData 생성 (MIME 타입 포함) ★★★
             const playbackAudio = this.closest('.quiz-item').querySelector('.playback-audio');
             const audioBlob = playbackAudio.audioBlob;
             const mimeType = playbackAudio.mimeType || 'audio/mp4';
@@ -330,12 +319,12 @@
             formData.append('class_name', className);
             formData.append('quiz_type', quizType);
 
+            console.log('📤 말하기 퀴즈 제출 중...'); // ★ 디버깅 로그
             response = await fetch('/api/submit-speaking-answer', {
               method: 'POST',
               body: formData
             });
           } else {
-            // ★★★ 번역/이해력: JSON 전송 ★★★
             response = await fetch('/api/submit-answer', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -349,11 +338,16 @@
             });
           }
 
+          console.log('📥 서버 응답 상태:', response.status); // ★ 디버깅 로그
+          
           const result = await response.json();
+          console.log('📄 서버 응답 데이터:', result); // ★ 디버깅 로그
+          
           resultContainer.style.display = 'block';
 
-          if (response.ok) {
-            let displayColor = result.rating_color;
+          // ★★★ 핵심 수정: response.ok가 false여도 DB에 저장된 경우 처리 ★★★
+          if (result.score !== undefined && result.score !== null) {
+            let displayColor = result.rating_color || '#7289da';
             if (result.rating_category === 'Eccellente') {
                 displayColor = '#00ff7f';
             }
@@ -373,7 +367,7 @@
                 feedbackHtml = `
                     <div class="feedback-box">
                         <h4>Feedback dall'IA:</h4>
-                        <p>${result.feedback}</p>
+                        <p>${result.feedback || 'Nessun feedback disponibile.'}</p>
                     </div>
                 `;
             }
@@ -398,20 +392,21 @@
             }
             
             resultContainer.innerHTML = `
-                <h2 style="color: ${displayColor};">${result.rating_category}</h2>
-                <h3>Il tuo punteggio: ${result.score.toFixed(1)} / 10.0</h3>
+                <h2 style="color: ${displayColor};">${result.rating_category || 'Risultato'}</h2>
+                <h3>Il tuo punteggio: ${parseFloat(result.score).toFixed(1)} / 10.0</h3>
                 ${feedbackHtml}
                 ${originalTextHtml}
             `;
           } else {
+            // ★★★ 진짜 에러인 경우에만 ★★★
             resultContainer.style.borderColor = '#e74c3c';
-            resultContainer.innerHTML = `<p class="error-message">Errore: ${result.error || 'Problema sconosciuto'}</p>`;
+            resultContainer.innerHTML = `<p class="error-message">Errore: ${result.error || 'Problema sconosciuto. Controlla la dashboard del professore.'}</p>`;
           }
         } catch (error) {
+          console.error('🚨 Fetch Error:', error); // ★ 디버깅 로그
           resultContainer.style.display = 'block';
           resultContainer.style.borderColor = '#e74c3c';
-          resultContainer.innerHTML = `<p class="error-message">Errore di connessione al server.</p>`;
-          console.error('Fetch Error:', error);
+          resultContainer.innerHTML = `<p class="error-message">Errore di connessione al server. La risposta potrebbe essere stata salvata - controlla con il professore.</p>`;
         } finally {
           submitButton.textContent = 'Inviato';
         }
