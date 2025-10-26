@@ -139,7 +139,17 @@
 </head>
 <body data-quiz-type="{{ quiz_type }}">
   <div class="container">
-    <h1>Test di Comprensione Coreana</h1>
+    <h1>
+      {% if quiz_type == 'translation' %}
+        Test di Traduzione Coreana
+      {% elif quiz_type == 'comprehension' %}
+        Test di Comprensione Coreana
+      {% elif quiz_type == 'speaking' %}
+        Test di Espressione Orale Coreana
+      {% else %}
+        Quiz Coreano
+      {% endif %}
+    </h1>
     <div id="quiz-list">
       {% for exercise in exercises %}
       <div class="quiz-item" id="item-{{ exercise.id }}">
