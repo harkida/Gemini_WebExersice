@@ -826,7 +826,7 @@ def submit_speaking_answer():
         return jsonify({"error": "필수 정보 누락"}), 400
     
     print("✅ 모든 필수 정보 확인 완료!")
-    
+
     conn = None
     try:
         conn = get_db_connection()
