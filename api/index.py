@@ -1142,7 +1142,8 @@ def api_get_submissions():
                     cur.execute("""
                         SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
                             s.ai_analysis_json, s.created_at, 
-                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name,
+                            e.required_expression
                         FROM speaking_submissions s 
                         JOIN speaking_exercises e ON e.id = s.exercise_id 
                         ORDER BY s.id DESC 
@@ -1152,7 +1153,8 @@ def api_get_submissions():
                     cur.execute("""
                         SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
                             s.ai_analysis_json, s.created_at, 
-                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name,
+                            e.required_expression
                         FROM speaking_submissions s 
                         JOIN speaking_exercises e ON e.id = s.exercise_id 
                         WHERE s.class_name = %s
