@@ -319,7 +319,7 @@
             formData.append('class_name', className);
             formData.append('quiz_type', quizType);
 
-            console.log('📤 말하기 퀴즈 제출 중...'); // ★ 디버깅 로그
+            console.log('📤 말하기 퀴즈 제출 중...');
             response = await fetch('/api/submit-speaking-answer', {
               method: 'POST',
               body: formData
@@ -338,14 +338,13 @@
             });
           }
 
-          console.log('📥 서버 응답 상태:', response.status); // ★ 디버깅 로그
+          console.log('📥 서버 응답 상태:', response.status);
           
           const result = await response.json();
-          console.log('📄 서버 응답 데이터:', result); // ★ 디버깅 로그
+          console.log('📄 서버 응답 데이터:', result);
           
           resultContainer.style.display = 'block';
 
-          // ★★★ 핵심 수정: response.ok가 false여도 DB에 저장된 경우 처리 ★★★
           if (result.score !== undefined && result.score !== null) {
             let displayColor = result.rating_color || '#7289da';
             if (result.rating_category === 'Eccellente') {
@@ -398,12 +397,18 @@
                 ${originalTextHtml}
             `;
           } else {
-            // ★★★ 진짜 에러인 경우에만 ★★★
-            resultContainer.style.borderColor = '#e74c3c';
-            resultContainer.innerHTML = `<p class="error-message">Errore: ${result.error || 'Problema sconosciuto. Controlla la dashboard del professore.'}</p>`;
+            // ★★★ 수정된 에러 처리 로직 ★★★
+            resultContainer.style.borderColor = '#e74c3c'; // Red border for error
+            if (result.error) {
+                // 백엔드가 명시적인 에러 메시지를 보냈을 경우
+                resultContainer.innerHTML = `<p class="error-message">Errore: ${result.error}</p>`;
+            } else {
+                // 점수도 없고, 에러 메시지도 없는 경우 (AI 채점 실패로 추정)
+                resultContainer.innerHTML = `<p class="error-message">L'IA non è riuscita a valutare la tua risposta. Questo può accadere se l'audio non è chiaro. Per favore, prova a registrare di nuovo.</p>`;
+            }
           }
         } catch (error) {
-          console.error('🚨 Fetch Error:', error); // ★ 디버깅 로그
+          console.error('🚨 Fetch Error:', error);
           resultContainer.style.display = 'block';
           resultContainer.style.borderColor = '#e74c3c';
           resultContainer.innerHTML = `<p class="error-message">Errore di connessione al server. La risposta potrebbe essere stata salvata - controlla con il professore.</p>`;

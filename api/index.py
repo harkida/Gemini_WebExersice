@@ -847,37 +847,20 @@ def submit_speaking_answer():
     """말하기 퀴즈 전용 제출 엔드포인트"""
     
     print("=" * 50)
-    print("🎤 말하기 퀴즈 제출 요청 수신! (MP4 테스트 모드)")
+    print("🎤 말하기 퀴즈 제출 요청 수신! (v2.1 - 견고한 에러 처리)")
     print("=" * 50)
 
-    # 1. 폼 데이터 수신
     student_id = request.form.get('student_id')
     exercise_id = request.form.get('exercise_id')
     class_name = request.form.get('class_name')
     quiz_type = request.form.get('quiz_type')
     audio_file = request.files.get('audio_file')
-    mime_type = request.form.get('mime_type', 'audio/mp4')  # ← 추가!
-    extension = 'webm' if 'webm' in mime_type else 'mp4'    # ← 추가!
-
-    print(f"📝 student_id: {student_id}")
-    print(f"📝 exercise_id: {exercise_id}")
-    print(f"📝 class_name: {class_name}")
-    print(f"📝 quiz_type: {quiz_type}")
-    print(f"📝 audio_file: {audio_file}")
-    print(f"📝 mime_type: {mime_type}")  # ← 추가!
-    print(f"📝 extension: {extension}")  # ← 추가!
+    mime_type = request.form.get('mime_type', 'audio/mp4')
+    extension = 'webm' if 'webm' in mime_type else 'mp4'
 
     if not all([student_id, exercise_id, class_name, quiz_type, audio_file]):
-        print("🚨 필수 정보 누락!")
-        print(f"   student_id: {student_id is not None}")
-        print(f"   exercise_id: {exercise_id is not None}")
-        print(f"   class_name: {class_name is not None}")
-        print(f"   quiz_type: {quiz_type is not None}")
-        print(f"   audio_file: {audio_file is not None}")
         return jsonify({"error": "필수 정보 누락"}), 400
     
-    print("✅ 모든 필수 정보 확인 완료!")
-
     conn = None
     try:
         conn = get_db_connection()
@@ -885,7 +868,6 @@ def submit_speaking_answer():
             return jsonify({"error": "DB 연결 실패"}), 500
         
         with conn.cursor() as cur:
-            # 2. 1회 제출 제한 체크
             cur.execute(
                 "SELECT id FROM speaking_submissions WHERE student_id = %s AND exercise_id = %s",
                 (student_id, exercise_id)
@@ -893,7 +875,6 @@ def submit_speaking_answer():
             if cur.fetchone():
                 return jsonify({"error": "Hai già inviato una risposta per questo esercizio.", "already_submitted": True}), 400
             
-            # 3. 문제 정보 조회
             cur.execute("""
                 SELECT situation_description, required_expression, expected_korean_answer, 
                        target_vocabulary, teacher_criterion 
@@ -906,24 +887,17 @@ def submit_speaking_answer():
             
             situation_desc, required_expr, expected_ans, target_vocab, teacher_crit = row
             
-            # 음성 파일을 Gemini에 업로드
             audio_bytes = audio_file.read()
 
-            # 4. Vercel Blob에 음성 파일 업로드
             BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN')
             if not BLOB_TOKEN:
-                print("🚨 BLOB_READ_WRITE_TOKEN 환경변수 미설정")
                 return jsonify({"error": "Blob storage 미설정"}), 500
 
-            # 파일명 생성 (중복 방지)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             file_hash = hashlib.md5(f"{student_id}_{exercise_id}_{timestamp}".encode()).hexdigest()[:8]
             filename = f"speaking/{class_name}/{student_id}_{exercise_id}_{file_hash}.{extension}"
 
-            # Vercel Blob API 호출
             try:
-                print(f"📤 Blob 업로드 시작: {filename}")
-                
                 upload_response = requests.put(
                     f"https://blob.vercel-storage.com/{filename}",
                     headers={
@@ -933,31 +907,19 @@ def submit_speaking_answer():
                     },
                     data=audio_bytes
                 )
-                
                 if upload_response.status_code not in [200, 201]:
-                    print(f"🚨 Blob 업로드 실패: {upload_response.status_code}")
-                    print(f"응답: {upload_response.text}")
                     return jsonify({"error": "음성 파일 업로드 실패"}), 500
                 
                 blob_response = upload_response.json()
                 audio_url = blob_response.get('url')
-                
                 if not audio_url:
-                    print(f"🚨 URL 없음: {blob_response}")
                     return jsonify({"error": "파일 URL 생성 실패"}), 500
-                
-                print(f"✅ Blob 업로드 성공: {audio_url}")
-                
             except Exception as e:
-                print(f"🚨 Blob 업로드 오류: {e}")
-                traceback.print_exc()
                 return jsonify({"error": f"파일 저장 실패: {str(e)}"}), 500            
 
-            # 5. Gemini API 호출 (음성 → 텍스트 → 평가)
             if not pro_model:
                 return jsonify({"error": "AI 모델 미설정"}), 500
                         
-            # Gemini 파일 업로드 (임시 파일로 저장 후 업로드)
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{extension}') as tmp_file:
                 tmp_file.write(audio_bytes)
@@ -965,7 +927,6 @@ def submit_speaking_answer():
             
             uploaded_audio = genai.upload_file(tmp_file_path, mime_type=mime_type)
             
-            # 프롬프트 생성
             prompt_text = SPEAKING_EVALUATION_PROMPT.format(
                 situation_description=situation_desc,
                 required_expression=required_expr,
@@ -974,30 +935,52 @@ def submit_speaking_answer():
                 teacher_criterion=teacher_crit or "자율 판단"
             )
             
-            # Gemini 호출
             response = pro_model.generate_content(
                 [prompt_text, uploaded_audio],
-                generation_config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.1  # 문맥 보정 최소화
-                }
+                generation_config={"response_mime_type": "application/json", "temperature": 0.1}
             )
             
             print(f"🤖 [말하기 퀴즈] gemini-2.5-pro 사용 - 학생: {student_id}")
-            
-            # 임시 파일 삭제
             os.unlink(tmp_file_path)
             
-            # 응답 파싱
+            # ★★★ 수정된 핵심 로직 시작 ★★★
+            ai_result = None
+            score = None
+            recognized_text = ''
             raw_text = getattr(response, 'text', '').strip()
-            json_str = extract_first_json_block(raw_text) or raw_text
-            ai_result = json.loads(json_str)
-            
-            score_raw = ai_result.get('score')
-            score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
-            recognized_text = ai_result.get('recognized_text', '')
-            
-            # 6. DB에 저장
+
+            try:
+                # AI가 정상적으로 JSON을 반환했는지 시도
+                json_str = extract_first_json_block(raw_text)
+                if not json_str:
+                    # JSON 블록이 없다면, AI가 에러 메시지를 텍스트로 반환한 경우
+                    raise json.JSONDecodeError("No JSON object could be decoded", raw_text, 0)
+
+                ai_result = json.loads(json_str)
+                score_raw = ai_result.get('score')
+                score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw is not None else None
+                recognized_text = ai_result.get('recognized_text', '')
+
+                # 점수가 없는 경우도 실패로 간주 (AI가 구조는 맞췄지만 채점은 못한 경우)
+                if score is None:
+                    print("⚠️ AI가 JSON은 반환했지만 'score' 필드가 없습니다.")
+                    if 'error' not in ai_result:
+                        ai_result['error'] = "AI evaluation succeeded but no score was provided."
+
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                # AI가 JSON 형식을 반환하지 못했을 때 (채점 실패)
+                print(f"🚨 AI 채점 실패 (JSON 파싱 불가): {e}")
+                print(f"   AI 원본 응답: {raw_text}")
+                score = None # 점수가 없음을 명확히 함
+                # 교수님 검토용으로 DB에 저장할 ai_result 객체 생성
+                ai_result = {
+                    "error": "AI_EVALUATION_FAILED",
+                    "reason": "Failed to parse JSON response from AI.",
+                    "raw_response": raw_text
+                }
+            # ★★★ 수정된 핵심 로직 끝 ★★★
+
+            # DB 저장 (성공/실패와 무관하게 학생의 제출 기록은 항상 저장)
             cur.execute("""
                 INSERT INTO speaking_submissions 
                 (exercise_id, class_name, student_id, audio_file_url, recognized_korean_text, ai_analysis_json)
@@ -1006,39 +989,46 @@ def submit_speaking_answer():
                 exercise_id, class_name, student_id, audio_url, recognized_text,
                 psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False))
             ))
-            
             conn.commit()
             
-            # 7. 점수 등급 계산
-            def get_rating_details(score):
-                score = float(score) if score else 0
-                if score >= 8.6: return {"category": "Eccellente", "color": "teal"}
-                if score >= 7.1: return {"category": "Buono", "color": "lightgreen"}
-                if score >= 5.6: return {"category": "Sufficiente", "color": "gold"}
-                if score >= 4.1: return {"category": "Da migliorare", "color": "orange"}
-                return {"category": "Riprova", "color": "red"}
-            
-            rating_info = get_rating_details(score)
-            
-            return jsonify({
-                "success": True,
-                "score": score,
-                "rating_category": rating_info["category"],
-                "rating_color": rating_info["color"],
-                "feedback": ai_result.get('feedback', 'Nessun feedback disponibile.'),
-                "recognized_text": recognized_text
-            })
-    
+            # 학생에게 보낼 최종 응답 생성
+            if score is not None:
+                # 채점 성공 시
+                def get_rating_details(s):
+                    s = float(s)
+                    if s >= 8.6: return {"category": "Eccellente", "color": "#00ff7f"} # Vibrant Green
+                    if s >= 7.1: return {"category": "Buono", "color": "lightgreen"}
+                    if s >= 5.6: return {"category": "Sufficiente", "color": "gold"}
+                    if s >= 4.1: return {"category": "Da migliorare", "color": "orange"}
+                    return {"category": "Riprova", "color": "red"}
+                
+                rating_info = get_rating_details(score)
+                
+                return jsonify({
+                    "success": True,
+                    "score": score,
+                    "rating_category": rating_info["category"],
+                    "rating_color": rating_info["color"],
+                    "feedback": ai_result.get('feedback', 'Nessun feedback disponibile.'),
+                    "recognized_text": recognized_text
+                })
+            else:
+                # 채점 실패 시 (프론트엔드가 이해할 수 있는 에러 메시지 반환)
+                return jsonify({
+                    "success": False,
+                    "error": "L'IA non è riuscita a valutare la tua risposta. Questo può accadere se l'audio non è chiaro. Per favore, prova a registrare di nuovo."
+                }), 200 # HTTP 상태는 200 OK. 요청 자체는 성공했기 때문.
+
     except Exception as e:
-        print(f"🚨 /api/submit-speaking-answer 오류: {e}")
+        print(f"🚨 /api/submit-speaking-answer 심각한 오류: {e}")
         traceback.print_exc()
         if conn:
             conn.rollback()
-        return jsonify({"error": "서버 내부 오류"}), 500
+        return jsonify({"error": "서버 내부 오류 발생. 관리자에게 문의하세요."}), 500
     finally:
         if conn:
-            conn.close()
-        
+            conn.close()        
+
 def teacher_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
