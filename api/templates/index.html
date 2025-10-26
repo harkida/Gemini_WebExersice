@@ -212,11 +212,10 @@
         window.location.href = '/';
     }
 
-    // ★★★ 말하기 퀴즈 녹음 로직 ★★★
+    // ★★★ 말하기 퀴즈 녹음 로직 (완전 수정 버전) ★★★
     if (quizType === 'speaking') {
       let mediaRecorder = null;
       let audioChunks = [];
-      let currentMimeType = 'audio/mp4';
 
       document.querySelectorAll('.record-btn').forEach(function(btn) {
         btn.addEventListener('click', async function() {
@@ -225,25 +224,17 @@
           const submitBtn = quizItem.querySelector('.submit-btn');
           const recordBtn = this;
 
+          // 녹음 중이면 중지
           if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
             mediaRecorder.stream.getTracks().forEach(track => track.stop());
             return;
           }
 
+          // 녹음 시작
           try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            if (MediaRecorder.isTypeSupported('audio/mp4')) {
-              currentMimeType = 'audio/mp4';
-            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-              currentMimeType = 'audio/webm';
-            } else {
-              currentMimeType = '';
-            }
-            
-            const options = currentMimeType ? { mimeType: currentMimeType } : {};
-            mediaRecorder = new MediaRecorder(stream, options);
+            mediaRecorder = new MediaRecorder(stream);
             audioChunks = [];
 
             mediaRecorder.ondataavailable = function(event) {
@@ -251,12 +242,11 @@
             };
 
             mediaRecorder.onstop = function() {
-              const audioBlob = new Blob(audioChunks, { type: currentMimeType });
+              const audioBlob = new Blob(audioChunks, { type: 'audio/mp4' });
               const audioUrl = URL.createObjectURL(audioBlob);
               playbackAudio.src = audioUrl;
               playbackAudio.style.display = 'block';
               playbackAudio.audioBlob = audioBlob;
-              playbackAudio.mimeType = currentMimeType;
               submitBtn.disabled = false;
               
               recordBtn.textContent = '🔄 Registra di nuovo';
@@ -283,17 +273,17 @@
         const submitButton = this.querySelector('.submit-btn');
 
         let studentAnswer;
+        let audioFile = null;
 
-        // ★★★ 말하기 퀴즈: 녹음 파일 확인만 ★★★
         if (quizType === 'speaking') {
           const playbackAudio = this.closest('.quiz-item').querySelector('.playback-audio');
           if (!playbackAudio || !playbackAudio.audioBlob) {
             alert('Per favore, registra prima la tua risposta!');
             return;
           }
+          audioFile = playbackAudio.audioBlob;
           studentAnswer = '(음성 파일)';
         } else {
-          // 번역/이해력: 텍스트 입력 확인
           const textarea = this.querySelector('.answer-input');
           studentAnswer = textarea.value;
           if (!studentAnswer.trim()) {
@@ -316,15 +306,8 @@
           let response;
           
           if (quizType === 'speaking') {
-            // ★★★ 말하기 퀴즈: FormData 생성 (MIME 타입 포함) ★★★
-            const playbackAudio = this.closest('.quiz-item').querySelector('.playback-audio');
-            const audioBlob = playbackAudio.audioBlob;
-            const mimeType = playbackAudio.mimeType || 'audio/mp4';
-            const extension = mimeType.includes('webm') ? 'webm' : 'mp4';
-
             const formData = new FormData();
-            formData.append('audio_file', audioBlob, `recording.${extension}`);
-            formData.append('mime_type', mimeType);
+            formData.append('audio_file', audioFile, 'recording.webm');
             formData.append('student_id', studentId);
             formData.append('exercise_id', exerciseId);
             formData.append('class_name', className);
@@ -335,7 +318,6 @@
               body: formData
             });
           } else {
-            // ★★★ 번역/이해력: JSON 전송 ★★★
             response = await fetch('/api/submit-answer', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
