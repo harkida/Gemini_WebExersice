@@ -799,15 +799,33 @@ def submit_answer():
 def submit_speaking_answer():
     """말하기 퀴즈 전용 제출 엔드포인트"""
     
+    print("=" * 50)
+    print("🎤 말하기 퀴즈 제출 요청 수신!")
+    print("=" * 50)
+
     # 1. 폼 데이터 수신
     student_id = request.form.get('student_id')
     exercise_id = request.form.get('exercise_id')
     class_name = request.form.get('class_name')
     quiz_type = request.form.get('quiz_type')
     audio_file = request.files.get('audio_file')
-    
+
+    print(f"📝 student_id: {student_id}")
+    print(f"📝 exercise_id: {exercise_id}")
+    print(f"📝 class_name: {class_name}")
+    print(f"📝 quiz_type: {quiz_type}")
+    print(f"📝 audio_file: {audio_file}")
+
     if not all([student_id, exercise_id, class_name, quiz_type, audio_file]):
+        print("🚨 필수 정보 누락!")
+        print(f"   student_id: {student_id is not None}")
+        print(f"   exercise_id: {exercise_id is not None}")
+        print(f"   class_name: {class_name is not None}")
+        print(f"   quiz_type: {quiz_type is not None}")
+        print(f"   audio_file: {audio_file is not None}")
         return jsonify({"error": "필수 정보 누락"}), 400
+    
+    print("✅ 모든 필수 정보 확인 완료!")
     
     conn = None
     try:
