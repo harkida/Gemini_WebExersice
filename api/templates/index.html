@@ -44,8 +44,58 @@
             outline: none;
         }
 
-        /* ★★★ 번역 퀴즈에서 오디오 플레이어 숨기기 ★★★ */
-        body[data-quiz-type="translation"] .audio-player {
+        /* ★★★ 번역/말하기 퀴즈에서 오디오 플레이어 숨기기 ★★★ */
+        body[data-quiz-type="translation"] .audio-player,
+        body[data-quiz-type="speaking"] .audio-player {
+            display: none;
+        }
+
+        /* ★★★ 말하기 퀴즈 전용 스타일 ★★★ */
+        .situation-box {
+            background-color: #40444b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #7289da;
+        }
+        .situation-box h3 { margin: 0 0 10px; color: #7289da; }
+        .situation-box h4 { margin: 15px 0 5px; color: #b0b0b0; }
+        .situation-box p { margin: 5px 0; line-height: 1.6; }
+
+        .recording-controls { margin: 20px 0; text-align: center; }
+        .record-btn, .re-record-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .record-btn:hover { background-color: #c0392b; }
+        .record-btn.recording {
+            background-color: #27ae60;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .re-record-btn {
+            background-color: #f39c12;
+            margin-top: 10px;
+        }
+        .re-record-btn:hover { background-color: #e67e22; }
+
+        .playback-audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* ★★★ 말하기 퀴즈에서 텍스트 입력창 숨기기 ★★★ */
+        body[data-quiz-type="speaking"] .answer-input {
             display: none;
         }
 
@@ -111,6 +161,8 @@
               Ascolta la frase e traducila in italiano.
             {% elif quiz_type == 'comprehension' %}
               Ascolta il dialogo e riassumi in italiano di cosa tratta.
+            {% elif quiz_type == 'speaking' %}
+              Leggi la situazione e registra la tua risposta in coreano.
             {% else %}
               Ascolta il brano e rispondi in italiano.
             {% endif %}
@@ -124,10 +176,28 @@
           </audio>
         </div>
 
+        <!-- ★★★ 말하기 퀴즈 전용 UI ★★★ -->
+        {% if quiz_type == 'speaking' %}
+        <div class="situation-box">
+          <h3>📖 Situazione:</h3>
+          <p>{{ exercise.situation_description }}</p>
+          <h4>💬 Cosa devi dire:</h4>
+          <p>{{ exercise.required_expression }}</p>
+        </div>
+
+        <div class="recording-controls">
+          <button type="button" class="record-btn" data-exercise-id="{{ exercise.id }}">
+            🎤 Inizia Registrazione
+          </button>
+          <audio class="playback-audio" style="display:none;" controls></audio>
+          <button type="button" class="re-record-btn" style="display:none;">🔄 Registra di nuovo</button>
+        </div>
+        {% endif %}
+
         <div class="question-text">{{ exercise.question_text }}</div>
         <form class="answer-form" data-exercise-id="{{ exercise.id }}">
           <textarea class="answer-input" placeholder="Inserisci qui la tua risposta..." required></textarea>
-          <button type="submit" class="submit-btn">Invia</button>
+          <button type="submit" class="submit-btn" {% if quiz_type == 'speaking' %}disabled{% endif %}>Invia</button>
           
           <div class="result-container"></div>
         </form>
@@ -148,19 +218,98 @@
         window.location.href = '/';
     }
 
+    // ★★★ 말하기 퀴즈 녹음 로직 ★★★
+    if (quizType === 'speaking') {
+      let mediaRecorder;
+      let audioChunks = [];
+
+      document.querySelectorAll('.record-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+          const quizItem = this.closest('.quiz-item');
+          const playbackAudio = quizItem.querySelector('.playback-audio');
+          const reRecordBtn = quizItem.querySelector('.re-record-btn');
+          const submitBtn = quizItem.querySelector('.submit-btn');
+
+          if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+            // 녹음 시작
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              mediaRecorder = new MediaRecorder(stream);
+              audioChunks = [];
+
+              mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+              };
+
+              mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                playbackAudio.src = audioUrl;
+                playbackAudio.style.display = 'block';
+                playbackAudio.audioBlob = audioBlob;
+                reRecordBtn.style.display = 'inline-block';
+                submitBtn.disabled = false;
+              };
+
+              mediaRecorder.start();
+              this.textContent = '⏹️ Stop Registrazione';
+              this.classList.add('recording');
+            } catch (error) {
+              alert('Errore nell\'accesso al microfono: ' + error.message);
+            }
+          } else {
+            // 녹음 중지
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            this.textContent = '🎤 Inizia Registrazione';
+            this.classList.remove('recording');
+          }
+        });
+      });
+
+      // 다시 녹음 버튼
+      document.querySelectorAll('.re-record-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const quizItem = this.closest('.quiz-item');
+          const recordBtn = quizItem.querySelector('.record-btn');
+          const playbackAudio = quizItem.querySelector('.playback-audio');
+          const submitBtn = quizItem.querySelector('.submit-btn');
+          
+          playbackAudio.style.display = 'none';
+          this.style.display = 'none';
+          submitBtn.disabled = true;
+          recordBtn.textContent = '🎤 Inizia Registrazione';
+          recordBtn.classList.remove('recording');
+        });
+      });
+    }
+
     document.querySelectorAll('.answer-form').forEach(form => {
       form.addEventListener('submit', async function(event) {
         event.preventDefault();
         
         const exerciseId = this.dataset.exerciseId;
-        const textarea = this.querySelector('.answer-input');
-        const studentAnswer = textarea.value;
         const resultContainer = this.querySelector('.result-container');
         const submitButton = this.querySelector('.submit-btn');
 
-        if (!studentAnswer.trim()) {
-          alert('Per favore, inserisci una risposta.');
-          return;
+        let studentAnswer;
+        let audioFile = null;
+
+        if (quizType === 'speaking') {
+          const playbackAudio = this.closest('.quiz-item').querySelector('.playback-audio');
+          if (!playbackAudio || !playbackAudio.audioBlob) {
+            alert('Per favore, registra prima la tua risposta!');
+            return;
+          }
+          audioFile = playbackAudio.audioBlob;
+          studentAnswer = '(음성 파일)';
+        } else {
+          const textarea = this.querySelector('.answer-input');
+          studentAnswer = textarea.value;
+          if (!studentAnswer.trim()) {
+            alert('Per favore, inserisci una risposta.');
+            return;
+          }
         }
 
         submitButton.disabled = true;
@@ -168,45 +317,61 @@
             submitButton.textContent = 'Valutazione in corso... Attenda circa 20-25 secondi.';
         } else if (quizType === 'comprehension') {
             submitButton.textContent = 'Valutazione in corso... Ci vorrà circa un minuto. Attenda un momento, per favore.';
+        } else if (quizType === 'speaking') {
+            submitButton.textContent = 'Valutazione in corso... Attenda circa 30-40 secondi.';
         }
         resultContainer.style.display = 'none';
 
         try {
-          const response = await fetch('/api/submit-answer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                student_id: studentId, 
-                exercise_id: exerciseId,
-                student_answer: studentAnswer,
-                class_name: className,
-                quiz_type: quizType
-            })
-          });
+          let response;
+          
+          if (quizType === 'speaking') {
+            const formData = new FormData();
+            formData.append('audio_file', audioFile, 'recording.webm');
+            formData.append('student_id', studentId);
+            formData.append('exercise_id', exerciseId);
+            formData.append('class_name', className);
+            formData.append('quiz_type', quizType);
+
+            response = await fetch('/api/submit-speaking-answer', {
+              method: 'POST',
+              body: formData
+            });
+          } else {
+            response = await fetch('/api/submit-answer', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                  student_id: studentId, 
+                  exercise_id: exerciseId,
+                  student_answer: studentAnswer,
+                  class_name: className,
+                  quiz_type: quizType
+              })
+            });
+          }
+
           const result = await response.json();
           resultContainer.style.display = 'block';
 
           if (response.ok) {
-            // ★★★ 색상 보정: Eccellente일 때 더 밝은 초록색 사용 ★★★
             let displayColor = result.rating_color;
             if (result.rating_category === 'Eccellente') {
-                displayColor = '#00ff7f'; // 더 밝은 Spring Green
+                displayColor = '#00ff7f';
             }
             
             resultContainer.style.borderColor = displayColor;
             
-            // ★★★ 번역 퀴즈에서는 점수만, 이해력 퀴즈에서는 피드백도 표시 ★★★
             let feedbackHtml = '';
 
             if (quizType === 'translation' && result.student_hint) {
-              // 번역 퀴즈: Level 1,2,3 오류 시 힌트 표시
               feedbackHtml = `
                   <div class="feedback-box">
                       <h4>💡 Suggerimento:</h4>
                       <p style="color: #ff6b6b; font-weight: bold;">${result.student_hint}</p>
                   </div>
               `;
-            } else if (quizType === 'comprehension') {
+            } else if (quizType === 'comprehension' || quizType === 'speaking') {
                 feedbackHtml = `
                     <div class="feedback-box">
                         <h4>Feedback dall'IA:</h4>
@@ -215,7 +380,6 @@
                 `;
             }
             
-            // ★★★ [핵심 추가] 이해력 퀴즈에만 원본 대화문 표시 ★★★
             let originalTextHtml = '';
             if (quizType === 'comprehension') {
                 originalTextHtml = `
@@ -223,6 +387,14 @@
                     <div class="original-text-box">
                         <h4>📝 원본 대화 (한국어)</h4>
                         <p>${result.korean_text || '원본 텍스트를 불러올 수 없습니다.'}</p>
+                    </div>
+                `;
+            } else if (quizType === 'speaking' && result.recognized_text) {
+                originalTextHtml = `
+                    <hr class="divider">
+                    <div class="original-text-box">
+                        <h4>🎤 AI가 인식한 당신의 발화:</h4>
+                        <p>${result.recognized_text}</p>
                     </div>
                 `;
             }

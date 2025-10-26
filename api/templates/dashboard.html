@@ -51,6 +51,13 @@
         .korean-translation { font-style: italic; color: #a0d8ef; }
         .criteria-info { margin: 0.8rem 0; }
         .criteria-info strong { color: #ffa500; }
+        
+        /* ★★★ 말하기 전용 스타일 ★★★ */
+        .audio-playback {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
         @keyframes fadeIn {
             to {
                 opacity: 1;
@@ -65,6 +72,7 @@
         <div class="controls">
             <button id="btn-translation" class="active" onclick="switchView('translation')">번역 퀴즈 결과</button>
             <button id="btn-comprehension" onclick="switchView('comprehension')">이해력 퀴즈 결과</button>
+            <button id="btn-speaking" onclick="switchView('speaking')">말하기 퀴즈 결과</button>
             <button id="clear-btn" onclick="clearCurrentView()">화면 지우기</button>
             <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
         </div>
@@ -72,13 +80,16 @@
 
     <div id="translation-view" class="view-container active"></div>
     <div id="comprehension-view" class="view-container"></div>
+    <div id="speaking-view" class="view-container"></div>
 
     <script>
         let currentView = 'translation';
         let lastTranslationId = 0;
         let lastComprehensionId = 0;
+        let lastSpeakingId = 0;
         let currentTranslationPage = 1;
         let currentComprehensionPage = 1;
+        let currentSpeakingPage = 1;
         let autoRefreshInterval = null;
 
         function switchView(viewType) {
@@ -88,8 +99,12 @@
             document.querySelectorAll('.view-container').forEach(container => container.classList.remove('active'));
             document.getElementById(`${viewType}-view`).classList.add('active');
             
-            const currentPage = viewType === 'translation' ? currentTranslationPage : currentComprehensionPage;
-            loadSubmissions(viewType, currentPage, false);  // ★★★ isAutoRefresh = false ★★★
+            let currentPage = 1;
+            if (viewType === 'translation') currentPage = currentTranslationPage;
+            else if (viewType === 'comprehension') currentPage = currentComprehensionPage;
+            else if (viewType === 'speaking') currentPage = currentSpeakingPage;
+            
+            loadSubmissions(viewType, currentPage, false);
         }
 
         function clearCurrentView() {
@@ -98,10 +113,13 @@
             
             if (currentView === 'translation') {
                 currentTranslationPage = 1;
-                lastTranslationId = 0;  // ★★★ 마지막 ID도 리셋 ★★★
-            } else {
+                lastTranslationId = 0;
+            } else if (currentView === 'comprehension') {
                 currentComprehensionPage = 1;
-                lastComprehensionId = 0;  // ★★★ 마지막 ID도 리셋 ★★★
+                lastComprehensionId = 0;
+            } else if (currentView === 'speaking') {
+                currentSpeakingPage = 1;
+                lastSpeakingId = 0;
             }
             
             console.log(`${currentView} 뷰의 화면이 초기화되었습니다.`);
@@ -110,7 +128,6 @@
         async function loadSubmissions(quizType, page = 1, isAutoRefresh = false) {
             const container = document.getElementById(`${quizType}-view`);
             
-            // ★★★ 자동 새로고침이 아닐 때만 전체 내용 제거 ★★★
             if (!isAutoRefresh) {
                 container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
             }
@@ -125,42 +142,43 @@
                 const data = await response.json();
 
                 if (data.items && data.items.length > 0) {
-                    const lastId = quizType === 'translation' ? lastTranslationId : lastComprehensionId;
+                    let lastId = 0;
+                    if (quizType === 'translation') lastId = lastTranslationId;
+                    else if (quizType === 'comprehension') lastId = lastComprehensionId;
+                    else if (quizType === 'speaking') lastId = lastSpeakingId;
                     
-                    // ★★★ 자동 새로고침일 때는 새로운 항목만 필터링 ★★★
                     const itemsToDisplay = isAutoRefresh 
                         ? data.items.filter(item => item.id > lastId)
                         : data.items;
                     
                     if (itemsToDisplay.length > 0) {
-                        // ★★★ 첫 로딩 시 "데이터를 불러오는 중..." 메시지 제거 ★★★
                         const emptyMessage = container.querySelector('.empty-message');
                         if (emptyMessage) {
                             container.innerHTML = '';
                         }
                         
-                        // ★★★ 자동 새로고침일 때는 prepend, 아니면 append ★★★
                         itemsToDisplay.forEach(item => {
                             const card = createSubmissionCard(item, quizType);
                             if (isAutoRefresh) {
-                                container.prepend(card);  // ★★★ 새 항목을 맨 위에 추가 ★★★
+                                container.prepend(card);
                             } else {
-                                container.appendChild(card);  // ★★★ 기존 방식 ★★★
+                                container.appendChild(card);
                             }
                         });
                     }
                     
-                    // ★★★ 마지막 ID 업데이트 ★★★
                     const maxId = Math.max(...data.items.map(item => item.id));
                     if (quizType === 'translation') {
                         lastTranslationId = Math.max(lastTranslationId, maxId);
                         if (!isAutoRefresh) currentTranslationPage = page;
-                    } else {
+                    } else if (quizType === 'comprehension') {
                         lastComprehensionId = Math.max(lastComprehensionId, maxId);
                         if (!isAutoRefresh) currentComprehensionPage = page;
+                    } else if (quizType === 'speaking') {
+                        lastSpeakingId = Math.max(lastSpeakingId, maxId);
+                        if (!isAutoRefresh) currentSpeakingPage = page;
                     }
                     
-                    // ★★★ 페이지네이션 버튼 추가 (자동 새로고침이 아닐 때만) ★★★
                     if (!isAutoRefresh && data.total_pages > 1) {
                         addPaginationButtons(container, quizType, data.current_page, data.total_pages);
                     }
@@ -314,7 +332,7 @@
                     ${keywordsHtml}
                 `;
 
-            } else {
+            } else if (quizType === 'comprehension') {
                 scoreValue = parseFloat(analysis.score);
                 questionText = item.korean_dialogue;
                 feedbackText = analysis.evaluation || '(평가 없음)';
@@ -353,6 +371,53 @@
                         <p>${studentFeedbackKorean}</p>
                     </div>
                 `;
+            } else if (quizType === 'speaking') {
+                scoreValue = parseFloat(analysis.score);
+                questionText = item.situation_description || '(상황 없음)';
+                feedbackText = analysis.evaluation || '(평가 없음)';
+
+                const expectedAnswer = item.expected_korean_answer || '(예상 답변 없음)';
+                const recognizedText = item.recognized_korean_text || '(인식 실패)';
+                const targetVocab = item.target_vocabulary || [];
+                const vocabUsage = analysis.vocabulary_usage || {};
+                
+                const targetVocabString = targetVocab.length > 0 
+                    ? targetVocab.join(', ') 
+                    : '(목표 어휘 없음)';
+                
+                let vocabUsageHtml = '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+                for (const [vocab, info] of Object.entries(vocabUsage)) {
+                    const usedIcon = info.used ? '✅' : '❌';
+                    const note = info.note || '';
+                    vocabUsageHtml += `<li>${usedIcon} <strong>${vocab}</strong>: ${note}</li>`;
+                }
+                vocabUsageHtml += '</ul>';
+                
+                criteriaHtml = `
+                    <div class="criteria-info">
+                        <p><strong>예상 정답:</strong> ${expectedAnswer}</p>
+                        <p><strong>목표 어휘:</strong> ${targetVocabString}</p>
+                    </div>
+                `;
+                
+                cardBodyExtraHtml = `
+                    <p><strong>AI 인식 텍스트:</strong> <span class="korean-translation">${recognizedText}</span></p>
+                    <p><strong>어휘 사용 현황:</strong></p>
+                    ${vocabUsageHtml}
+                    <p><strong>🔊 음성 파일:</strong></p>
+                    <audio controls class="audio-playback">
+                      <source src="${item.audio_file_url}" type="audio/webm">
+                      브라우저가 오디오 재생을 지원하지 않습니다.
+                    </audio>
+                `;
+                
+                const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
+                studentFeedbackHtml = `
+                    <div class="student-feedback-section">
+                        <strong>학생에게 보낸 피드백:</strong>
+                        <p>${studentFeedbackItalian}</p>
+                    </div>
+                `;
             }
 
             const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
@@ -371,7 +436,7 @@
                     <div class="card-body">
                         <p><strong>원본:</strong> ${questionText}</p>
                         ${criteriaHtml}
-                        <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer}</span></p>
+                        <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(음성 파일)'}</span></p>
                         ${cardBodyExtraHtml}
                     </div>
                     <div class="timestamp">${formattedDate}</div>
@@ -387,11 +452,15 @@
 
         function startAutoRefresh() {
             autoRefreshInterval = setInterval(() => {
-                const currentPage = currentView === 'translation' ? currentTranslationPage : currentComprehensionPage;
+                let currentPage = 1;
+                if (currentView === 'translation') currentPage = currentTranslationPage;
+                else if (currentView === 'comprehension') currentPage = currentComprehensionPage;
+                else if (currentView === 'speaking') currentPage = currentSpeakingPage;
+                
                 if (currentPage === 1) {
-                    loadSubmissions(currentView, 1, true);  // ★★★ isAutoRefresh = true ★★★
+                    loadSubmissions(currentView, 1, true);
                 }
-            }, 2000);  // ★★★ 2초마다 갱신 ★★★
+            }, 2000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {

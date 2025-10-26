@@ -513,6 +513,157 @@ Important:
 - If a score cap is applied, explain why
 """
 
+SPEAKING_EVALUATION_PROMPT = """
+너는 한국어 말하기 교육 전문 AI이다. 이탈리아 학생이 특정 상황에서 한국어로 말한 음성을 평가한다.
+
+[입력 정보]
+- **상황 설명 (이탈리아어):** "{situation_description}"
+- **학생이 해야 할 말 (이탈리아어):** "{required_expression}"
+- **예상 정답 (한국어):** "{expected_korean_answer}"
+- **목표 어휘:** {target_vocabulary_json}
+- **교수님 추가 기준:** "{teacher_criterion}"
+
+---
+
+[절대 규칙: 음성 인식]
+
+**문맥 보정 금지!**
+- 학생이 발음한 소리를 **있는 그대로** 텍스트로 변환하라.
+- 문맥상 이상하더라도 절대 자동 수정하지 마라.
+- 예시:
+  * 학생 발음: "그 남자 맛있다" → 인식: "그 남자 맛있다" (✅)
+  * 학생 발음: "그 남자 맛있다" → 인식: "그 남자 멋있다" (❌ 절대 금지!)
+
+- 단, `evaluation` 필드에서 오류를 명확히 지적하라:
+  "학생이 '맛있다'라고 발음했으나, 문맥상 '멋있다'가 정확한 표현임. 발음 혼동으로 -1.5점 감점."
+
+---
+
+[채점 기준 - 총 10.0점]
+
+**[1순위] 어휘 적합성 (50% = 5.0점)**
+
+**평가 항목:**
+1. **목표 어휘 사용 (3.0점)**
+   - 계산: (사용한 목표 어휘 수 / 전체 목표 어휘 수) × 3.0
+   - 유의어 허용 기준:
+     * 교수님 기준(`teacher_criterion`)이 있으면 우선 적용
+     * 없으면: 맥락에 자연스러운 유의어만 인정
+     * 예: "구입하다" → "사다" (일반 상황: OK)
+     * 예: "터지다" → "폭파되다" (부적절: 감점)
+     * 예: "쓰여 있다" → "쓰인" (OK, 단 교수님 기준 참고)
+
+2. **맥락 적합성 (2.0점)**
+   - 상황 설명에 부합하는 어휘 선택인가?
+   - 높임법/격식이 상황에 맞는가?
+   - 감점 기준:
+     * 상황과 완전 불일치: -1.5 ~ -2.0점
+     * 높임법 오류 (필수 상황): -1.0 ~ -1.5점
+     * 약간 어색한 선택: -0.3 ~ -0.8점
+
+**[2순위] 문법 정확성 (30% = 3.0점)**
+
+**한국인의 이해를 방해하는 문법 오류 집중 평가:**
+
+**감점 기준:**
+1. **피동/사동 오류 (심각):** -1.0 ~ -1.5점
+   - 예: "문이 닫**았**어요" (X) → "문이 닫**혔**어요" (O)
+   - 예: "아기를 자**요**" (X) → "아기를 재**워**요" (O)
+
+2. **조사 오류 (심각):** -0.8 ~ -1.2점
+   - 예: "그 사람**이** 갈게요" (X) → "제**가**/저**가** 갈게요" (O)
+   - 예: "학교**를** 가요" (X) → "학교**에** 가요" (O)
+
+3. **불규칙 활용 오류:** -0.5 ~ -1.0점
+   - 예: "덥**어**요" (X) → "더**워**요" (O)
+   - 예: "쉽**어**요" (X) → "쉬**워**요" (O)
+
+4. **시제/연결 오류:** -0.3 ~ -0.8점
+   - 예: "어제 가**요**" (X) → "어제 갔**어요**" (O)
+
+**[3순위] 발음 명료도 (20% = 2.0점)**
+
+**원칙: 사소한 발음 차이는 감점 최소화. 심각한 오류만 지적.**
+
+**감점 기준:**
+1. **의미 혼동 발음 (심각):** -1.0 ~ -1.5점
+   - 예: "멋있다" → "맛있다" (완전히 다른 의미)
+   - 예: "사과" → "사고" (의미 왜곡)
+
+2. **중간 수준 오류:** -0.3 ~ -0.7점
+   - 예: 경음화 오류: "사랑해요" → "싸랑해요"
+   - 예: 자음 혼동: "자다" → "차다"
+
+3. **사소한 발음 (피드백만, 감점 없음):**
+   - 예: "ㅈ/ㅊ" 미세 차이
+   - 예: 억양의 부자연스러움
+   - → `feedback`에만 언급 ("Fai attenzione alla differenza tra ㅈ e ㅊ")
+
+4. **극심한 발음 오류 (희귀):** -1.5 ~ -2.0점
+   - 예: "농협은행" → "너며쁘네" (완전 불일치)
+
+---
+
+[출력 형식 - JSON Only]
+
+{{
+  "recognized_text": "학생이 실제 발음한 한국어 텍스트 (문맥 보정 없이 그대로!)",
+  "score": 8.5,
+  "vocabulary_usage": {{
+    "쓰여 있다": {{
+      "used": true,
+      "actual_form": "쓰인",
+      "is_synonym": true,
+      "note": "교수님 기준에 따라 허용. '쓰여 있다' 권장 피드백 제공."
+    }},
+    "방향": {{
+      "used": true,
+      "note": "정확한 사용"
+    }},
+    "-는지": {{
+      "used": false,
+      "note": "문법 항목 누락"
+    }}
+  }},
+  "grammar_errors": [
+    {{
+      "type": "불규칙 활용",
+      "student_said": "덥어요",
+      "correct_form": "더워요",
+      "deduction": -0.8
+    }}
+  ],
+  "pronunciation_issues": [
+    {{
+      "severity": "심각",
+      "student_said": "맛있다",
+      "intended": "멋있다",
+      "note": "의미 혼동 발생",
+      "deduction": -1.5
+    }},
+    {{
+      "severity": "사소함",
+      "issue": "ㅈ/ㅊ 구분 미흡",
+      "note": "이해에 지장 없음, 피드백만 제공",
+      "deduction": 0
+    }}
+  ],
+  "evaluation": "(한국어) 상세 채점 근거.
+  - 어휘: 목표 어휘 2/3 사용 (2.0/3.0점). '쓰인' 사용은 허용되나 '쓰여 있다' 권장.
+  - 문법: 불규칙 활용 오류 1건 (-0.8점). 2.2/3.0점.
+  - 발음: '맛있다'/'멋있다' 혼동 (-1.5점). 0.5/2.0점.
+  - 총점: 4.7/10.0점.",
+  
+  "feedback": "(이탈리아어) Hai usato bene alcuni vocaboli, ma c'è un errore di pronuncia importante: hai detto '맛있다' (delizioso) invece di '멋있다' (bello). Fai attenzione! Inoltre, ricorda la coniugazione irregolare di '덥다' → '더워요'."
+}}
+
+**중요:**
+- `recognized_text`는 문맥 보정 없이 학생의 실제 발음 그대로!
+- `grammar_errors`와 `pronunciation_issues`는 구체적 오류 목록
+- `evaluation`은 교수님용 한국어 상세 분석
+- `feedback`은 학생용 이탈리아어 피드백 (건설적이고 격려적으로)
+"""
+
 @app.route('/api/submit-answer', methods=['POST'])
 def submit_answer():
     data = request.get_json(silent=True) or {}
@@ -640,6 +791,142 @@ def submit_answer():
         return jsonify({"error": "서버 내부 오류가 발생했습니다."}), 500
     finally:
         if conn: conn.close()
+
+@app.route('/api/submit-speaking-answer', methods=['POST'])
+def submit_speaking_answer():
+    """말하기 퀴즈 전용 제출 엔드포인트"""
+    
+    # 1. 폼 데이터 수신
+    student_id = request.form.get('student_id')
+    exercise_id = request.form.get('exercise_id')
+    class_name = request.form.get('class_name')
+    quiz_type = request.form.get('quiz_type')
+    audio_file = request.files.get('audio_file')
+    
+    if not all([student_id, exercise_id, class_name, quiz_type, audio_file]):
+        return jsonify({"error": "필수 정보 누락"}), 400
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "DB 연결 실패"}), 500
+        
+        with conn.cursor() as cur:
+            # 2. 1회 제출 제한 체크
+            cur.execute(
+                "SELECT id FROM speaking_submissions WHERE student_id = %s AND exercise_id = %s",
+                (student_id, exercise_id)
+            )
+            if cur.fetchone():
+                return jsonify({"error": "이미 제출하셨습니다.", "already_submitted": True}), 400
+            
+            # 3. 문제 정보 조회
+            cur.execute("""
+                SELECT situation_description, required_expression, expected_korean_answer, 
+                       target_vocabulary, teacher_criterion 
+                FROM speaking_exercises 
+                WHERE id = %s
+            """, (exercise_id,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "문제 ID 없음"}), 404
+            
+            situation_desc, required_expr, expected_ans, target_vocab, teacher_crit = row
+            
+            # 4. Vercel Blob에 음성 파일 업로드 (TODO: 나중에 구현)
+            # 지금은 임시로 로컬 저장 또는 더미 URL
+            audio_url = "https://placeholder-audio-url.com/temp.webm"
+            
+            # 5. Gemini API 호출 (음성 → 텍스트 → 평가)
+            if not pro_model:
+                return jsonify({"error": "AI 모델 미설정"}), 500
+            
+            # 음성 파일을 Gemini에 업로드
+            audio_bytes = audio_file.read()
+            
+            # Gemini 파일 업로드 (임시 파일로 저장 후 업로드)
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as tmp_file:
+                tmp_file.write(audio_bytes)
+                tmp_file_path = tmp_file.name
+            
+            uploaded_audio = genai.upload_file(tmp_file_path, mime_type='audio/webm')
+            
+            # 프롬프트 생성
+            prompt_text = SPEAKING_EVALUATION_PROMPT.format(
+                situation_description=situation_desc,
+                required_expression=required_expr,
+                expected_korean_answer=expected_ans,
+                target_vocabulary_json=json.dumps(target_vocab, ensure_ascii=False),
+                teacher_criterion=teacher_crit or "자율 판단"
+            )
+            
+            # Gemini 호출
+            response = pro_model.generate_content(
+                [prompt_text, uploaded_audio],
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.1  # 문맥 보정 최소화
+                }
+            )
+            
+            print(f"🤖 [말하기 퀴즈] gemini-2.5-pro 사용 - 학생: {student_id}")
+            
+            # 임시 파일 삭제
+            import os
+            os.unlink(tmp_file_path)
+            
+            # 응답 파싱
+            raw_text = getattr(response, 'text', '').strip()
+            json_str = extract_first_json_block(raw_text) or raw_text
+            ai_result = json.loads(json_str)
+            
+            score_raw = ai_result.get('score')
+            score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
+            recognized_text = ai_result.get('recognized_text', '')
+            
+            # 6. DB에 저장
+            cur.execute("""
+                INSERT INTO speaking_submissions 
+                (exercise_id, class_name, student_id, audio_file_url, recognized_korean_text, ai_analysis_json)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                exercise_id, class_name, student_id, audio_url, recognized_text,
+                psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False))
+            ))
+            
+            conn.commit()
+            
+            # 7. 점수 등급 계산
+            def get_rating_details(score):
+                score = float(score) if score else 0
+                if score >= 8.6: return {"category": "Eccellente", "color": "teal"}
+                if score >= 7.1: return {"category": "Buono", "color": "lightgreen"}
+                if score >= 5.6: return {"category": "Sufficiente", "color": "gold"}
+                if score >= 4.1: return {"category": "Da migliorare", "color": "orange"}
+                return {"category": "Riprova", "color": "red"}
+            
+            rating_info = get_rating_details(score)
+            
+            return jsonify({
+                "success": True,
+                "score": score,
+                "rating_category": rating_info["category"],
+                "rating_color": rating_info["color"],
+                "feedback": ai_result.get('feedback', 'Nessun feedback disponibile.'),
+                "recognized_text": recognized_text
+            })
+    
+    except Exception as e:
+        print(f"🚨 /api/submit-speaking-answer 오류: {e}")
+        traceback.print_exc()
+        if conn:
+            conn.rollback()
+        return jsonify({"error": "서버 내부 오류"}), 500
+    finally:
+        if conn:
+            conn.close()
         
 def teacher_required(f):
     @wraps(f)
@@ -669,9 +956,16 @@ def quiz_page():
                 cur.execute("SELECT id, korean_sentence AS question_text FROM translation_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             elif quiz_type == 'comprehension':
                 cur.execute("SELECT id, korean_dialogue AS question_text, audio_file_path FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
+            elif quiz_type == 'speaking':
+                cur.execute("""
+                    SELECT id, situation_description, required_expression, expected_korean_answer 
+                    FROM speaking_exercises 
+                    WHERE class_name = %s 
+                    ORDER BY id
+                """, (class_name,))
             else:
-                return "잘못된 퀴즈 유형입니다.", 400
-            
+                return "잘못된 퀴즈 유형입니다.", 400            
+
             exercises = cur.fetchall()
         
         return render_template('index.html', exercises=exercises, class_name=class_name, quiz_type=quiz_type)
