@@ -376,6 +376,7 @@
                 questionText = item.situation_description || '(상황 없음)';
                 feedbackText = analysis.evaluation || '(평가 없음)';
 
+                const requiredExpression = item.required_expression || '(표현 없음)';
                 const expectedAnswer = item.expected_korean_answer || '(예상 답변 없음)';
                 const recognizedText = item.recognized_korean_text || '(인식 실패)';
                 const targetVocab = item.target_vocabulary || [];
@@ -395,6 +396,7 @@
                 
                 criteriaHtml = `
                     <div class="criteria-info">
+                        <p><strong>표현:</strong> ${requiredExpression}</p>
                         <p><strong>예상 정답:</strong> ${expectedAnswer}</p>
                         <p><strong>목표 어휘:</strong> ${targetVocabString}</p>
                     </div>
@@ -406,7 +408,7 @@
                     ${vocabUsageHtml}
                     <p><strong>🔊 음성 파일:</strong></p>
                     <audio controls class="audio-playback">
-                      <source src="${item.audio_file_url}" type="audio/webm">
+                      <source src="${item.audio_file_url}" type="audio/mp4">
                       브라우저가 오디오 재생을 지원하지 않습니다.
                     </audio>
                 `;
@@ -434,9 +436,8 @@
                         <div class="score ${scoreClass}">${scoreDisplay}</div>
                     </div>
                     <div class="card-body">
-                        <p><strong>원본:</strong> ${questionText}</p>
+                        <p><strong>상황:</strong> ${questionText}</p>
                         ${criteriaHtml}
-                        <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(음성 파일)'}</span></p>
                         ${cardBodyExtraHtml}
                     </div>
                     <div class="timestamp">${formattedDate}</div>

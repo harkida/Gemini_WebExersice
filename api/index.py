@@ -809,12 +809,16 @@ def submit_speaking_answer():
     class_name = request.form.get('class_name')
     quiz_type = request.form.get('quiz_type')
     audio_file = request.files.get('audio_file')
+    mime_type = request.form.get('mime_type', 'audio/mp4')  # ← 추가!
+    extension = 'webm' if 'webm' in mime_type else 'mp4'    # ← 추가!
 
     print(f"📝 student_id: {student_id}")
     print(f"📝 exercise_id: {exercise_id}")
     print(f"📝 class_name: {class_name}")
     print(f"📝 quiz_type: {quiz_type}")
     print(f"📝 audio_file: {audio_file}")
+    print(f"📝 mime_type: {mime_type}")  # ← 추가!
+    print(f"📝 extension: {extension}")  # ← 추가!
 
     if not all([student_id, exercise_id, class_name, quiz_type, audio_file]):
         print("🚨 필수 정보 누락!")
@@ -867,7 +871,7 @@ def submit_speaking_answer():
             # 파일명 생성 (중복 방지)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             file_hash = hashlib.md5(f"{student_id}_{exercise_id}_{timestamp}".encode()).hexdigest()[:8]
-            filename = f"speaking/{class_name}/{student_id}_{exercise_id}_{file_hash}.mp4"
+            filename = f"speaking/{class_name}/{student_id}_{exercise_id}_{file_hash}.{extension}"
 
             # Vercel Blob API 호출
             try:
@@ -877,7 +881,7 @@ def submit_speaking_answer():
                     f"https://blob.vercel-storage.com/{filename}",
                     headers={
                         "Authorization": f"Bearer {BLOB_TOKEN}",
-                        "Content-Type": "audio/mp4",
+                        "Content-Type": mime_type,
                         "x-vercel-blob-add-random-suffix": "1"
                     },
                     data=audio_bytes
@@ -908,11 +912,11 @@ def submit_speaking_answer():
                         
             # Gemini 파일 업로드 (임시 파일로 저장 후 업로드)
             import tempfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{extension}') as tmp_file:
                 tmp_file.write(audio_bytes)
                 tmp_file_path = tmp_file.name
             
-            uploaded_audio = genai.upload_file(tmp_file_path, mime_type='audio/mp4')
+            uploaded_audio = genai.upload_file(tmp_file_path, mime_type=mime_type)
             
             # 프롬프트 생성
             prompt_text = SPEAKING_EVALUATION_PROMPT.format(
@@ -1142,7 +1146,7 @@ def api_get_submissions():
                     cur.execute("""
                         SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
                             s.ai_analysis_json, s.created_at, 
-                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                            e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name 
                         FROM speaking_submissions s 
                         JOIN speaking_exercises e ON e.id = s.exercise_id 
                         ORDER BY s.id DESC 
@@ -1152,7 +1156,7 @@ def api_get_submissions():
                     cur.execute("""
                         SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
                             s.ai_analysis_json, s.created_at, 
-                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                            e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name 
                         FROM speaking_submissions s 
                         JOIN speaking_exercises e ON e.id = s.exercise_id 
                         WHERE s.class_name = %s
