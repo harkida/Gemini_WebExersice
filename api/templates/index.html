@@ -214,6 +214,7 @@
 
     // ★★★ 말하기 퀴즈 녹음 로직 ★★★
     if (quizType === 'speaking') {
+      
       let mediaRecorder;
       let audioChunks = [];
 
@@ -223,7 +224,14 @@
           const playbackAudio = quizItem.querySelector('.playback-audio');
           const submitBtn = quizItem.querySelector('.submit-btn');
 
-          // 녹음 시작
+          // ★★★ 녹음 중이면 중지 ★★★
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            return;
+          }
+
+          // ★★★ 녹음 시작 ★★★
           try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -244,7 +252,7 @@
               // ★★★ 녹음 중지 후 버튼 텍스트 변경 ★★★
               this.textContent = '🔄 Registra di nuovo';
               this.classList.remove('recording');
-            };
+            }.bind(this);
 
             mediaRecorder.start();
             
