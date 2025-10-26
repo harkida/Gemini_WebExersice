@@ -212,36 +212,36 @@
         window.location.href = '/';
     }
 
-    // ★★★ 말하기 퀴즈 녹음 로직 ★★★
+    // ★★★ 말하기 퀴즈 녹음 로직 (완전 수정 버전) ★★★
     if (quizType === 'speaking') {
-      
-      let mediaRecorder;
+      let mediaRecorder = null;
       let audioChunks = [];
 
-      document.querySelectorAll('.record-btn').forEach(btn => {
+      document.querySelectorAll('.record-btn').forEach(function(btn) {
         btn.addEventListener('click', async function() {
           const quizItem = this.closest('.quiz-item');
           const playbackAudio = quizItem.querySelector('.playback-audio');
           const submitBtn = quizItem.querySelector('.submit-btn');
+          const recordBtn = this;
 
-          // ★★★ 녹음 중이면 중지 ★★★
+          // 녹음 중이면 중지
           if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
             mediaRecorder.stream.getTracks().forEach(track => track.stop());
             return;
           }
 
-          // ★★★ 녹음 시작 ★★★
+          // 녹음 시작
           try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
             audioChunks = [];
 
-            mediaRecorder.ondataavailable = (event) => {
+            mediaRecorder.ondataavailable = function(event) {
               audioChunks.push(event.data);
             };
 
-            mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = function() {
               const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
               const audioUrl = URL.createObjectURL(audioBlob);
               playbackAudio.src = audioUrl;
@@ -249,16 +249,13 @@
               playbackAudio.audioBlob = audioBlob;
               submitBtn.disabled = false;
               
-              // ★★★ 녹음 중지 후 버튼 텍스트 변경 ★★★
-              this.textContent = '🔄 Registra di nuovo';
-              this.classList.remove('recording');
-            }.bind(this);
+              recordBtn.textContent = '🔄 Registra di nuovo';
+              recordBtn.classList.remove('recording');
+            };
 
             mediaRecorder.start();
-            
-            // ★★★ 녹음 시작 시 버튼 텍스트 변경 ★★★
-            this.textContent = '⏹️ Stop Registrazione';
-            this.classList.add('recording');
+            recordBtn.textContent = '⏹️ Stop Registrazione';
+            recordBtn.classList.add('recording');
             
           } catch (error) {
             alert('Errore nell\'accesso al microfono: ' + error.message);
