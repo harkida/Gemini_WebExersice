@@ -935,7 +935,6 @@ def submit_speaking_answer():
             print(f"🤖 [말하기 퀴즈] gemini-2.5-pro 사용 - 학생: {student_id}")
             
             # 임시 파일 삭제
-            import os
             os.unlink(tmp_file_path)
             
             # 응답 파싱
