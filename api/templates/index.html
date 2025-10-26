@@ -190,7 +190,7 @@
 
         <div class="question-text">{{ exercise.question_text }}</div>
         <form class="answer-form" data-exercise-id="{{ exercise.id }}">
-          <textarea class="answer-input" placeholder="Inserisci qui la tua risposta..." required></textarea>
+          <textarea class="answer-input" placeholder="Inserisci qui la tua risposta..." {% if quiz_type != 'speaking' %}required{% endif %}></textarea>
           <button type="submit" class="submit-btn" {% if quiz_type == 'speaking' %}disabled{% endif %}>Invia</button>
           
           <div class="result-container"></div>
