@@ -800,7 +800,7 @@ def submit_speaking_answer():
     """말하기 퀴즈 전용 제출 엔드포인트"""
     
     print("=" * 50)
-    print("🎤 말하기 퀴즈 제출 요청 수신!")
+    print("🎤 말하기 퀴즈 제출 요청 수신! (MP4 테스트 모드)")
     print("=" * 50)
 
     # 1. 폼 데이터 수신
@@ -867,7 +867,7 @@ def submit_speaking_answer():
             # 파일명 생성 (중복 방지)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             file_hash = hashlib.md5(f"{student_id}_{exercise_id}_{timestamp}".encode()).hexdigest()[:8]
-            filename = f"speaking/{class_name}/{student_id}_{exercise_id}_{file_hash}.webm"
+            filename = f"speaking/{class_name}/{student_id}_{exercise_id}_{file_hash}.mp4"
 
             # Vercel Blob API 호출
             try:
@@ -877,7 +877,7 @@ def submit_speaking_answer():
                     f"https://blob.vercel-storage.com/{filename}",
                     headers={
                         "Authorization": f"Bearer {BLOB_TOKEN}",
-                        "Content-Type": "audio/webm",
+                        "Content-Type": "audio/mp4",
                         "x-vercel-blob-add-random-suffix": "1"
                     },
                     data=audio_bytes
@@ -908,11 +908,11 @@ def submit_speaking_answer():
                         
             # Gemini 파일 업로드 (임시 파일로 저장 후 업로드)
             import tempfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as tmp_file:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
                 tmp_file.write(audio_bytes)
                 tmp_file_path = tmp_file.name
             
-            uploaded_audio = genai.upload_file(tmp_file_path, mime_type='audio/webm')
+            uploaded_audio = genai.upload_file(tmp_file_path, mime_type='audio/mp4')
             
             # 프롬프트 생성
             prompt_text = SPEAKING_EVALUATION_PROMPT.format(

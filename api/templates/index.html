@@ -242,7 +242,7 @@
             };
 
             mediaRecorder.onstop = function() {
-              const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+              const audioBlob = new Blob(audioChunks, { type: 'audio/mp4' });
               const audioUrl = URL.createObjectURL(audioBlob);
               playbackAudio.src = audioUrl;
               playbackAudio.style.display = 'block';
