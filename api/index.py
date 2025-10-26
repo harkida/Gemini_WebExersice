@@ -1068,7 +1068,38 @@ def api_get_submissions():
                         ORDER BY s.id DESC 
                         LIMIT %s OFFSET %s
                     """, (class_name, per_page, offset))
-            
+
+            elif quiz_type == 'speaking':
+                # 전체 개수 조회
+                if class_name == 'all':
+                    cur.execute("SELECT COUNT(*) as total FROM speaking_submissions")
+                else:
+                    cur.execute("SELECT COUNT(*) as total FROM speaking_submissions WHERE class_name = %s", (class_name,))
+                total = cur.fetchone()['total']
+                
+                # 페이지네이션 데이터 조회
+                if class_name == 'all':
+                    cur.execute("""
+                        SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
+                            s.ai_analysis_json, s.created_at, 
+                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                        FROM speaking_submissions s 
+                        JOIN speaking_exercises e ON e.id = s.exercise_id 
+                        ORDER BY s.id DESC 
+                        LIMIT %s OFFSET %s
+                    """, (per_page, offset))
+                else:
+                    cur.execute("""
+                        SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
+                            s.ai_analysis_json, s.created_at, 
+                            e.situation_description, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                        FROM speaking_submissions s 
+                        JOIN speaking_exercises e ON e.id = s.exercise_id 
+                        WHERE s.class_name = %s
+                        ORDER BY s.id DESC 
+                        LIMIT %s OFFSET %s
+                    """, (class_name, per_page, offset))
+
             rows = cur.fetchall()
             
         items = []
