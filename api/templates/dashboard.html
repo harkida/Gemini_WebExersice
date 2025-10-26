@@ -306,7 +306,6 @@
             let cardBodyExtraHtml = '';
             let criteriaHtml = '';
             let studentFeedbackHtml = '';
-            let mainBodyContentHtml = '';
 
             const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
             const vocabItalian = analysis.key_vocabularies_italian || [];
@@ -379,23 +378,29 @@
 
                 const expectedAnswer = item.expected_korean_answer || '(예상 답변 없음)';
                 const recognizedText = item.recognized_korean_text || '(인식 실패)';
+                const targetVocab = item.target_vocabulary || [];
                 const vocabUsage = analysis.vocabulary_usage || {};
                 
+                const targetVocabString = targetVocab.length > 0 
+                    ? targetVocab.join(', ') 
+                    : '(목표 어휘 없음)';
+                
                 let vocabUsageHtml = '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
-                if (Object.keys(vocabUsage).length > 0) {
-                    for (const [vocab, info] of Object.entries(vocabUsage)) {
-                        const usedIcon = info.used ? '✅' : '❌';
-                        const note = info.note || '';
-                        vocabUsageHtml += `<li>${usedIcon} <strong>${vocab}</strong>: ${note}</li>`;
-                    }
-                } else {
-                    vocabUsageHtml += '<li>(어휘 사용 분석 정보 없음)</li>';
+                for (const [vocab, info] of Object.entries(vocabUsage)) {
+                    const usedIcon = info.used ? '✅' : '❌';
+                    const note = info.note || '';
+                    vocabUsageHtml += `<li>${usedIcon} <strong>${vocab}</strong>: ${note}</li>`;
                 }
                 vocabUsageHtml += '</ul>';
-                                
+                
+                criteriaHtml = `
+                    <div class="criteria-info">
+                        <p><strong>예상 정답:</strong> ${expectedAnswer}</p>
+                        <p><strong>목표 어휘:</strong> ${targetVocabString}</p>
+                    </div>
+                `;
+                
                 cardBodyExtraHtml = `
-                    <p><strong>요구 표현:</strong> ${item.required_expression || '(표현 없음)'}</p>
-                    <p><strong>예상 정답:</strong> ${expectedAnswer}</p>
                     <p><strong>AI 인식 텍스트:</strong> <span class="korean-translation">${recognizedText}</span></p>
                     <p><strong>어휘 사용 현황:</strong></p>
                     ${vocabUsageHtml}
@@ -419,25 +424,6 @@
             const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
             const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
 
-            // [핵심 로직]
-            // 퀴즈 유형에 따라 카드 본문 내용을 동적으로 결정합니다.
-            if (quizType === 'speaking') {
-                // '말하기 퀴즈'일 경우: "상황"을 제목으로 사용하고, "학생 답안(원문)"은 표시하지 않습니다.
-                mainBodyContentHtml = `
-                    <p><strong>상황:</strong> ${questionText}</p>
-                    ${cardBodyExtraHtml}
-                `;
-            } else {
-                // '번역' 및 '이해력' 퀴즈일 경우: 기존 구조를 유지합니다.
-                mainBodyContentHtml = `
-                    <p><strong>원본:</strong> ${questionText}</p>
-                    ${criteriaHtml}
-                    <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(답변 없음)'}</span></p>
-                    ${cardBodyExtraHtml}
-                `;
-            }
-
-            // 최종 카드 HTML을 조립합니다.
             card.innerHTML = `
                 <div class="card-main-content">
                     <div class="card-header">
@@ -448,7 +434,10 @@
                         <div class="score ${scoreClass}">${scoreDisplay}</div>
                     </div>
                     <div class="card-body">
-                        ${mainBodyContentHtml}
+                        <p><strong>원본:</strong> ${questionText}</p>
+                        ${criteriaHtml}
+                        <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(음성 파일)'}</span></p>
+                        ${cardBodyExtraHtml}
                     </div>
                     <div class="timestamp">${formattedDate}</div>
                 </div>
@@ -458,7 +447,6 @@
                     <p>${feedbackText}</p>
                 </div>
             `;
-            
             return card;
         }
 
