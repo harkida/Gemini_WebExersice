@@ -83,11 +83,6 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
         }
-        .re-record-btn {
-            background-color: #f39c12;
-            margin-top: 10px;
-        }
-        .re-record-btn:hover { background-color: #e67e22; }
 
         .playback-audio {
             width: 100%;
@@ -190,7 +185,6 @@
             🎤 Inizia Registrazione
           </button>
           <audio class="playback-audio" style="display:none;" controls></audio>
-          <button type="button" class="re-record-btn" style="display:none;">🔄 Registra di nuovo</button>
         </div>
         {% endif %}
 
@@ -227,59 +221,40 @@
         btn.addEventListener('click', async function() {
           const quizItem = this.closest('.quiz-item');
           const playbackAudio = quizItem.querySelector('.playback-audio');
-          const reRecordBtn = quizItem.querySelector('.re-record-btn');
           const submitBtn = quizItem.querySelector('.submit-btn');
 
-          if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-            // 녹음 시작
-            try {
-              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-              mediaRecorder = new MediaRecorder(stream);
-              audioChunks = [];
+          // 녹음 시작
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
 
-              mediaRecorder.ondataavailable = (event) => {
-                audioChunks.push(event.data);
-              };
+            mediaRecorder.ondataavailable = (event) => {
+              audioChunks.push(event.data);
+            };
 
-              mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                playbackAudio.src = audioUrl;
-                playbackAudio.style.display = 'block';
-                playbackAudio.audioBlob = audioBlob;
-                reRecordBtn.style.display = 'inline-block';
-                submitBtn.disabled = false;
-              };
+            mediaRecorder.onstop = () => {
+              const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+              const audioUrl = URL.createObjectURL(audioBlob);
+              playbackAudio.src = audioUrl;
+              playbackAudio.style.display = 'block';
+              playbackAudio.audioBlob = audioBlob;
+              submitBtn.disabled = false;
+              
+              // ★★★ 녹음 중지 후 버튼 텍스트 변경 ★★★
+              this.textContent = '🔄 Registra di nuovo';
+              this.classList.remove('recording');
+            };
 
-              mediaRecorder.start();
-              this.textContent = '⏹️ Stop Registrazione';
-              this.classList.add('recording');
-            } catch (error) {
-              alert('Errore nell\'accesso al microfono: ' + error.message);
-            }
-          } else {
-            // 녹음 중지
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            this.textContent = '🎤 Inizia Registrazione';
-            this.classList.remove('recording');
+            mediaRecorder.start();
+            
+            // ★★★ 녹음 시작 시 버튼 텍스트 변경 ★★★
+            this.textContent = '⏹️ Stop Registrazione';
+            this.classList.add('recording');
+            
+          } catch (error) {
+            alert('Errore nell\'accesso al microfono: ' + error.message);
           }
-        });
-      });
-
-      // 다시 녹음 버튼
-      document.querySelectorAll('.re-record-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const quizItem = this.closest('.quiz-item');
-          const recordBtn = quizItem.querySelector('.record-btn');
-          const playbackAudio = quizItem.querySelector('.playback-audio');
-          const submitBtn = quizItem.querySelector('.submit-btn');
-          
-          playbackAudio.style.display = 'none';
-          this.style.display = 'none';
-          submitBtn.disabled = true;
-          recordBtn.textContent = '🎤 Inizia Registrazione';
-          recordBtn.classList.remove('recording');
         });
       });
     }
