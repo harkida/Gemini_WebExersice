@@ -840,7 +840,7 @@ def submit_speaking_answer():
                 (student_id, exercise_id)
             )
             if cur.fetchone():
-                return jsonify({"error": "이미 제출하셨습니다.", "already_submitted": True}), 400
+                return jsonify({"error": "Hai già inviato una risposta per questo esercizio.", "already_submitted": True}), 400
             
             # 3. 문제 정보 조회
             cur.execute("""
