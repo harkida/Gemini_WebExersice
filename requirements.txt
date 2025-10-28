@@ -2,3 +2,4 @@ Flask
 google-generativeai
 psycopg2-binary
 requests
+packaging
