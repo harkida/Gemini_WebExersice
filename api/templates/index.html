@@ -397,6 +397,11 @@
                         <h4>🎤 Trascrizione della tua risposta:</h4>
                         <p>${result.recognized_text}</p>
                     </div>
+
+                    <div class="original-text-box" style="margin-top: 10px;">
+                        <h4>✅ Risposta attesa (예상 정답):</h4>
+                        <p>${result.expected_korean_answer || '예상 정답을 불러올 수 없습니다.'}</p>
+                    </div>
                 `;
             }
             

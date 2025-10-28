@@ -1054,7 +1054,8 @@ def submit_speaking_answer():
                     "rating_category": rating_info["category"],
                     "rating_color": rating_info["color"],
                     "feedback": ai_result.get('feedback', 'Nessun feedback disponibile.'),
-                    "recognized_text": recognized_text
+                    "recognized_text": recognized_text,
+                    "expected_korean_answer": expected_ans  # ← 추가
                 })
             else:
                 # 채점 실패 시 (프론트엔드가 이해할 수 있는 에러 메시지 반환)
