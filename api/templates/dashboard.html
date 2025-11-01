@@ -64,13 +64,6 @@
                 transform: translateY(0);
             }
         }        
-        .rating-text {
-            font-size: 1.1rem;
-            font-weight: normal;
-            margin-left: 0.5rem;
-            opacity: 0.8;
-            vertical-align: middle;
-        }
     </style>
 </head>
 <body>
@@ -442,7 +435,7 @@
                             <span>학생 ID: <span class="id">${item.student_id}</span></span>
                             <span class="class-badge">${item.class_name || '반 없음'}</span>
                         </div>
-                        <div class="score ${scoreClass}">${scoreDisplay}<span class="rating-text">${ratingInfo.rating}</span></div>
+                        <div class="score ${scoreClass}">${scoreDisplay}</div>
                     </div>
                     <div class="card-body">
                         <p><strong>상황:</strong> ${questionText}</p>
