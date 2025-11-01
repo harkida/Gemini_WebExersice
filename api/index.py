@@ -419,7 +419,7 @@ final_score = semantic_accuracy_score + vocabulary_coverage_score + information_
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 🚫 STRICT OUTPUT RULE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-You MUST return ONLY the raw JSON object, starting with `{` and ending with `}`.
+You MUST return ONLY the raw JSON object, starting with `{{` and ending with `}}`.
 Do NOT include any other text, explanations, apologies, or markdown formatting like ```json.
 Your entire response must be ONLY the JSON content itself.
 
@@ -433,7 +433,7 @@ You MUST return a valid JSON object in this EXACT format:
   "analysis": {{
     "original_korean_question": "학생들이 도서관에서 한국어를 공부합니다.",
     "student_answer_original": "Gli studenti studiano coreano in biblioteca.",
-    "student_answer_korean_translation": "학생들은 도서관에서 한국어를 공부합니다.,
+    "student_answer_korean_translation": "학생들은 도서관에서 한국어를 공부합니다.",
     "key_vocabularies_italian": ["studente", "studiare", "coreano", "biblioteca"],
     "key_vocabularies_korean_translation": ["학생", "공부하다", "한국어", "도서관"],
     "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술"
@@ -1081,10 +1081,10 @@ def submit_speaking_answer():
                 # 채점 성공 시
                 def get_rating_details(s):
                     s = float(s)
-                    if s >= 8.6: return {"category": "Eccellente", "color": "#00ff7f"} # Vibrant Green
-                    if s >= 7.1: return {"category": "Buono", "color": "lightgreen"}
-                    if s >= 5.6: return {"category": "Sufficiente", "color": "gold"}
-                    if s >= 4.1: return {"category": "Da migliorare", "color": "orange"}
+                    if s >= 8.5: return {"category": "Eccellente", "color": "#00ff7f"} # Vibrant Green
+                    if s >= 7.0: return {"category": "Buono", "color": "lightgreen"}
+                    if s >= 5.5: return {"category": "Sufficiente", "color": "gold"}
+                    if s >= 4.0: return {"category": "Da migliorare", "color": "orange"}
                     return {"category": "Riprova", "color": "red"}
                 
                 rating_info = get_rating_details(score)
