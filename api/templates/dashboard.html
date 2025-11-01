@@ -43,7 +43,7 @@
         .timestamp { font-size: 0.8rem; color: #888; margin-top: 1rem; }
         .feedback-section { background-color: #383838; padding: 1rem 1.5rem; border-top: 1px solid #555; }
         .feedback-section strong { color: #ffffff; display: block; margin-bottom: 0.5rem; }
-        .feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }
+        .feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; }
         .student-feedback-section { background-color: #2a2a2a; padding: 1rem 1.5rem; border-top: 1px solid #555; }
         .student-feedback-section strong { color: #87ceeb; display: block; margin-bottom: 0.5rem; }
         .student-feedback-section p { margin: 0; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }
@@ -52,7 +52,6 @@
         .criteria-info { margin: 0.8rem 0; }
         .criteria-info strong { color: #ffa500; }
         
-        /* ★★★ 말하기 전용 스타일 ★★★ */
         .audio-playback {
             width: 100%;
             margin-top: 10px;
@@ -71,6 +70,43 @@
             margin-left: 0.5rem;
             opacity: 0.8;
             vertical-align: middle;
+        }
+
+        /* ★★★ AI 교수용 평가 결과 스타일 (신규 추가) ★★★ */
+        .professor-analysis {
+            font-size: 0.9rem;
+        }
+        .professor-analysis h4 {
+            color: #87ceeb;
+            margin-top: 1rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #444;
+            font-size: 1.1rem;
+        }
+        .professor-analysis p {
+            margin: 0.5rem 0;
+            line-height: 1.5;
+            color: #d0d0d0;
+        }
+        .professor-analysis p strong {
+            color: #e0e0e0;
+            display: inline; /* p 태그 안의 strong은 block이 아니도록 재정의 */
+        }
+        .analysis-details > div {
+            background-color: #222;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 0.8rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+        .analysis-details > div > strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #ffa500; /* Orange for the sub-title */
+            font-size: 1rem;
         }
     </style>
 </head>
@@ -313,11 +349,45 @@
             return { rating: 'Riprova', color: '#e74c3c' };                       // Red
         }
 
+        // ★★★ AI 평가 결과를 가독성 좋게 HTML로 변환하는 함수 (신규 추가) ★★★
+        function formatAiAnalysisForProfessor(analysis) {
+            if (!analysis || Object.keys(analysis).length === 0 || analysis.error) {
+                return `<p style="color: #aaa;">AI 분석 정보가 없습니다.</p>`;
+            }
+
+            const feedback = analysis.evaluation_feedback || {};
+            
+            // Helper: 텍스트의 '\n'을 <br>로 변환
+            const formatText = (text) => {
+                return text ? String(text).replace(/\\n/g, '<br>') : '<span style="color: #888;">(정보 없음)</span>';
+            };
+
+            let html = '<div class="professor-analysis">';
+
+            // 점수 요약
+            html += `<h4>평가 점수 요약</h4>`;
+            html += `<p><strong>정보 포함도 점수:</strong> ${feedback.information_coverage_score !== undefined ? feedback.information_coverage_score : 'N/A'}</p>`;
+            html += `<p><strong>문법/의미 정확도 점수:</strong> ${feedback.semantic_accuracy_score !== undefined ? feedback.semantic_accuracy_score : 'N/A'}</p>`;
+            html += `<p><strong>어휘 구사력 점수:</strong> ${feedback.vocabulary_coverage_score !== undefined ? feedback.vocabulary_coverage_score : 'N/A'}</p>`;
+
+            // 세부 분석
+            html += `<h4>세부 분석</h4>`;
+            html += `<div class="analysis-details">`;
+            
+            html += `<div><strong>정보 포함도:</strong><br>${formatText(feedback.information_coverage_details)}</div>`;
+            html += `<div><strong>문법/의미 정확도:</strong><br>${formatText(feedback.semantic_accuracy_reason)}</div>`;
+            html += `<div><strong>어휘 구사력:</strong><br>${formatText(feedback.vocabulary_coverage_details)}</div>`;
+            
+            html += `</div>`;
+            html += '</div>';
+
+            return html;
+        }
+
         function createSubmissionCard(item, quizType) {
             const card = document.createElement('div');
             card.className = 'submission-card';
 
-            // ai_analysis_json이 null이거나 문자열일 경우를 대비하여 안전하게 파싱합니다.
             let analysis = {};
             try {
                 if (typeof item.ai_analysis_json === 'string') {
@@ -442,8 +512,8 @@
             const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
             const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
 
-            // ★★★ 핵심 수정사항 1: AI 평가 JSON을 예쁘게 포맷팅 ★★★
-            const formattedAnalysis = JSON.stringify(analysis, null, 2);
+            // ★★★ AI 평가 JSON을 구조화된 HTML로 변환 (수정) ★★★
+            const professorAnalysisHtml = formatAiAnalysisForProfessor(analysis);
 
             card.innerHTML = `
                 <div class="card-main-content">
@@ -452,7 +522,6 @@
                             <span>학생 ID: <span class="id">${item.student_id}</span></span>
                             <span class="class-badge">${item.class_name || '반 없음'}</span>
                         </div>
-                        <!-- ★★★ 핵심 수정사항 2: 5단계 색상 시스템 적용 ★★★ -->
                         <div class="score" style="color: ${ratingInfo.color};">${scoreDisplay}<span class="rating-text">${ratingInfo.rating}</span></div>
                     </div>
                     <div class="card-body">
@@ -465,7 +534,7 @@
                 ${studentFeedbackHtml}
                 <div class="feedback-section">
                     <strong>AI 평가 (교수용):</strong>
-                    <pre style="white-space: pre-wrap; word-wrap: break-word; color: #d0d0d0; background: #222; padding: 10px; border-radius: 5px; font-size: 0.9rem;">${formattedAnalysis}</pre>
+                    ${professorAnalysisHtml}
                 </div>
             `;
             return card;
