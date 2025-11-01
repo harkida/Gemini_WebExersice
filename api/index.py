@@ -417,6 +417,13 @@ final_score = semantic_accuracy_score + vocabulary_coverage_score + information_
 ---
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🚫 STRICT OUTPUT RULE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You MUST return ONLY the raw JSON object, starting with `{` and ending with `}`.
+Do NOT include any other text, explanations, apologies, or markdown formatting like ```json.
+Your entire response must be ONLY the JSON content itself.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 📤 JSON OUTPUT FORMAT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 You MUST return a valid JSON object in this EXACT format:
@@ -424,11 +431,11 @@ You MUST return a valid JSON object in this EXACT format:
   "score": 5.3,
   "student_hint": "Manca l'informazione sulla dimensione della stanza.",
   "analysis": {{
-    "original_korean_question": "채점의 기준이 된 한국어 원문",
-    "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
-    "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
-    "key_vocabularies_italian": ["학생이 제출한 이탈리아어 답안 원문에서 추출된 이탈리아어 어휘 기본형"],
-    "key_vocabularies_korean_translation": ["추출된 이탈리아어 어휘의 한국어 뜻"],
+    "original_korean_question": "학생들이 도서관에서 한국어를 공부합니다.",
+    "student_answer_original": "Gli studenti studiano coreano in biblioteca.",
+    "student_answer_korean_translation": "학생들은 도서관에서 한국어를 공부합니다.,
+    "key_vocabularies_italian": ["studente", "studiare", "coreano", "biblioteca"],
+    "key_vocabularies_korean_translation": ["학생", "공부하다", "한국어", "도서관"],
     "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술"
   }}
 }}
