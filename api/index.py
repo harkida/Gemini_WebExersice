@@ -442,8 +442,8 @@ You MUST return a valid JSON object in this EXACT format:
 
 Field Requirements:
 •	score: Float with ONE decimal (NEVER whole number)
-•	student_hint: Italian string (max 20 words) OR empty string "" if score ≥ 7.0
-•	evaluation_feedback: Object containing ALL calculation details with Korean explanations for the professor
+•	student_hint: Italian string (max 30 words) OR empty string "" if score ≥ 7.0
+•	analysis: An object containing all analytical data for the professor's dashboard.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ CRITICAL REMINDERS
