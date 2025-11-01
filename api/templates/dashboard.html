@@ -63,7 +63,15 @@
                 opacity: 1;
                 transform: translateY(0);
             }
-        }        
+        }     
+        
+        .rating-text {
+            font-size: 1.1rem;
+            font-weight: normal;
+            margin-left: 0.5rem;
+            opacity: 0.8;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -297,12 +305,32 @@
             container.appendChild(paginationDiv);
         }
 
+        function getRatingDetails(score) {
+            if (score >= 8.5) return { rating: 'Eccellente', color: '#2ecc71' }; // Vibrant Green
+            if (score >= 7.0) return { rating: 'Buono', color: '#27ae60' };      // Green
+            if (score >= 5.5) return { rating: 'Sufficiente', color: '#f1c40f' }; // Yellow
+            if (score >= 4.0) return { rating: 'Da migliorare', color: '#e67e22' }; // Orange
+            return { rating: 'Riprova', color: '#e74c3c' };                       // Red
+        }
+
         function createSubmissionCard(item, quizType) {
             const card = document.createElement('div');
             card.className = 'submission-card';
 
-            const analysis = item.ai_analysis_json || {};
-            let scoreValue, questionText, feedbackText;
+            // ai_analysis_json이 null이거나 문자열일 경우를 대비하여 안전하게 파싱합니다.
+            let analysis = {};
+            try {
+                if (typeof item.ai_analysis_json === 'string') {
+                    analysis = JSON.parse(item.ai_analysis_json);
+                } else if (typeof item.ai_analysis_json === 'object' && item.ai_analysis_json !== null) {
+                    analysis = item.ai_analysis_json;
+                }
+            } catch (e) {
+                console.error('AI analysis JSON 파싱 오류:', e);
+                analysis = { error: "AI 분석 결과를 파싱할 수 없습니다." };
+            }
+
+            let scoreValue, questionText;
             let cardBodyExtraHtml = '';
             let criteriaHtml = '';
             let studentFeedbackHtml = '';
@@ -325,30 +353,23 @@
             if (quizType === 'translation') {
                 scoreValue = parseFloat(item.score);
                 questionText = item.korean_sentence;
-                feedbackText = analysis.evaluation_feedback || '(피드백 없음)';
 
                 cardBodyExtraHtml = `
-                    <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(답안 없음)'}</p>
-                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
+                    <p><strong>학생 답안 (원문):</strong> ${item.student_answer || '(답안 없음)'}</p>
+                    <p><strong>학생 답안 (AI번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
                     ${keywordsHtml}
                 `;
 
             } else if (quizType === 'comprehension') {
                 scoreValue = parseFloat(analysis.score);
                 questionText = item.korean_dialogue;
-                feedbackText = analysis.evaluation || '(평가 없음)';
 
                 const keyPoints = item.key_points || {};
                 const targetVocabulary = keyPoints.target_vocabulary || [];
                 const meaningPoints = keyPoints.meaning_points || [];
 
-                const targetVocabString = targetVocabulary.length > 0 
-                    ? targetVocabulary.join(', ') 
-                    : '(목표 어휘 없음)';
-                
-                const meaningPointsString = meaningPoints.length > 0
-                    ? meaningPoints.join(', ')
-                    : '(문맥 문장 없음)';
+                const targetVocabString = targetVocabulary.length > 0 ? targetVocabulary.join(', ') : '(목표 어휘 없음)';
+                const meaningPointsString = meaningPoints.length > 0 ? meaningPoints.join(', ') : '(문맥 문장 없음)';
 
                 criteriaHtml = `
                     <div class="criteria-info">
@@ -356,13 +377,11 @@
                         <p><strong>문맥 문장:</strong> ${meaningPointsString}</p>
                     </div>
                 `;
-
                 cardBodyExtraHtml = `
-                    <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(답안 없음)'}</p>
-                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
+                    <p><strong>학생 답안 (원문):</strong> ${item.student_answer || '(답안 없음)'}</p>
+                    <p><strong>학생 답안 (AI번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
                     ${keywordsHtml}
                 `;
-
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
                 const studentFeedbackKorean = item.feedback_korean || '(번역 없음)';
                 studentFeedbackHtml = `
@@ -376,7 +395,6 @@
             } else if (quizType === 'speaking') {
                 scoreValue = parseFloat(analysis.score);
                 questionText = item.situation_description || '(상황 없음)';
-                feedbackText = analysis.evaluation || '(평가 없음)';
 
                 const requiredExpression = item.required_expression || '(표현 없음)';
                 const expectedAnswer = item.expected_korean_answer || '(예상 답변 없음)';
@@ -384,9 +402,7 @@
                 const targetVocab = item.target_vocabulary || [];
                 const vocabUsage = analysis.vocabulary_usage || {};
                 
-                const targetVocabString = targetVocab.length > 0 
-                    ? targetVocab.join(', ') 
-                    : '(목표 어휘 없음)';
+                const targetVocabString = targetVocab.length > 0 ? targetVocab.join(', ') : '(목표 어휘 없음)';
                 
                 let vocabUsageHtml = '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
                 for (const [vocab, info] of Object.entries(vocabUsage)) {
@@ -403,7 +419,6 @@
                         <p><strong>목표 어휘:</strong> ${targetVocabString}</p>
                     </div>
                 `;
-                
                 cardBodyExtraHtml = `
                     <p><strong>AI 인식 텍스트:</strong> <span class="korean-translation">${recognizedText}</span></p>
                     <p><strong>어휘 사용 현황:</strong></p>
@@ -414,7 +429,6 @@
                       브라우저가 오디오 재생을 지원하지 않습니다.
                     </audio>
                 `;
-                
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
                 studentFeedbackHtml = `
                     <div class="student-feedback-section">
@@ -424,9 +438,12 @@
                 `;
             }
 
-            const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
+            const ratingInfo = getRatingDetails(scoreValue);
             const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
             const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
+
+            // ★★★ 핵심 수정사항 1: AI 평가 JSON을 예쁘게 포맷팅 ★★★
+            const formattedAnalysis = JSON.stringify(analysis, null, 2);
 
             card.innerHTML = `
                 <div class="card-main-content">
@@ -435,7 +452,8 @@
                             <span>학생 ID: <span class="id">${item.student_id}</span></span>
                             <span class="class-badge">${item.class_name || '반 없음'}</span>
                         </div>
-                        <div class="score ${scoreClass}">${scoreDisplay}</div>
+                        <!-- ★★★ 핵심 수정사항 2: 5단계 색상 시스템 적용 ★★★ -->
+                        <div class="score" style="color: ${ratingInfo.color};">${scoreDisplay}<span class="rating-text">${ratingInfo.rating}</span></div>
                     </div>
                     <div class="card-body">
                         <p><strong>상황:</strong> ${questionText}</p>
@@ -447,7 +465,7 @@
                 ${studentFeedbackHtml}
                 <div class="feedback-section">
                     <strong>AI 평가 (교수용):</strong>
-                    <p>${feedbackText}</p>
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; color: #d0d0d0; background: #222; padding: 10px; border-radius: 5px; font-size: 0.9rem;">${formattedAnalysis}</pre>
                 </div>
             `;
             return card;
