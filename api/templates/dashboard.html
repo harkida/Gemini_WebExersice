@@ -64,6 +64,26 @@
                 transform: translateY(0);
             }
         }        
+
+/* <style> 태그 안에 아래 코드를 추가 또는 수정/대체해 주세요. */
+        .score-container { 
+            display: flex; 
+            align-items: center; 
+            gap: 1rem;
+        }
+        .score-value { 
+            font-size: 2rem; 
+            font-weight: bold; 
+        }
+        .rating-badge {
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+            padding: 5px 12px;
+            border-radius: 16px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        /* 기존 .score, .score.high, .score.low 스타일은 더 이상 필요 없으므로 삭제하셔도 됩니다. */
     </style>
 </head>
 <body>
@@ -105,6 +125,19 @@
             else if (viewType === 'speaking') currentPage = currentSpeakingPage;
             
             loadSubmissions(viewType, currentPage, false);
+        }
+
+        function getRatingDetails(score) {
+            const numericScore = parseFloat(score);
+            if (isNaN(numericScore)) {
+                return { category: "N/A", color: "#888888" };
+            }
+
+            if (numericScore >= 8.6) return { category: "Eccellente", color: "#2ecc71" }; // Vibrant Green
+            if (numericScore >= 7.1) return { category: "Buono", color: "#27ae60" };      // Green
+            if (numericScore >= 5.6) return { category: "Sufficiente", color: "#f1c40f" }; // Yellow
+            if (numericScore >= 4.1) return { category: "Da migliorare", color: "#e67e22" }; // Orange
+            return { category: "Riprova", color: "#e74c3c" };                           // Red
         }
 
         function clearCurrentView() {
@@ -303,10 +336,20 @@
 
             const analysis = item.ai_analysis_json || {};
             let scoreValue, questionText, feedbackText;
-            let cardBodyExtraHtml = '';
-            let criteriaHtml = '';
-            let studentFeedbackHtml = '';
+            let cardBodyExtraHtml = '', criteriaHtml = '', studentFeedbackHtml = '';
 
+            // --- 퀴즈 타입에 따라 점수 추출 ---
+            if (quizType === 'translation') {
+                scoreValue = item.score;
+            } else if (quizType === 'comprehension' || quizType === 'speaking') {
+                scoreValue = analysis.score;
+            }
+            
+            // ★★★ 핵심 변경점: 점수를 기반으로 평가 상세 정보 가져오기 ★★★
+            const rating = getRatingDetails(scoreValue);
+            const scoreDisplay = isNaN(parseFloat(scoreValue)) ? 'N/A' : parseFloat(scoreValue).toFixed(1);
+            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+            
             const koreanTranslation = analysis.student_answer_korean_translation || '(번역 없음)';
             const vocabItalian = analysis.key_vocabularies_italian || [];
             const vocabKorean = analysis.key_vocabularies_korean_translation || [];
@@ -323,71 +366,35 @@
                 : '';
 
             if (quizType === 'translation') {
-                scoreValue = parseFloat(item.score);
                 questionText = item.korean_sentence;
                 feedbackText = analysis.evaluation_feedback || '(피드백 없음)';
-
                 cardBodyExtraHtml = `
                     <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(답안 없음)'}</p>
                     <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
                     ${keywordsHtml}
                 `;
-
             } else if (quizType === 'comprehension') {
-                scoreValue = parseFloat(analysis.score);
                 questionText = item.korean_dialogue;
                 feedbackText = analysis.evaluation || '(평가 없음)';
-
                 const keyPoints = item.key_points || {};
                 const targetVocabulary = keyPoints.target_vocabulary || [];
                 const meaningPoints = keyPoints.meaning_points || [];
-
-                const targetVocabString = targetVocabulary.length > 0 
-                    ? targetVocabulary.join(', ') 
-                    : '(목표 어휘 없음)';
-                
-                const meaningPointsString = meaningPoints.length > 0
-                    ? meaningPoints.join(', ')
-                    : '(문맥 문장 없음)';
-
-                criteriaHtml = `
-                    <div class="criteria-info">
-                        <p><strong>목표 어휘:</strong> ${targetVocabString}</p>
-                        <p><strong>문맥 문장:</strong> ${meaningPointsString}</p>
-                    </div>
-                `;
-
-                cardBodyExtraHtml = `
-                    <p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(답안 없음)'}</p>
-                    <p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>
-                    ${keywordsHtml}
-                `;
-
+                const targetVocabString = targetVocabulary.length > 0 ? targetVocabulary.join(', ') : '(목표 어휘 없음)';
+                const meaningPointsString = meaningPoints.length > 0 ? meaningPoints.join(', ') : '(문맥 문장 없음)';
+                criteriaHtml = `<div class="criteria-info"><p><strong>목표 어휘:</strong> ${targetVocabString}</p><p><strong>문맥 문장:</strong> ${meaningPointsString}</p></div>`;
+                cardBodyExtraHtml = `<p><strong>학생 답안 (원문):</strong> <span class="korean-translation">${item.student_answer || '(답안 없음)'}</p><p><strong>학생 답안 (번역):</strong> <span class="korean-translation">${koreanTranslation}</span></p>${keywordsHtml}`;
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
                 const studentFeedbackKorean = item.feedback_korean || '(번역 없음)';
-                studentFeedbackHtml = `
-                    <div class="student-feedback-section">
-                        <strong>학생에게 보낸 피드백:</strong>
-                        <p>${studentFeedbackItalian}</p>
-                        <strong style="margin-top: 1rem;">학생에게 보낸 피드백 (번역):</strong>
-                        <p>${studentFeedbackKorean}</p>
-                    </div>
-                `;
+                studentFeedbackHtml = `<div class="student-feedback-section"><strong>학생에게 보낸 피드백:</strong><p>${studentFeedbackItalian}</p><strong style="margin-top: 1rem;">학생에게 보낸 피드백 (번역):</strong><p>${studentFeedbackKorean}</p></div>`;
             } else if (quizType === 'speaking') {
-                scoreValue = parseFloat(analysis.score);
                 questionText = item.situation_description || '(상황 없음)';
                 feedbackText = analysis.evaluation || '(평가 없음)';
-
                 const requiredExpression = item.required_expression || '(표현 없음)';
                 const expectedAnswer = item.expected_korean_answer || '(예상 답변 없음)';
                 const recognizedText = item.recognized_korean_text || '(인식 실패)';
                 const targetVocab = item.target_vocabulary || [];
                 const vocabUsage = analysis.vocabulary_usage || {};
-                
-                const targetVocabString = targetVocab.length > 0 
-                    ? targetVocab.join(', ') 
-                    : '(목표 어휘 없음)';
-                
+                const targetVocabString = targetVocab.length > 0 ? targetVocab.join(', ') : '(목표 어휘 없음)';
                 let vocabUsageHtml = '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
                 for (const [vocab, info] of Object.entries(vocabUsage)) {
                     const usedIcon = info.used ? '✅' : '❌';
@@ -395,37 +402,12 @@
                     vocabUsageHtml += `<li>${usedIcon} <strong>${vocab}</strong>: ${note}</li>`;
                 }
                 vocabUsageHtml += '</ul>';
-                
-                criteriaHtml = `
-                    <div class="criteria-info">
-                        <p><strong>표현:</strong> ${requiredExpression}</p>
-                        <p><strong>예상 정답:</strong> ${expectedAnswer}</p>
-                        <p><strong>목표 어휘:</strong> ${targetVocabString}</p>
-                    </div>
-                `;
-                
-                cardBodyExtraHtml = `
-                    <p><strong>AI 인식 텍스트:</strong> <span class="korean-translation">${recognizedText}</span></p>
-                    <p><strong>어휘 사용 현황:</strong></p>
-                    ${vocabUsageHtml}
-                    <p><strong>🔊 음성 파일:</strong></p>
-                    <audio controls class="audio-playback">
-                      <source src="${item.audio_file_url}" type="audio/mp4">
-                      브라우저가 오디오 재생을 지원하지 않습니다.
-                    </audio>
-                `;
-                
+                criteriaHtml = `<div class="criteria-info"><p><strong>표현:</strong> ${requiredExpression}</p><p><strong>예상 정답:</strong> ${expectedAnswer}</p><p><strong>목표 어휘:</strong> ${targetVocabString}</p></div>`;
+                cardBodyExtraHtml = `<p><strong>AI 인식 텍스트:</strong> <span class="korean-translation">${recognizedText}</span></p><p><strong>어휘 사용 현황:</strong></p>${vocabUsageHtml}<p><strong>🔊 음성 파일:</strong></p><audio controls class="audio-playback"><source src="${item.audio_file_url}" type="audio/mp4">브라우저가 오디오 재생을 지원하지 않습니다.</audio>`;
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
-                studentFeedbackHtml = `
-                    <div class="student-feedback-section">
-                        <strong>학생에게 보낸 피드백:</strong>
-                        <p>${studentFeedbackItalian}</p>
-                    </div>
-                `;
+                studentFeedbackHtml = `<div class="student-feedback-section"><strong>학생에게 보낸 피드백:</strong><p>${studentFeedbackItalian}</p></div>`;
             }
-
-            const scoreClass = scoreValue >= 7.0 ? 'high' : 'low';
-            const scoreDisplay = isNaN(scoreValue) ? 'N/A' : scoreValue.toFixed(1);
+            
             const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
 
             card.innerHTML = `
@@ -435,7 +417,14 @@
                             <span>학생 ID: <span class="id">${item.student_id}</span></span>
                             <span class="class-badge">${item.class_name || '반 없음'}</span>
                         </div>
-                        <div class="score ${scoreClass}">${scoreDisplay}</div>
+                        
+                        <!-- ★★★ 이 부분이 점수와 등급을 표시하도록 변경되었습니다 ★★★ -->
+                        <div class="score-container">
+                            <span class="score-value" style="color: ${rating.color};">${scoreDisplay}</span>
+                            <span class="rating-badge" style="background-color: ${rating.color};">${rating.category}</span>
+                        </div>
+                        <!-- ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ -->
+
                     </div>
                     <div class="card-body">
                         <p><strong>상황:</strong> ${questionText}</p>
