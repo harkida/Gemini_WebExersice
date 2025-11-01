@@ -28,7 +28,7 @@
         }
         h1 {
             color: #ffffff;
-            margin-bottom: 25px;
+            margin-bottom: 4px;
         }
         .input-field {
             width: 100%;
@@ -71,6 +71,8 @@
             background-color: #2ecc71;
         }
         .version-tag {
+            display: block; /* span을 블록 요소로 만들어 여백을 적용합니다. */
+            margin-bottom: 25px; /* h1에서 가져온 여백을 여기에 적용하여 폼과의 간격을 유지합니다. */
             font-size: 0.9rem;
             color: #9e9e9e;
             font-weight: normal;
@@ -81,7 +83,6 @@
     <div class="login-container">
         <h1>Aula di Coreano</h1>
         <span class="version-tag">Ver. 0.93
-            
         </span>
         <form id="login-form">
             <select id="class-name" class="input-field" required>
