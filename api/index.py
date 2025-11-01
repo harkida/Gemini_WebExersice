@@ -164,257 +164,291 @@ def extract_first_json_block(text: str):
     return None
 
 EVALUATION_PROMPT = """
-너는 한국어와 이탈리아어에 모두 능통한 언어 평가 전문가이다. 너의 유일한 임무는 '한국어 원문'을 들은 학생이 작성한 '이탈리아어 답안'이 원문의 의미를 얼마나 정확하게 이해하고 반영했는지를 평가하는 것이다.
+[Input Information]
+- **Korean Original Sentence:** "{Korean_Question}"
+- **Student's Italian Answer:** "{Student_Answer}"
 
-[입력 정보]
-- 한국어 원문: "{Korean_Question}"
-- 학생의 이탈리아어 답안: "{Student_Answer}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🎯 CORE PRINCIPLE: Hierarchical Semantic Evaluation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is NOT an Italian grammar test. Even if the student's Italian has minor grammatical errors or awkward phrasing, DO NOT deduct points if the meaning of the original Korean sentence is understood.
+**Your task:** Evaluate how accurately the student's Italian answer reflects the meaning of the original Korean sentence using a **hierarchical, stop-at-first-match system**.
 
-[핵심 원칙]
-이것은 이탈리아어 작문 시험이 아니다. 학생의 이탈리아어 문법이 다소 어색하거나 사소한 오류가 있더라도, 원문의 의미를 이해했다고 판단되면 절대 감점하지 마라. 평가는 오직 '의미의 정확성' 하나만을 기준으로 한다.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📊 SCORING STRUCTURE (Total: 10.0 points)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Semantic Accuracy (의미 정확성) - 60% (6.0 points)
+2. Vocabulary Coverage (어휘 커버리지) - 30% (3.0 points)
+3. Information Coverage (정보 커버리지) - 10% (1.0 points)
 
-[채점 기준: 의미의 정확성 (Semantic Accuracy) - 100%]
-
-1. **시작 점수: 10.0점**
-
-2. **점수는 반드시 소수점 첫째 자리까지 평가해야 한다 (예: 9.6, 8.1, 7.3).**
-   정수(7, 8, 9)로만 점수를 매기는 것은 허용되지 않는다.
-
-3. **AI 자율성:**
-   각 감점 범위 내에서 ±0.5점 조정이 가능하다.
-   오류의 심각도, 문장 복잡도, 맥락을 고려하여 판단한다.
-
-4. **번역의 핵심 원칙:**
-   - 이것은 번역 수업이다. 학생은 원문에 있는 내용만 번역해야 한다.
-   - 직역과 의역 모두 허용되나, 원문의 의미를 정확히 전달해야 한다.
-   - 의역이 한국어 표현 구조가 다르다는 이유만으로 감점하지 않는다.
-
-5. 아래 기준에 따라 오류를 발견할 때마다 점수를 차감한다:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🔍 COMPONENT 1: Semantic Accuracy (60% = 6.0 points)
+## ⚠️ HIERARCHICAL EVALUATION - STOP AT FIRST MATCH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**CRITICAL RULE:** Once you find an error at Level A, B, or C, STOP evaluation immediately. Do NOT check lower levels.
 
 ---
 
-[Level 1] 완전한 오역 또는 의미 왜곡 (Critical)
-감점: -6.5 ~ -7.5점
+### **STEP 1: Check Level A (완전한 오역 또는 의미 왜곡)**
+Score Range: 0.0 ~ 1.5 points (0% ~ 25%)
 
-• 원문의 핵심 의미를 완전히 잘못 이해하여 정반대의 의미나 
-  전혀 다른 의미로 번역한 경우.
+**Criteria:**
+The student has completely misunderstood the Korean original, resulting in:
+ - Direction/state reversal: "갔다" (went) → "È tornato" (came back)
+ - Affirmation/negation error: "좋아한다" (like) → "Non mi piace" (don't like)
+ - Subject complete error: "동생이 간다" (younger sibling goes) → "Vado io" (I go)
+ - Tense complete error (action ↔ non-action): "갔다" (went, completed) → "Andrà" (will go, not yet done)
 
-• 예시:
-  - 방향/상태 정반대: "학교에 갔다" → "È tornato da scuola"
-  - 부정/긍정 혼동: "좋아한다" → "Non mi piace"
-  - 주체 완전 오인: "동생이 간다" → "Vado io"
-  - 시제 완전 오류: "갔다" → "Andrò" (과거 → 미래)
+**Action:**
+ - IF Level A error found → Judge severity within 0.0 ~ 1.5 range
+ - Assign semantic_accuracy_score between 0.0 ~ 1.5
+ - Set evaluation_stopped = "A"
+ - STOP evaluation (do NOT check B, C, D)
 
-**중요 - 시제 완전 오류 기준:**
-- **Level 1 (완전한 오류):** 과거 ↔ 미래 (사건 발생 여부가 정반대)
-  예: "갔다" (완료) → "Andrà" (미완료)
-  
-- **Level 4 (사소한 불일치):** 현재 ↔ 미래, 현재 ↔ 진행형
-  예: "갈 거다" → "Va" (둘 다 "가는 행위", 시점만 다름)
-  예: "모일 거예요" → "Si riuniscono" (둘 다 "모이는 행위", 시점만 다름)
+**Severity judgment within Level A:**
+ - 극도로 심각 (Extreme): 0.0 ~ 0.5점 (complete opposite meaning)
+ - 심각 (Severe): 0.5 ~ 1.0점 (major misunderstanding)
+ - 중간 (Moderate): 1.0 ~ 1.5점 (significant error but some understanding)
 
-**절대 금지:**
-- "현재 → 미래" 또는 "미래 → 현재"를 Level 1으로 감점하지 마라!
-- 이는 반드시 Level 4 (-0.3 ~ -0.7점)이다!
----
+**⚠️ EXCEPTION: Logical Equivalence in Conditional Statements**
+Check if the student's answer is logically equivalent to the original:
+ - "~하지 않으면 X" ≡ "~하면 not X"
+ - "~하면 not X" ≡ "~하지 않으면 X"
+ - Example: "Se non ricorda → problemi" = "Se ricorda → non ci saranno problemi"
 
-[Level 2] 핵심 정보 누락/오류 (Major)
-감점: -3.0 ~ -3.5점
-
-• 문장의 주어, 목적어, 동사, 장소, 시간 등 핵심적인 구성 요소나 
-  정보를 빠뜨리거나 틀리게 번역한 경우.
-
-• 예시:
-  - 주어 누락: "동생이 간다" → "Va" (누가?)
-  - 목적어 누락: "영화를 봤다" → "Ho visto" (뭘?)
-  - 장소 누락: "서울에 갔다" → "Sono andato" (어디로?)
-  - 시간 누락: "어제 갔다" → "Sono andato" (언제?)
-  - 핵심 동사 오역: "공부한다" → "Lavoro"
+Action:
+ - IF logically equivalent → DO NOT count as Level A error
+ - Proceed to Level D evaluation (4.5 ~ 6.0 points)
+ - Note in evaluation_feedback: "[교사용 참고] 학생이 논리적으로 동치인 조건문 구조를 사용했습니다."
 
 ---
 
-[Level 3] 원문에 없는 정보 추가 (과잉 추론)
-감점: -0.5 ~ -3.5점 (정도에 따라)
+### **STEP 2: Check Level B (핵심 정보 누락 또는 오류)**
+Score Range: 1.5 ~ 3.0 points (25% ~ 50%)
 
-• 번역이 아닌 학생의 추론이나 창작으로 원문에 없는 정보를 추가한 경우.
+**Only check this if Level A was NOT found.**
 
-3-1. 사소한 추론 (-0.5 ~ -1.0점)
-     - 맥락상 자연스럽지만 원문에는 없는 사소한 추가
-     - 예: "공부한다" → "Studia con attenzione"
+**Criteria:**
+The student has omitted or incorrectly translated core information elements:
+ - Subject missing: "동생이 간다" → "Va" (subject missing)
+ - Object missing: "영화를 봤다" → "Ho visto" (object missing)
+ - Place missing: "서울에 갔다" → "Sono andato" (place missing)
+ - Time missing: "어제 갔다" → "Sono andato" (time missing)
+ - Main verb error: "공부한다" (study) → "Lavoro" (work)
 
-3-2. 중간 추론 (-1.5 ~ -2.5점)
-     - 목적이나 이유를 추가하여 의미를 확장한 경우
-     - 예: "도서관에 간다" → "Vado in biblioteca per studiare"
+**Action:**
+ - IF Level B error found → Judge severity within 1.5 ~ 3.0 range
+ - Assign semantic_accuracy_score between 1.5 ~ 3.0
+ - Set evaluation_stopped = "B"
+ - STOP evaluation (do NOT check C, D)
 
-3-3. 심각한 추론 (-3.0 ~ -3.5점)
-     - 원문과 무관한 구체적 정보를 창작한 경우
-     - 예: "집에 있다" → "È a casa perché è malato e ha la febbre alta"
-
----
-
-[Level 4] 사소한 의미 불일치 (Minor)
-감점: -0.2 ~ -1.5점
-
-• 전체적인 의미는 맞지만, 특정 단어나 표현의 뉘앙스를 
-  잘못 이해하여 약간의 의미 차이가 발생한 경우.
-
-4-1. 시제 뉘앙스 차이 (-0.3 ~ -0.7점)
-     **중요:** 핵심 행위/상태는 같고 시점만 다른 경우
-     
-     예시:
-     - 현재 ↔ 미래: "갈 거다" → "Va" 또는 "간다" → "Andrà"
-       → 둘 다 "가는 행위"를 설명, 시점만 다름 (-0.5점)
-     
-     - 진행형 누락: "먹고 있다" → "Mangio"
-       → 지속성 표현 누락 (-0.3점)
-     
-     **판단 기준:**
-     ✓ 행위/상태의 본질이 동일한가? → YES면 Level 4
-     ✓ 사건의 발생 여부가 반대인가? → YES면 Level 1
-
-4-2. 강도/정도 표현 누락 (-0.2 ~ -0.7점)
-     - "많이", "조금", "매우" 등의 부사 누락
-     - 예: "비가 많이 온다" → "Piove"
-     - 예: "아주 예쁘다" → "È bella"
-
-4-3. 관형어/수식어 누락 (-0.5 ~ -1.5점)
-     - 예: "예쁜 꽃" → "Fiore"
-     - 예: "큰 집" → "Casa"
-
-4-4. 복수/단수 혼동 (-0.3 ~ -0.8점)
-     - 예: "친구들" → "amico"
-     - 예: "책" → "libri"
+**Severity judgment within Level B:**
+ - 복수 핵심 누락 (Multiple core missing): 1.5 ~ 2.0점
+ - 단일 핵심 누락 (Single core missing): 2.0 ~ 2.5점
+ - 부가 정보 누락 (Secondary info missing): 2.5 ~ 3.0점
 
 ---
 
-[Level 5] 허용 가능한 추가 정보 및 표현 차이
-감점: 없음 (10.0점 유지)
+### **STEP 3: Check Level C (원문에 없는 정보 추가 - 과잉 추론)**
+Score Range: 3.0 ~ 4.5 points (50% ~ 75%)
 
-• 다음 경우는 번역 과정에서 자연스럽게 발생할 수 있으므로 
-  절대 감점하지 않는다:
+**Only check this if Level A and B were NOT found.**
 
-5-1. 문법상 자연스러운 추가
-     - 부사/형용사 추가 (강도 표현): "Piove molto"
-     - 관사 추가: "il libro", "la casa"
-     - 대명사 강조: "Lui è a casa"
-     - 시제 자연스러운 변형: "Sta piovendo" (진행형)
+**Criteria:**
+The student has added information NOT present in the Korean original:
+ - Minor inference: "공부한다" → "Studia con attenzione" (added "with attention")
+ - Moderate inference: "도서관에 간다" → "Vado in biblioteca per studiare" (added purpose)
+ - Major inference: "집에 있다" → "È a casa perché è malato" (invented reason)
 
-5-2. 자연스러운 의역
-     - 예: "표를 끊다" → "comprare i biglietti"
-     - 예: "날씨가 좋다" → "Che bella giornata!"
-     - 조건: 원문의 모든 핵심 정보 포함 + 추가/삭제 없음
-     - 판정: 10.0점 유지
+**Action:**
+ - IF Level C error found → Judge severity within 3.0 ~ 4.5 range
+ - Assign semantic_accuracy_score between 3.0 ~ 4.5
+ - Set evaluation_stopped = "C"
+ - STOP evaluation (do NOT check D)
 
-5-3. 동사 선택의 뉘앙스 차이 (의미는 정확)
-     - 예: "집에 있다" → "Si trova a casa" (È a casa가 더 정확)
-     - 예: "공부한다" → "Fa lo studio" (Studia가 더 정확)
-     - 판정: 10.0점 유지
-     - [교사용 참고]로 더 자연스러운 표현 제시
+**Severity judgment within Level C:**
+ - 심각한 추론 (Serious invention): 3.0 ~ 3.5점
+ - 중간 추론 (Moderate addition): 3.5 ~ 4.0점
+ - 사소한 추론 (Minor addition): 4.0 ~ 4.5점
 
 ---
 
-[의역(Paraphrase)에 대한 특별 지침]
+### **STEP 4: Level D (사소한 의미 불일치 또는 완벽한 번역)**
+Score Range: 4.5 ~ 6.0 points (75% ~ 100%)
 
-의역은 번역의 자연스러운 과정이지만, 다음 원칙을 지켜야 한다:
+**Only reach this if Level A, B, C were NOT found.**
 
-• 허용되는 의역 (감점 없음):
-  - 관용구의 자연스러운 번역
-  - 문화적 표현의 적절한 전환
-  - 동사 선택의 자연스러운 변형
-  - 조건: 원문의 모든 핵심 정보 포함 + 추가/삭제 없음
+**Criteria:**
+D-1. Minor semantic inaccuracies (4.5 ~ 6.0점 미만):
+ - Tense nuance difference (NOT opposite): "갈 거다" (will go) → "Va" (goes) - same action, different time expression
+ - Intensity/degree missing: "비가 많이 온다" → "Piove" (missing "molto")
+ - Modifier missing: "예쁜 꽃" → "Fiore" (missing "bello")
+ - Singular/plural mix-up: "친구들" → "amico"
 
-• 감점되는 의역:
-  - 원문에 없는 강도/정도 추가 → Level 3 (과잉 추론)
-  - 의미 축소/확대 → Level 4 (사소한 불일치)
-  - 핵심 정보 누락 → Level 2 (핵심 누락)
+D-2. Perfect translation (6.0점):
+All core information included, semantically accurate, natural expression.
 
-• 판단 체크리스트 (의역 평가 시 반드시 확인):
-  ✓ 원문의 모든 핵심 정보가 포함되었는가?
-  ✓ 원문에 없는 정보를 추가하지 않았는가?
-  ✓ 의미의 강도/정도가 유지되는가?
-  
-  → 모두 YES → 의역 허용 (10.0점)
-  → 하나라도 NO → 해당 레벨로 감점
+**ALLOWED without penalty:**
+• Adding adverbs (intensity expressions): "Piove molto"
+• Article addition: "il libro", "la casa"
+• Pronoun emphasis: "Lui è a casa"
+• Natural paraphrase: 
+ - Example : "comprare i biglietti" for "표를 끊다"
+ - Example : "Che bella giornata!" for "날씨가 좋다" 
+• Natural tense variation: "Sta piovendo" for "비가 온다"
+• Nuance Differences in Verb Choice:
+ - Example : "Si trova a casa" for "집에 있다"
+ - Example : "Fa lo studio" for "공부한다"
 
-• 핵심: 직역과 의역 모두 원문의 의미를 정확히 전달하면 동등하게 평가한다.
 
----
+**Action:**
+ - Judge quality within 4.5 ~ 6.0 range
+ - Assign semantic_accuracy_score between 4.5 ~ 6.0
+ - Set evaluation_stopped = null (evaluation completed)
+ - Perfect translation = 6.0점
 
-[뉘앙스 및 격식 (Nuance & Formality)]
+[NUANCE AND FORMALITY]
 
-• 이것은 절대 감점 요인이 아니다.
+• This is ABSOLUTELY NOT a deduction factor.
 
-• 다음 차이는 '오류'로 간주하지 않으며, 절대로 감점의 근거가 될 수 없다:
-  - 존댓말/반말 처리
-  - 어조 차이
-  - 단어 선택의 미묘한 차이
-  - 격식체/비격식체
+• The following differences are NOT considered 'errors' and can NEVER be grounds for deduction:
+ - Formal/informal speech handling
+ - Tone differences
+ - Subtle differences in word choice
+ - Formal/informal register
 
-• 다만, 이러한 차이점이 교육적으로 의미가 있다고 판단될 경우,
-  반드시 'evaluation_feedback'에 [교사용 참고] 태그를 사용하여
-  그 차이점만 객관적으로 서술한다.
-
----
-
-[누적 감점 및 최종 점수]
-• 여러 오류가 발견될 경우 감점을 누적한다.
-• 누적 감점이 10.0점을 초과하면 최종 점수는 0.0점으로 처리한다.
-• 최종 점수는 반드시 0.0 ~ 10.0 사이여야 한다.
-• 점수는 반드시 소수점 첫째 자리까지 표기한다 (예: 7.5, 8.3, 9.1).
+• However, if such differences are judged to have educational significance,
+  they must be objectively described using the [교사용 참고] tag in 'evaluation_feedback' only.
 
 ---
 
-[학생용 힌트 생성 규칙]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🔍 COMPONENT 2: Vocabulary Coverage (30% = 3.0 points)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• "student_hint" 필드는 반드시 다음 규칙을 따라 생성해야 한다:
+**Step 1:** Identify ALL key vocabulary in the Korean original.
+ - Content words: nouns, verbs, adjectives, adverbs
+ - DO NOT count: particles (이/가/은/는/을/를), conjunctions, auxiliary verbs
 
-1. **Level 4, 5 (사소한 오류 또는 오류 없음):**
-   - student_hint: "" (빈 문자열)
-   - 학생에게 피드백을 보여주지 않는다.
+**Step 2:** Check how many key words are reflected in the Italian answer.
+ - Direct translations count
+ - Valid synonyms count
+ - Paraphrases conveying the same concept count
 
-2. **Level 1, 2, 3 (심각한 오류):**
-   - student_hint: "한 문장으로 핵심 오류만 지적"
-   - **반드시 이탈리아어로만 작성**
-   - 최대 1문장, 20단어 이내
-   - 친절한 설명 없이, 오류의 종류만 간단히 힌트
-   
-3. **힌트 작성 예시 (모두 이탈리아어):**
-   - **완전한 오역**: "Hai tradotto il contrario del significato originale."
-   - **시제가 정반대**: "Il tempo verbale è opposto: passato ≠ futuro."
-   - **주어 누락**: "Manca il soggetto della frase."
-   - **목적어 누락**: "Manca l'oggetto principale."
-   - **장소 누락**: "Manca l'informazione del luogo."
-   - **시간 누락**: "Manca l'informazione temporale."
-   - **핵심 동사 오역**: "Il verbo principale è stato tradotto in modo errato."
-   - **원문에 없는 정보 추가 (사소한)**: "Hai aggiunto dettagli non presenti nel testo."
-   - **원문에 없는 정보 추가 (심각한)**: "Hai inventato informazioni che non esistono nell'originale."
+**Step 3:** Calculate the score.
+vocabulary_coverage_score = (reflected_key_words / total_key_words) × 3.0
 
-4. **절대 금지 사항:**
-   - 정답을 직접 제시하지 마라
-   - 격려나 칭찬 문구를 포함하지 마라
-   - 설명을 길게 늘리지 마라
-   - 단순히 "오류가 있습니다"라고만 하지 마라 (구체적이어야 함)
-   - **한국어나 영어를 절대 사용하지 마라 (100% 이탈리아어)**
-
-5. **student_hint는 반드시 이탈리아어로 작성한다.**
+**Example:**
+ - Korean: "오늘 아파트에 입주했는데, 생각보다 방이 작았어요."
+ - Key words: 오늘, 아파트, 입주하다, 생각보다, 방, 작다 → 6 words
+ - Student: "Oggi mi trasferisco nell'appartamento..."
+ - Reflected: oggi, appartamento, trasferisco → 3 words
+ - **Score = (3/6) × 3.0 = 1.5 points**
 
 ---
 
-[출력 형식]
-JSON ONLY. 다른 설명 없이 JSON 객체만 반환해야 합니다.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🔍 COMPONENT 3: Information Coverage (10% = 1.0 points)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Step 1:** Identify ALL core information units in the Korean original.
+Core units typically include:
+ - Subject (who?)
+ - Main verb/action (what happened?)
+ - Object (what/whom?)
+ - Time (when?)
+ - Place (where?)
+ - Result/State (how/what result?)
+ - Reason/Cause (why?)
+
+**Step 2:** Check how many units are included in the Italian answer.
+
+**Step 3:** Calculate the score.
+information_coverage_score = (included_units / total_core_units) × 1.0
+
+**Example:**
+ - Korean: "오늘 아파트에 입주했는데, 생각보다 방이 작았어요."
+ - Core units: Time(오늘), Place(아파트), Action(입주했다), Result(방이 작았다), Comparison(생각보다) → 5 units
+ - Student: "Oggi mi trasferisco nell'appartamento..."
+ - Included: Time, Place, Action → 3 units
+ - **Score = (3/5) × 1.0 = 0.6 points**
+
+---
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🧮 FINAL CALCULATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+final_score = semantic_accuracy_score + vocabulary_coverage_score + information_coverage_score
+
+**Score MUST:**
+ - Be between 0.0 and 10.0
+ - Use exactly ONE decimal place (e.g., 7.5, 8.3, 1.2)
+ - NEVER be a whole number only (7, 8, 9) → ALWAYS include decimal (7.0, 8.0, 9.0)
+
+---
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 💬 STUDENT HINT RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Rule 1:** Only provide hints for serious errors (final_score < 7.0)
+**Rule 2:** If final_score ≥ 7.0 → student_hint = "" (empty string)
+**Rule 3:** If final_score < 7.0 → Provide ONE sentence hint in Italian
+- Maximum 30 words
+- Be specific about the error type
+- DO NOT reveal the correct answer
+- DO NOT include encouragement
+- 100% Italian (NO Korean, NO English)
+
+**Hint examples (All in Italian):**
+
+| Level A (완전한 오역) | "Hai tradotto il contrario del significato originale." |
+| Level A (시제 정반대) | "Il tempo verbale è opposto: passato ≠ futuro." |
+| Level B (주어 누락) | "Manca il soggetto della frase." |
+| Level B (목적어 누락) | "Manca l'oggetto principale." |
+| Level B (장소 누락) | "Manca l'informazione del luogo." |
+| Level B (시간 누락) | "Manca l'informazione temporale." |
+| Level B (핵심 동사 오류) | "Il verbo principale è stato tradotto in modo errato." |
+| Level C (사소한 추가) | "Hai aggiunto dettagli non presenti nel testo." |
+| Level C (심각한 추가) | "Hai inventato informazioni che non esistono nell'originale." |
+| Level D (뉘앙스 차이) | "Il tempo verbale o i dettagli non corrispondono esattamente." |
+
+---
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 📤 JSON OUTPUT FORMAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You MUST return a valid JSON object in this EXACT format:
 {{
-  "score": "9.5, 8.0, 7.5 등과 같은 10.0 형식의 숫자 문자열",
-  "student_hint": "학생용 힌트 (Level 1, 2, 3일 때만, 이탈리아어)",
+  "score": 5.3,
+  "student_hint": "Manca l'informazione sulla dimensione della stanza.",
   "analysis": {{
     "original_korean_question": "채점의 기준이 된 한국어 원문",
     "student_answer_original": "학생이 제출한 이탈리아어 답안 원문",
     "student_answer_korean_translation": "학생의 이탈리아어 답안을 자연스러운 한국어로 번역한 결과",
-    "score": "채점된 점수와 동일한 값",
-    "key_vocabularies_italian": ["추출된 이탈리아어 어휘 기본형"],
-    "key_vocabularies_korean_translation": ["위 이탈리아어 어휘의 한국어 뜻"],
-    "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술."
+    "key_vocabularies_italian": ["학생이 제출한 이탈리아어 답안 원문에서 추출된 이탈리아어 어휘 기본형"],
+    "key_vocabularies_korean_translation": ["추출된 이탈리아어 어휘의 한국어 뜻"],
+    "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술"
   }}
 }}
+
+Field Requirements:
+•	score: Float with ONE decimal (NEVER whole number)
+•	student_hint: Italian string (max 20 words) OR empty string "" if score ≥ 7.0
+•	evaluation_feedback: Object containing ALL calculation details with Korean explanations for the professor
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ CRITICAL REMINDERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1.	This is NOT a grammar test. Evaluate ONLY semantic understanding.
+2.	Hierarchical = Stop at first error level. If Level A found, do NOT check B, C, D.
+3.	Direct translation = Paraphrase if meaning is preserved.
+4.	Tense errors: 
+o	Present ↔ Future (same action) = Level D (minor)
+o	Past ↔ Future (action ↔ non-action) = Level A (critical)
+5.	Student hints MUST be in Italian and specific to error type.
+6.	Always show calculation in analysis.evaluation_feedback
 """
 
 COMPREHENSION_EVALUATION_PROMPT = """
@@ -850,10 +884,10 @@ def submit_answer():
 
         def get_rating_details(score):
             score = float(score) if score else 0
-            if score >= 8.6: return {"category": "Eccellente", "color": "teal"}
-            if score >= 7.1: return {"category": "Buono", "color": "lightgreen"}
-            if score >= 5.6: return {"category": "Sufficiente", "color": "gold"}
-            if score >= 4.1: return {"category": "Da migliorare", "color": "orange"}
+            if score >= 8.5: return {"category": "Eccellente", "color": "teal"}
+            if score >= 7.0: return {"category": "Buono", "color": "lightgreen"}
+            if score >= 5.5: return {"category": "Sufficiente", "color": "gold"}
+            if score >= 4.0: return {"category": "Da migliorare", "color": "orange"}
             return {"category": "Riprova", "color": "red"}
 
         rating_info = get_rating_details(score)
