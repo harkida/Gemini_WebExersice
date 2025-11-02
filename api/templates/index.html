@@ -419,7 +419,13 @@
                 resultContainer.innerHTML = `<p class="error-message">Errore: ${result.error}</p>`;
             } else {
                 // 점수도 없고, 에러 메시지도 없는 경우 (AI 채점 실패로 추정)
-                resultContainer.innerHTML = `<p class="error-message">L'IA non è riuscita a valutare la tua risposta. Questo può accadere se l'audio non è chiaro. Per favore, prova a registrare di nuovo.</p>`;
+                let errorMessage = '';
+                if (quizType === 'speaking') {
+                    errorMessage = "L'IA non è riuscita a valutare la tua risposta. Questo può accadere se l'audio non è chiaro. Per favore, prova a registrare di nuovo.";
+                } else { // 'translation' 또는 'comprehension'의 경우
+                    errorMessage = "L'IA non è riuscita a valutare la tua risposta. Prova a formulare la frase in modo diverso o contatta il professore se il problema persiste.";
+                }
+                resultContainer.innerHTML = `<p class="error-message">${errorMessage}</p>`;
             }
           }
         } catch (error) {
