@@ -436,7 +436,22 @@ You MUST return a valid JSON object in this EXACT format:
     "student_answer_korean_translation": "학생들은 도서관에서 한국어를 공부합니다.",
     "key_vocabularies_italian": ["studente", "studiare", "coreano", "biblioteca"],
     "key_vocabularies_korean_translation": ["학생", "공부하다", "한국어", "도서관"],
-    "evaluation_feedback": "AI의 채점 근거와 교육적 피드백에 대한 상세한 서술"
+    "evaluation_feedback": String. **반드시 한국어로 작성되어야 합니다 (MUST be in Korean).** 다음 마크다운 구조에 따라, 계층적 평가의 모든 단계와 최종 점수 계산 과정을 상세히 서술해야 합니다.
+        AI 평가 (교수용):
+        1. **의미 정확성 (X.X/6.0점):**
+         - 평가 등급: [Level A/B/C/D 중 하나]
+         - 평가 근거: [학생 답변의 어떤 부분이 왜 해당 등급인지 구체적으로 서술]
+        2. **어휘 포함도 (X.X/3.0점):**
+         - 한국어 핵심 단어 (N개): [단어 목록]
+         - 학생 답변에 반영된 단어 (M개): [반영된 단어 목록]
+         - 점수 계산: (M/N) * 3.0 = X.X점
+        3. **정보 포함도 (X.X/1.0점):**
+         - 한국어 핵심 정보 단위 (P개): [정보 단위 목록]
+         - 학생 답변에 포함된 정보 (Q개): [포함된 정보 단위 목록]
+         - 점수 계산: (Q/P) * 1.0 = X.X점
+        4. **최종 점수 계산:**
+         - 총점: [의미 정확성 점수] + [어휘 포함도 점수] + [정보 포함도 점수] = [최종 점수]
+        [교사용 참고] (필요시): [뉘앙스, 격식 등 교육적 참고사항 서술]
   }}
 }}
 
