@@ -142,6 +142,13 @@ def init_db():
 
                 print("✅ 말하기 퀴즈 테이블(speaking_exercises, speaking_submissions)이 생성되었습니다.")
 
+                cur.execute("""
+                    ALTER TABLE translation_exercises 
+                    ADD COLUMN IF NOT EXISTS dialogue_context TEXT;
+                """)
+                
+                print("✅ 번역 퀴즈 테이블(translation_exercises)에 dialogue_context 컬럼이 확인/추가되었습니다.")
+
                 conn.commit()
                 print("✅ 데이터베이스 테이블이 최종 블루프린트에 맞게 성공적으로 확인/생성되었습니다.")
         except Exception as e:
@@ -180,11 +187,13 @@ EVALUATION_PROMPT = """
 [Input Information]
 - **Korean Original Sentence:** "{Korean_Question}"
 - **Student's Italian Answer:** "{Student_Answer}"
+{Dialogue_Context_Section}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 🎯 CORE PRINCIPLE: Hierarchical Semantic Evaluation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 This is NOT an Italian grammar test. Even if the student's Italian has minor grammatical errors or awkward phrasing, DO NOT deduct points if the meaning of the original Korean sentence is understood.
+{Dialogue_Context_Instruction}
 **Your task:** Evaluate how accurately the student's Italian answer reflects the meaning of the original Korean sentence using a **hierarchical, stop-at-first-match system**.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -272,6 +281,8 @@ The student has added information NOT present in the Korean original:
  - Minor inference: "공부한다" → "Studia con attenzione" (added "with attention")
  - Moderate inference: "도서관에 간다" → "Vado in biblioteca per studiare" (added purpose)
  - Major inference: "집에 있다" → "È a casa perché è malato" (invented reason)
+
+{Dialogue_Context_LevelC_Exception}
 
 **Action:**
  - IF Level C error found → Judge severity within 3.0 ~ 4.5 range
@@ -862,13 +873,47 @@ def submit_answer():
 
         with conn.cursor() as cur:
             if quiz_type == 'translation':
-                cur.execute("SELECT korean_sentence FROM translation_exercises WHERE id = %s;", (exercise_id,))
+                cur.execute("SELECT korean_sentence, dialogue_context FROM translation_exercises WHERE id = %s;", (exercise_id,))
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
                 korean_question = row[0]
+                dialogue_context = row[1] if len(row) > 1 and row[1] else None
                 korean_text = korean_question
+            
+                if dialogue_context and dialogue_context.strip():
+                    # 1. 대화 문맥이 *있는* 경우
+                    dialogue_section = f"- **Dialogue Context (대화 문맥):**\n```\n{dialogue_context}\n```"
+                    dialogue_instruction = """
+                    **⚠️ CRITICAL: Dialogue Context is provided.**
+                    - You MUST consider this dialogue flow when evaluating.
+                    - If the student adds information (e.g., 'ieri', 'lui', 'lei') that is **logically inferable from the dialogue context**, this is **NOT an error**.
+                    - Example: If the dialogue mentions "어제" (yesterday), and the student adds "ieri", this is correct and should NOT be penalized as Level C.
+                    """
+                
+                    dialogue_levelc_exception = """
+                    **⚠️ EXCEPTION: Dialogue Context Justification**
+                    - Before penalizing the student for adding information (Level C), check if the added information is **logically inferable from the dialogue context**.
+                    - If the added information is **clearly implied or referenced in the dialogue context**, it is **NOT considered an error**.
+                    - In such cases, proceed to Level D evaluation (4.5 ~ 6.0 points) instead of Level C.
+                    - Note in evaluation_feedback: "[교사용 참고] 학생이 대화 문맥에서 추론 가능한 정보를 적절히 반영했습니다."
+                    """
+                
+                else:
+                    # 2. 대화 문맥이 *없는* 경우 (기존 방식)
+                    dialogue_section = ""
+                    dialogue_instruction = """
+                    **No dialogue context is provided. Evaluate based solely on the Korean original sentence.**
+                    """
+                    dialogue_levelc_exception = "" # 문맥이 없으므로 Level C 예외 없음
 
-                prompt_text = EVALUATION_PROMPT.format(Korean_Question=korean_question, Student_Answer=student_answer)
+                prompt_text = EVALUATION_PROMPT.format(
+                    Korean_Question=korean_question,
+                    Student_Answer=student_answer,
+                    Dialogue_Context_Section=dialogue_section,
+                    Dialogue_Context_Instruction=dialogue_instruction,
+                    Dialogue_Context_LevelC_Exception=dialogue_levelc_exception
+                )
+            
                 response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
                 print(f"🤖 [번역 퀴즈] gemini-2.5-flash 사용 - 학생: {student_id}")
                 
