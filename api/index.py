@@ -158,11 +158,11 @@ def get_rating_details(score):
     except (ValueError, TypeError):
         score = 0.0
     
-    if score >= 8.5: return {"category": "Eccellente", "color": "#00ffc8"}
-    if score >= 7.0: return {"category": "Buono", "color": "#00ff32"}
-    if score >= 5.5: return {"category": "Sufficiente", "color": "#ffff00"}
-    if score >= 4.0: return {"category": "Da migliorare", "color": "#ff7d00"}
-    return {"category": "Riprova", "color": "#ff0000"}
+    if score >= 8.5: return {"category": "Eccellente", "color": "#00cc9f"}
+    if score >= 7.0: return {"category": "Buono", "color": "#00cc29"}
+    if score >= 5.5: return {"category": "Sufficiente", "color": "#cccc00"}
+    if score >= 4.0: return {"category": "Da migliorare", "color": "#cc6400"}
+    return {"category": "Riprova", "color": "##cc0000"}
 
 def extract_first_json_block(text: str):
     if not text: return None
