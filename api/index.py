@@ -162,7 +162,7 @@ def get_rating_details(score):
     if score >= 7.0: return {"category": "Buono", "color": "#00cc29"}
     if score >= 5.5: return {"category": "Sufficiente", "color": "#cccc00"}
     if score >= 4.0: return {"category": "Da migliorare", "color": "#cc6400"}
-    return {"category": "Riprova", "color": "##cc0000"}
+    return {"category": "Riprova", "color": "#cc0000"}
 
 def extract_first_json_block(text: str):
     if not text: return None
