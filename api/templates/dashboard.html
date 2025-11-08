@@ -127,19 +127,6 @@
             loadSubmissions(viewType, currentPage, false);
         }
 
-        function getRatingDetails(score) {
-            const numericScore = parseFloat(score);
-            if (isNaN(numericScore)) {
-                return { category: "N/A", color: "#888888" };
-            }
-
-            if (numericScore >= 8.5) return { category: "Eccellente", color: "#2ecc71" }; // Vibrant Green
-            if (numericScore >= 7.0) return { category: "Buono", color: "#27ae60" };      // Green
-            if (numericScore >= 5.5) return { category: "Sufficiente", color: "#f1c40f" }; // Yellow
-            if (numericScore >= 4.0) return { category: "Da migliorare", color: "#e67e22" }; // Orange
-            return { category: "Riprova", color: "#e74c3c" };                           // Red
-        }
-
         function clearCurrentView() {
             const container = document.getElementById(`${currentView}-view`);
             container.innerHTML = '<p class="empty-message">화면이 초기화되었습니다.</p>';
@@ -346,7 +333,6 @@
             }
             
             // ★★★ 핵심 변경점: 점수를 기반으로 평가 상세 정보 가져오기 ★★★
-            const rating = getRatingDetails(scoreValue);
             const scoreDisplay = isNaN(parseFloat(scoreValue)) ? 'N/A' : parseFloat(scoreValue).toFixed(1);
             // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
             
@@ -418,12 +404,10 @@
                             <span class="class-badge">${item.class_name || '반 없음'}</span>
                         </div>
                         
-                        <!-- ★★★ 이 부분이 점수와 등급을 표시하도록 변경되었습니다 ★★★ -->
                         <div class="score-container">
-                            <span class="score-value" style="color: ${rating.color};">${scoreDisplay}</span>
-                            <span class="rating-badge" style="background-color: ${rating.color};">${rating.category}</span>
+                            <span class="score-value" style="color: ${item.rating_color || '#888'};">${scoreDisplay}</span>
+                            <span class="rating-badge" style="background-color: ${item.rating_color || '#888'};">${item.rating_category || 'N/A'}</span>
                         </div>
-                        <!-- ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ -->
 
                     </div>
                     <div class="card-body">

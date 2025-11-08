@@ -151,6 +151,19 @@ def init_db():
             conn.close()
 init_db()
 
+def get_rating_details(score):
+    """프로젝트 전체에서 사용하는 표준화된 점수 평가 함수"""
+    try:
+        score = float(score)
+    except (ValueError, TypeError):
+        score = 0.0
+    
+    if score >= 8.5: return {"category": "Eccellente", "color": "#00ffc8"}
+    if score >= 7.0: return {"category": "Buono", "color": "#00ff32"}
+    if score >= 5.5: return {"category": "Sufficiente", "color": "#ffff00"}
+    if score >= 4.0: return {"category": "Da migliorare", "color": "#ff7d00"}
+    return {"category": "Riprova", "color": "#ff0000"}
+
 def extract_first_json_block(text: str):
     if not text: return None
     t = text.replace("```json", "```").strip()
@@ -906,14 +919,6 @@ def submit_answer():
 
             conn.commit()
 
-        def get_rating_details(score):
-            score = float(score) if score else 0
-            if score >= 8.5: return {"category": "Eccellente", "color": "teal"}
-            if score >= 7.0: return {"category": "Buono", "color": "lightgreen"}
-            if score >= 5.5: return {"category": "Sufficiente", "color": "gold"}
-            if score >= 4.0: return {"category": "Da migliorare", "color": "orange"}
-            return {"category": "Riprova", "color": "red"}
-
         rating_info = get_rating_details(score)
 
         if quiz_type == 'translation':
@@ -1096,13 +1101,6 @@ def submit_speaking_answer():
             # 학생에게 보낼 최종 응답 생성
             if score is not None:
                 # 채점 성공 시
-                def get_rating_details(s):
-                    s = float(s)
-                    if s >= 8.5: return {"category": "Eccellente", "color": "#00ff7f"} # Vibrant Green
-                    if s >= 7.0: return {"category": "Buono", "color": "lightgreen"}
-                    if s >= 5.5: return {"category": "Sufficiente", "color": "gold"}
-                    if s >= 4.0: return {"category": "Da migliorare", "color": "orange"}
-                    return {"category": "Riprova", "color": "red"}
                 
                 rating_info = get_rating_details(score)
                 
@@ -1309,6 +1307,20 @@ def api_get_submissions():
         items = []
         for r in rows:
             r['created_at'] = r['created_at'].isoformat() if r.get('created_at') else None
+
+            # 1. 점수 추출 (퀴즈 유형에 따라)
+            score_value = None
+            if quiz_type == 'translation':
+                score_value = r.get('score')
+            elif quiz_type == 'comprehension' or quiz_type == 'speaking':
+                if r.get('ai_analysis_json') and r['ai_analysis_json'].get('score') is not None:
+                    score_value = r['ai_analysis_json']['score']
+                
+            # 2. 중앙 함수로 평가 및 r 객체에 삽입
+            rating_info = get_rating_details(score_value)
+            r['rating_category'] = rating_info['category']
+            r['rating_color'] = rating_info['color']
+
             items.append(r)
         
         total_pages = (total + per_page - 1) // per_page
