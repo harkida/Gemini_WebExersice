@@ -855,6 +855,10 @@ def submit_answer():
     conn = None
     korean_text = ""
     
+    score = None
+    ai_result = {}
+    analysis = {}
+
     try:
         conn = get_db_connection()
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
@@ -919,17 +923,29 @@ def submit_answer():
                 
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
-                ai_result = json.loads(json_str)
-                
-                score_raw = ai_result.get('score')
-                score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
-                analysis = ai_result.get('analysis', {})
-                
+
+                try:
+                    ai_result = json.loads(json_str)
+                    score_raw = ai_result.get('score')
+                    score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw is not None else None
+                    analysis = ai_result.get('analysis', {})
+                    if score is None:
+                        raise ValueError("AI result did not contain a 'score' field.")
+                    
+                except (json.JSONDecodeError, ValueError) as e:
+                    print(f"🚨 [번역 퀴즈] AI JSON 파싱 오류: {e}")
+                    print(f"   AI 원본 응답: {raw_text}")
+                    # 500 에러 대신, 학생에게 에러 메시지를 JSON으로 반환
+                    return jsonify({
+                        "success": False,
+                        "error": "L'IA non è riuscita a valutare la tua risposta. Prova a formulare la frase in modo diverso o contatta il professore."
+                    }), 200
+
                 cur.execute(
                     "INSERT INTO translation_submissions (exercise_id, student_id, student_answer, score, ai_analysis_json, class_name) VALUES (%s, %s, %s, %s, %s, %s)",
                     (exercise_id, student_id, student_answer, score, psycopg2.extras.Json(analysis, dumps=lambda x: json.dumps(x, ensure_ascii=False)), class_name)
                 )
-                
+
             elif quiz_type == 'comprehension':
                 cur.execute("SELECT korean_dialogue, key_points FROM comprehension_exercises WHERE id = %s;", (exercise_id,))
                 row = cur.fetchone()
