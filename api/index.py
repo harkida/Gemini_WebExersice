@@ -1371,12 +1371,18 @@ def api_get_submissions():
 
             # 1. 점수 추출 (퀴즈 유형에 따라)
             score_value = None
-            if quiz_type == 'translation':
-                score_value = r.get('score')
-            elif quiz_type == 'comprehension' or quiz_type == 'speaking':
-                if r.get('ai_analysis_json') and r['ai_analysis_json'].get('score') is not None:
-                    score_value = r['ai_analysis_json']['score']
-                
+            try:
+                if quiz_type == 'translation':
+                    score_value = r.get('score')
+                elif quiz_type == 'comprehension' or quiz_type == 'speaking':
+                    # ai_analysis_json이 None이 아니고, dict 타입이며, 'score' 키를 가졌는지 확인
+                    analysis_json = r.get('ai_analysis_json')
+                    if isinstance(analysis_json, dict) and analysis_json.get('score') is not None:
+                        score_value = analysis_json['score']
+            except Exception as e:
+                print(f"🚨 [get_submissions] ID {r.get('id')}의 score_value 추출 오류: {e}")
+                score_value = None # 오류 발생 시 None으로 안전하게 처리
+                           
             # 2. 중앙 함수로 평가 및 r 객체에 삽입
             rating_info = get_rating_details(score_value)
             r['rating_category'] = rating_info['category']
