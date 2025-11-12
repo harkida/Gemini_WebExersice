@@ -1285,9 +1285,6 @@ def api_get_submissions():
                     total_result = cur.fetchone()
                     total = total_result.get('total', 0) if total_result else 0
 
-
-
-                    
                     # 페이지네이션 데이터 조회
                     if class_name == 'all':
                         cur.execute("""
@@ -1318,8 +1315,6 @@ def api_get_submissions():
                     total_result = cur.fetchone()
                     total = total_result.get('total', 0) if total_result else 0
 
-
-                    
                     # 페이지네이션 데이터 조회
                     if class_name == 'all':
                         cur.execute("""
@@ -1388,8 +1383,17 @@ def api_get_submissions():
                     elif quiz_type == 'comprehension' or quiz_type == 'speaking':
                         # ai_analysis_json이 None이 아니고, dict 타입이며, 'score' 키를 가졌는지 확인
                         analysis_json = r.get('ai_analysis_json')
+
+                        if isinstance(analysis_json, str):
+                            try:
+                                analysis_json = json.loads(analysis_json) # <-- 이중 인코딩 해결
+                            except json.JSONDecodeError:
+                                analysis_json = None # 깨진 문자열이면 None 처리
+
+                        # 2. 파싱된 JSON 객체에서 'score' 추출
                         if isinstance(analysis_json, dict) and analysis_json.get('score') is not None:
                             score_value = analysis_json['score']
+
                 except Exception as e:
                     print(f"🚨 [get_submissions] ID {r.get('id')}의 score_value 추출 오류: {e}")
                     score_value = None # 오류 발생 시 None으로 안전하게 처리
