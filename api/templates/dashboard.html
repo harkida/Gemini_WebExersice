@@ -428,13 +428,13 @@
 
         function startAutoRefresh() {
             if (autoRefreshInterval) clearInterval(autoRefreshInterval); // 만약을 위해 기존 인터벌 정리
+
             autoRefreshInterval = setInterval(() => {
                 // ★★★★★ 교수님의 아이디어 적용 ★★★★★
                 // 오직 '번역' 탭이고, 1페이지에 있을 때만 자동 새로고침 실행
                 if (currentView === 'translation' && currentTranslationPage === 1) {
                     loadSubmissions('translation', 1, true);
-                } // <--- ★★★★★ 닫는 괄호 '}'가 이 위치에 필요합니다 ★★★★★
-                // ★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                }
             }, 2000);
         }
 
