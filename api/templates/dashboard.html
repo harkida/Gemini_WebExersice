@@ -378,7 +378,15 @@
                 const requiredExpression = item.required_expression || '(표현 없음)';
                 const expectedAnswer = item.expected_korean_answer || '(예상 답변 없음)';
                 const recognizedText = item.recognized_korean_text || '(인식 실패)';
-                const targetVocab = item.target_vocabulary || [];
+                // ★★★ JSON 문자열을 배열로 파싱 ★★★
+                let targetVocab = item.target_vocabulary || [];
+                if (typeof targetVocab === 'string') {
+                    try {
+                        targetVocab = JSON.parse(targetVocab);
+                    } catch (e) {
+                        targetVocab = [];
+                    }
+                }
                 const vocabUsage = analysis.vocabulary_usage || {};
                 const targetVocabString = targetVocab.length > 0 ? targetVocab.join(', ') : '(목표 어휘 없음)';
                 let vocabUsageHtml = '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
