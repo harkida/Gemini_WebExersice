@@ -36,10 +36,10 @@ if api_key:
     try:
         genai.configure(api_key=api_key)
         flash_model = genai.GenerativeModel('gemini-2.5-flash')
-        pro_model = genai.GenerativeModel('gemini-2.5-pro')
+        pro_model = genai.GenerativeModel('gemini-3.0-pro-preview')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
-        print("   📌 번역 퀴즈: gemini-2.5-flash (빠르고 경제적)")
-        print("   📌 이해력 퀴즈: gemini-2.5-pro (정밀한 평가)")
+        print("   📌 번역 : gemini-2.5-flash (빠르고 경제적)")
+        print("   📌 이해력 : gemini-3.0-pro (정밀한 평가)")
     except Exception as e:
         flash_model = None
         pro_model = None
@@ -140,14 +140,14 @@ def init_db():
                     );
                 """)
 
-                print("✅ 말하기 퀴즈 테이블(speaking_exercises, speaking_submissions)이 생성되었습니다.")
+                print("✅ 말하기 테이블(speaking_exercises, speaking_submissions)이 생성되었습니다.")
 
                 cur.execute("""
                     ALTER TABLE translation_exercises 
                     ADD COLUMN IF NOT EXISTS dialogue_context TEXT;
                 """)
                 
-                print("✅ 번역 퀴즈 테이블(translation_exercises)에 dialogue_context 컬럼이 확인/추가되었습니다.")
+                print("✅ 번역 테이블(translation_exercises)에 dialogue_context 컬럼이 확인/추가되었습니다.")
 
                 conn.commit()
                 print("✅ 데이터베이스 테이블이 최종 블루프린트에 맞게 성공적으로 확인/생성되었습니다.")
@@ -864,7 +864,7 @@ def submit_answer():
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
         
         if quiz_type == 'translation':
-            selected_model = flash_model
+            selected_model = pro_model
             model_name = "Flash"
         elif quiz_type == 'comprehension':
             selected_model = pro_model
@@ -960,7 +960,7 @@ def submit_answer():
                 )
 
                 response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
-                print(f"🤖 [이해력 퀴즈] gemini-2.5-pro 사용 - 학생: {student_id}")
+                print(f"🤖 [이해력 퀴즈] gemini-3.0-pro 사용 - 학생: {student_id}")
                 
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
@@ -1108,7 +1108,7 @@ def submit_speaking_answer():
                 generation_config={"response_mime_type": "application/json", "temperature": 0.1}
             )
             
-            print(f"🤖 [말하기 퀴즈] gemini-2.5-pro 사용 - 학생: {student_id}")
+            print(f"🤖 [말하기 퀴즈] gemini-3.0-pro 사용 - 학생: {student_id}")
             os.unlink(tmp_file_path)
             
             # ★★★ 수정된 핵심 로직 시작 ★★★
