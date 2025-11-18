@@ -36,7 +36,7 @@ if api_key:
     try:
         genai.configure(api_key=api_key)
         flash_model = genai.GenerativeModel('gemini-2.5-flash')
-        pro_model = genai.GenerativeModel('gemini-3.0-pro-preview')
+        pro_model = genai.GenerativeModel('gemini-3-pro-preview')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
         print("   📌 번역 : gemini-2.5-flash (빠르고 경제적)")
         print("   📌 이해력 : gemini-3.0-pro (정밀한 평가)")
