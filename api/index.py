@@ -865,7 +865,7 @@ def submit_answer():
         
         if quiz_type == 'translation':
             selected_model = pro_model
-            model_name = "Flash"
+            model_name = "Pro"
         elif quiz_type == 'comprehension':
             selected_model = pro_model
             model_name = "Pro"
