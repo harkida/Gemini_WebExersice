@@ -864,8 +864,8 @@ def submit_answer():
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
         
         if quiz_type == 'translation':
-            selected_model = pro_model
-            model_name = "Pro"
+            selected_model = flash_model
+            model_name = "Flash"
         elif quiz_type == 'comprehension':
             selected_model = pro_model
             model_name = "Pro"
