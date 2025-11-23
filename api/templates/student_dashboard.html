@@ -185,12 +185,34 @@
         }
 
         .score-circle {
-            width: 50px; height: 50px; border-radius: 50%;
-            background-color: #23272a; border: 3px solid #f1c40f;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 1.2rem; font-weight: bold; color: #fff;
+            width: 50px; 
+            height: 50px; 
+            border-radius: 50%;
+            background-color: #23272a; 
+            border: 3px solid #f1c40f;
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            font-size: 1.2rem; 
+            font-weight: bold; 
+            color: #fff;
+            flex-shrink: 0;
         }
-        .quiz-title { font-weight: bold; font-size: 1.1rem; color: white; margin-bottom: 4px; }
+        .quiz-title { 
+            font-weight: bold; 
+            font-size: 1.1rem; 
+            color: white; 
+            margin: 2px 0 4px 0;
+            line-height: 1.2;
+        }
+
+        .header-label {
+            font-size: 0.85rem;
+            color: #7289da; /* 포인트 컬러 */
+            font-weight: bold;
+            text-transform: uppercase; /* 대문자 변환 */
+        }
+
         .date-info { color: #99aab5; font-size: 0.9rem; }
 
         .content-box {
@@ -406,7 +428,7 @@
         
         const badgeClass = log.is_checked ? 'checked' : 'pending';
         const badgeText = log.is_checked ? '✅ Controllato' : '⏳ In attesa';
-        const title = log.title || 'Situazione (No Title)';
+        const title = log.title || '(No Title)';
         const profFeedback = log.teacher_feedback ? 
             `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Prof's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
 
@@ -416,7 +438,8 @@
                 <div class="header-left">
                     <div class="score-circle" style="border-color: ${log.rating_color};">${log.ai_analysis_json.score}</div>
                     <div>
-                        <div class="quiz-title">${title}</div>
+                        <div class="header-label">Situazione</div>
+                        <div class="quiz-title">${titleText}</div>
                         <div class="date-info">${log.created_at}</div>
                     </div>
                 </div>
@@ -426,7 +449,6 @@
             <div class="content-box" style="border-left: 3px solid #7289da;">
                 <div class="content-label">📖 Situazione (상황)</div>
                 <p style="font-size:0.95rem; color:#e0e0e0; margin-bottom: 15px; line-height: 1.5;">${log.situation_description}</p>
-                
                 <div class="content-label" style="color: #fff;">💬 Cosa devi dire (지시문)</div>
                 <p style="font-weight:bold; color: #fff; font-size: 1rem;">"${log.required_expression}"</p>
             </div>
@@ -434,7 +456,6 @@
             <div class="content-box">
                 <div class="content-label">LA TUA RISPOSTA (Audio)</div>
                 <audio controls src="${log.audio_file_url}" style="width:100%; margin-bottom:5px;"></audio>
-                
                 <div class="recognized-text">
                     <span style="color: #999; font-size: 0.9rem; font-weight: normal;">Trascrizione:</span><br>
                     ${log.recognized_korean_text}
@@ -462,19 +483,23 @@
         
         const badgeClass = log.is_checked ? 'checked' : 'pending';
         const badgeText = log.is_checked ? '✅ Controllato' : '⏳ In attesa';
-        const title = log.title || 'Dialogo (No Title)';
+        const title = log.title || '(No Title)';
         const profFeedback = log.teacher_feedback ? 
             `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Prof's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
 
         div.innerHTML = `
-            <div class="status-badge ${badgeClass}"><span>${badgeText}</span></div>
             <div class="header-row">
-                <div class="score-circle" style="border-color: ${log.rating_color};">${log.ai_analysis_json.score}</div>
-                <div>
-                    <div class="quiz-title">${title}</div>
-                    <div class="date-info">${log.created_at}</div>
+                <div class="header-left">
+                    <div class="score-circle" style="border-color: ${log.rating_color};">${log.ai_analysis_json.score}</div>
+                    <div>
+                        <div class="header-label">Dialogo</div>
+                        <div class="quiz-title">${titleText}</div>
+                        <div class="date-info">${log.created_at}</div>
+                    </div>
                 </div>
+                <div class="status-badge ${badgeClass}"><span>${badgeText}</span></div>
             </div>
+
             <div class="content-box">
                 <div class="content-label">🔊 DIALOGO ORIGINALE</div>
                 <audio controls src="${log.audio_file_path}" style="width:100%; margin-bottom:10px;"></audio>
