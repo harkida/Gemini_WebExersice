@@ -150,15 +150,40 @@
         
         /* 뱃지 스타일 */
         .status-badge {
-            position: absolute; top: 20px; right: 20px;
-            padding: 5px 12px; border-radius: 20px;
-            font-size: 0.85rem; font-weight: bold;
-            display: flex; align-items: center; gap: 5px;
+            position: static; 
+            padding: 5px 12px; 
+            border-radius: 20px;
+            font-size: 0.85rem; 
+            font-weight: bold;
+            display: inline-flex; 
+            align-items: center; 
+            gap: 5px;
+            white-space: nowrap;
         }
         .status-badge.pending { background-color: rgba(230, 126, 34, 0.15); color: #e67e22; border: 1px solid #e67e22; }
         .status-badge.checked { background-color: rgba(39, 174, 96, 0.15); color: #2ecc71; border: 1px solid #2ecc71; }
 
-        .header-row { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        .recognized-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        .header-row { 
+            display: flex; 
+            justify-content: space-between;
+            align-items: flex-start; 
+            margin-bottom: 15px; 
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
         .score-circle {
             width: 50px; height: 50px; border-radius: 50%;
             background-color: #23272a; border: 3px solid #f1c40f;
@@ -386,32 +411,46 @@
             `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Prof's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
 
         div.innerHTML = `
-            <div class="status-badge ${badgeClass}"><span>${badgeText}</span></div>
+
             <div class="header-row">
-                <div class="score-circle" style="border-color: ${log.rating_color};">${log.ai_analysis_json.score}</div>
-                <div>
-                    <div class="quiz-title">${title}</div>
-                    <div class="date-info">${log.created_at}</div>
+                <div class="header-left">
+                    <div class="score-circle" style="border-color: ${log.rating_color};">${log.ai_analysis_json.score}</div>
+                    <div>
+                        <div class="quiz-title">${title}</div>
+                        <div class="date-info">${log.created_at}</div>
+                    </div>
                 </div>
+                <div class="status-badge ${badgeClass}"><span>${badgeText}</span></div>
             </div>
+
             <div class="content-box" style="border-left: 3px solid #7289da;">
-                <div class="content-label">📖 Situazione & Cosa dire</div>
-                <p style="font-size:0.9rem; color:#ccc;">${log.situation_description}</p>
-                <p style="font-weight:bold; margin-top:5px;">"${log.required_expression}"</p>
+                <div class="content-label">📖 Situazione (상황)</div>
+                <p style="font-size:0.95rem; color:#e0e0e0; margin-bottom: 15px; line-height: 1.5;">${log.situation_description}</p>
+                
+                <div class="content-label" style="color: #fff;">💬 Cosa devi dire (지시문)</div>
+                <p style="font-weight:bold; color: #fff; font-size: 1rem;">"${log.required_expression}"</p>
             </div>
+
             <div class="content-box">
                 <div class="content-label">LA TUA RISPOSTA (Audio)</div>
                 <audio controls src="${log.audio_file_url}" style="width:100%; margin-bottom:5px;"></audio>
-                <div style="font-size:0.85rem; color:#999;">인식: ${log.recognized_korean_text}</div>
+                
+                <div class="recognized-text">
+                    <span style="color: #999; font-size: 0.9rem; font-weight: normal;">Trascrizione:</span><br>
+                    ${log.recognized_korean_text}
+                </div>
             </div>
+
             <div class="content-box" style="border-left: 3px solid #3498db;">
                 <div class="content-label" style="color: #3498db;">RISPOSTA CORRETTA</div>
                 <p style="font-weight:bold;">${log.expected_korean_answer}</p>
             </div>
+
             <div style="margin-top:10px; color:#b9bbbe; font-size:0.9rem;">
                 <strong>🤖 AI Feedback:</strong> ${log.ai_analysis_json.feedback}
             </div>
             ${profFeedback}
+
         `;
         return div;
     }
