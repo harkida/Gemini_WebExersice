@@ -160,8 +160,31 @@
         .teacher-label { color: #2ecc71; font-weight: bold; margin-bottom: 5px; }
         
         /* 모달 (정보 수정) */
-        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); }
-        .modal-content { background:#2c2f33; width:90%; max-width:400px; margin: 10% auto; padding: 20px; border-radius:10px; }
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 1000; }
+        .modal-content { 
+            background: #2c2f33; 
+            width: 90%; 
+            max-width: 400px; 
+            margin: 10% auto; 
+            padding: 30px; 
+            border-radius: 10px; 
+            border: 1px solid #444;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background-color: #40444b; /* 어두운 배경 */
+            border: 1px solid #202225;
+            color: #e0e0e0; /* 글자색 밝게 */
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box; /* ★ 핵심: 칸이 삐져나가지 않게 함 */
+        }
+        .modal-input:focus { outline: none; border-color: #7289da; }
+        
     </style>
 </head>
 <body>
@@ -226,13 +249,26 @@
 
 <div id="edit-modal" class="modal">
     <div class="modal-content">
-        <h3 style="color: white;">Modifica Profilo</h3>
-        <input type="text" id="edit-fullname" placeholder="Nome Completo" style="width:100%; padding:10px; margin-bottom:10px;">
-        <input type="text" id="edit-student-num" placeholder="Matricola" style="width:100%; padding:10px; margin-bottom:10px;">
-        <input type="email" id="edit-email" placeholder="Email" style="width:100%; padding:10px; margin-bottom:10px;">
-        <input type="password" id="edit-password" placeholder="Nuova Password (비워두면 변경 안함)" style="width:100%; padding:10px; margin-bottom:20px;">
+        <h3 style="color: white; margin-top: 0; margin-bottom: 20px; text-align: center;">Modifica Profilo</h3>
         
-        <button class="action-btn" style="width:100%;" onclick="submitProfileUpdate()">Salva (저장)</button>
+        <label style="color: #b9bbbe; font-size: 0.9rem;">Nome Completo</label>
+        <input type="text" id="edit-fullname" class="modal-input" placeholder="Nome Completo">
+        
+        <label style="color: #b9bbbe; font-size: 0.9rem;">Matricola (학번)</label>
+        <input type="text" id="edit-student-num" class="modal-input" placeholder="Matricola">
+        
+        <label style="color: #b9bbbe; font-size: 0.9rem;">Email</label>
+        <input type="email" id="edit-email" class="modal-input" placeholder="Email">
+        
+        <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+        
+        <label style="color: #b9bbbe; font-size: 0.9rem;">Nuova Password (변경 시에만 입력)</label>
+        <input type="password" id="edit-password" class="modal-input" placeholder="Nuova Password">
+        
+        <label style="color: #b9bbbe; font-size: 0.9rem;">Conferma Password (비밀번호 확인)</label>
+        <input type="password" id="edit-confirm-password" class="modal-input" placeholder="Ripeti Nuova Password">
+        
+        <button class="action-btn" style="width:100%; margin-top: 10px;" onclick="submitProfileUpdate()">Salva (저장)</button>
         <button class="action-btn" style="width:100%; background-color:#555; margin-top:10px;" onclick="closeModal()">Annulla (취소)</button>
     </div>
 </div>
@@ -404,24 +440,41 @@
     function closeModal() { document.getElementById('edit-modal').style.display = 'none'; }
     
     async function submitProfileUpdate() {
+        const fullName = document.getElementById('edit-fullname').value;
+        const studentNum = document.getElementById('edit-student-num').value;
+        const email = document.getElementById('edit-email').value;
+        const password = document.getElementById('edit-password').value;
+        const confirmPassword = document.getElementById('edit-confirm-password').value; // 확인 값 가져오기
+
+        // ★ 비밀번호 변경 시 일치 여부 확인 로직 추가
+        if (password && password !== confirmPassword) {
+            alert('Le password non corrispondono! (비밀번호가 일치하지 않습니다.)');
+            return;
+        }
+
         const newData = {
-            full_name: document.getElementById('edit-fullname').value,
-            student_number: document.getElementById('edit-student-num').value,
-            school_email: document.getElementById('edit-email').value,
-            password: document.getElementById('edit-password').value
+            full_name: fullName,
+            student_number: studentNum,
+            school_email: email,
+            password: password 
         };
         
-        const res = await fetch('/api/update-profile', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(newData)
-        });
-        
-        if (res.ok) {
-            alert('Profilo aggiornato!');
-            location.reload();
-        } else {
-            alert('Errore durante l\'aggiornamento.');
+        try {
+            const res = await fetch('/api/update-profile', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(newData)
+            });
+            
+            if (res.ok) {
+                alert('Profilo aggiornato! (수정되었습니다)');
+                location.reload();
+            } else {
+                const err = await res.json();
+                alert('Errore: ' + (err.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Errore di connessione');
         }
     }
 </script>
