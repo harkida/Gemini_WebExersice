@@ -1259,23 +1259,29 @@ def get_student_dashboard_data():
             cur.execute("SELECT full_name, student_number, school_email FROM users WHERE id = %s", (session['user_id'],))
             user_info = cur.fetchone()
 
-            # 2. 전체 평균 점수 (반 구분 없이 모든 기록)
-            # [수정] 3가지 영역별 평균 점수 분리 계산
-            def calculate_avg(query):
+            # ▼▼▼ [수정된 로직] 평균(AVG)과 횟수(COUNT)를 함께 조회하고 색상 계산 ▼▼▼
+            def get_stats(query):
                 cur.execute(query, (username,))
                 result = cur.fetchone()
-                # 점수가 없으면 0.0, 있으면 소수점 첫째자리까지 반올림
-                return round(result[0], 1) if result and result[0] is not None else 0.0
 
-            # 2-1. 번역 평균
-            trans_avg = calculate_avg("SELECT AVG(score) FROM translation_submissions WHERE student_id = %s")
-            
-            # 2-2. 이해력 평균 (JSON 내부 score 추출)
-            comp_avg = calculate_avg("SELECT AVG((ai_analysis_json->>'score')::float) FROM comprehension_submissions WHERE student_id = %s")
-            
-            # 2-3. 말하기 평균 (JSON 내부 score 추출)
-            speak_avg = calculate_avg("SELECT AVG((ai_analysis_json->>'score')::float) FROM speaking_submissions WHERE student_id = %s")
+                avg = 0.0
+                count = 0
 
+
+                if result:
+                    # result[0]은 평균, result[1]은 횟수(COUNT)
+                    avg = round(result[0], 1) if result[0] is not None else 0.0
+                    count = result[1] if result[1] is not None else 0
+
+                # 점수에 따른 색상 계산 (기존 get_rating_details 함수 활용)
+                color = get_rating_details(avg)['color']
+                
+                return {"avg": avg, "count": count, "color": color}
+
+            # 2. 각 영역별 통계 (평균 점수 + 제출 횟수) 조회
+            trans_stats = get_stats("SELECT AVG(score), COUNT(*) FROM translation_submissions WHERE student_id = %s")
+            comp_stats = get_stats("SELECT AVG((ai_analysis_json->>'score')::float), COUNT(*) FROM comprehension_submissions WHERE student_id = %s")
+            speak_stats = get_stats("SELECT AVG((ai_analysis_json->>'score')::float), COUNT(*) FROM speaking_submissions WHERE student_id = %s")
 
 
             # 3. 말하기 기록 (최신순) - Title 포함
@@ -1315,9 +1321,9 @@ def get_student_dashboard_data():
 
             return jsonify({
                 "user_info": dict(user_info),
-                "trans_avg": trans_avg,
-                "comp_avg": comp_avg,
-                "speak_avg": speak_avg,
+                "trans_stats": trans_stats,
+                "comp_stats": comp_stats,
+                "speak_stats": speak_stats,
                 "speaking_logs": [process_log(l) for l in speaking_logs],
                 "comprehension_logs": [process_log(l) for l in comprehension_logs]
             })

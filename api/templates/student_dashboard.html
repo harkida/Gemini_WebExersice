@@ -301,20 +301,25 @@
         <div class="stats-container">
             <div class="stat-box">
                 <div class="stat-title">Traduzione (번역)</div>
-                <div class="stat-score trans" id="score-trans">--</div>
-                <p style="font-size: 0.8rem; color: #777;">Media Punteggio</p>
+                <div class="stat-score" id="score-trans">--</div> <p style="font-size: 0.9rem; color: #b9bbbe; margin-top: 5px;">
+                    <span id="count-trans">0</span> tentativi (시도)
+                </p>
             </div>
             
             <div class="stat-box">
                 <div class="stat-title">Comprensione (이해력)</div>
                 <div class="stat-score comp" id="score-comp">--</div>
-                <p style="font-size: 0.8rem; color: #777;">Media Punteggio</p>
+                <p style="font-size: 0.9rem; color: #b9bbbe; margin-top: 5px;">
+                    <span id="count-comp">0</span> tentativi (시도)
+                </p>
             </div>
             
             <div class="stat-box">
                 <div class="stat-title">Parlato (말하기)</div>
                 <div class="stat-score speak" id="score-speak">--</div>
-                <p style="font-size: 0.8rem; color: #777;">Media Punteggio</p>
+                <p style="font-size: 0.9rem; color: #b9bbbe; margin-top: 5px;">
+                    <span id="count-speak">0</span> tentativi (시도)
+                </p>      
             </div>
         </div>
 
@@ -413,9 +418,26 @@
             if (data.error) { alert('Errore: ' + data.error); return; }
 
             // 1. Overview
-            if(data.trans_avg !== undefined) document.getElementById('score-trans').textContent = data.trans_avg;
-            if(data.comp_avg !== undefined) document.getElementById('score-comp').textContent = data.comp_avg;
-            if(data.speak_avg !== undefined) document.getElementById('score-speak').textContent = data.speak_avg;
+            if (data.trans_stats) {
+                const el = document.getElementById('score-trans');
+                el.textContent = data.trans_stats.avg;
+                el.style.color = data.trans_stats.color; // ★ 색상 적용
+                document.getElementById('count-trans').textContent = data.trans_stats.count; // ★ 횟수 적용
+            }
+
+            if (data.comp_stats) {
+                const el = document.getElementById('score-comp');
+                el.textContent = data.comp_stats.avg;
+                el.style.color = data.comp_stats.color;
+                document.getElementById('count-comp').textContent = data.comp_stats.count;
+            }
+
+            if (data.speak_stats) {
+                const el = document.getElementById('score-speak');
+                el.textContent = data.speak_stats.avg;
+                el.style.color = data.speak_stats.color;
+                document.getElementById('count-speak').textContent = data.speak_stats.count;
+            }
 
             currentUserInfo = data.user_info; // 저장해둠
 
