@@ -1454,18 +1454,20 @@ def api_get_submissions():
                     if class_name == 'all':
                         cur.execute("""
                             SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, 
-                                s.created_at, e.korean_sentence, s.class_name 
+                                s.created_at, e.korean_sentence, s.class_name, u.full_name
                             FROM translation_submissions s 
-                            JOIN translation_exercises e ON e.id = s.exercise_id 
+                            JOIN translation_exercises e ON e.id = s.exercise_id
+                            LEFT JOIN users u ON s.student_id = u.username
                             ORDER BY s.id DESC 
                             LIMIT %s OFFSET %s
                         """, (per_page, offset))
                     else:
                         cur.execute("""
                             SELECT s.id, s.student_id, s.student_answer, s.score, s.ai_analysis_json, 
-                                s.created_at, e.korean_sentence, s.class_name 
+                                s.created_at, e.korean_sentence, s.class_name, u.full_name
                             FROM translation_submissions s 
                             JOIN translation_exercises e ON e.id = s.exercise_id 
+                            LEFT JOIN users u ON s.student_id = u.username
                             WHERE s.class_name = %s
                             ORDER BY s.id DESC 
                             LIMIT %s OFFSET %s
@@ -1485,9 +1487,10 @@ def api_get_submissions():
                         cur.execute("""
                             SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
                                 s.created_at, s.teacher_feedback, s.is_checked,
-                                e.korean_dialogue, e.key_points, s.class_name 
+                                e.korean_dialogue, e.key_points, s.class_name, u.full_name
                             FROM comprehension_submissions s 
-                            JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
+                            JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id
+                            LEFT JOIN users u ON s.student_id = u.username
                             ORDER BY s.id DESC 
                             LIMIT %s OFFSET %s
                         """, (per_page, offset))
@@ -1495,9 +1498,10 @@ def api_get_submissions():
                         cur.execute("""
                             SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
                                 s.created_at, s.teacher_feedback, s.is_checked,
-                                e.korean_dialogue, e.key_points, s.class_name 
+                                e.korean_dialogue, e.key_points, s.class_name, u.full_name 
                             FROM comprehension_submissions s 
-                            JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
+                            JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id
+                            LEFT JOIN users u ON s.student_id = u.username
                             WHERE s.class_name = %s
                             ORDER BY s.id DESC 
                             LIMIT %s OFFSET %s
@@ -1518,9 +1522,10 @@ def api_get_submissions():
                         cur.execute("""
                             SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
                                 s.ai_analysis_json, s.created_at, s.teacher_feedback, s.is_checked,
-                                e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                                e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name, u.full_name
                             FROM speaking_submissions s 
-                            JOIN speaking_exercises e ON e.id = s.exercise_id 
+                            JOIN speaking_exercises e ON e.id = s.exercise_id
+                            LEFT JOIN users u ON s.student_id = u.username 
                             ORDER BY s.id DESC 
                             LIMIT %s OFFSET %s
                         """, (per_page, offset))
@@ -1528,9 +1533,10 @@ def api_get_submissions():
                         cur.execute("""
                             SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
                                 s.ai_analysis_json, s.created_at, s.teacher_feedback, s.is_checked,
-                                e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name 
+                                e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name, u.full_name
                             FROM speaking_submissions s 
-                            JOIN speaking_exercises e ON e.id = s.exercise_id 
+                            JOIN speaking_exercises e ON e.id = s.exercise_id
+                            LEFT JOIN users u ON s.student_id = u.username 
                             WHERE s.class_name = %s
                             ORDER BY s.id DESC 
                             LIMIT %s OFFSET %s
