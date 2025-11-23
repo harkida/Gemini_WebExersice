@@ -71,22 +71,11 @@
         </form>
 
         <div class="footer-link">
-            Non hai un account? <a href="/templates/signup.html" onclick="location.href='/static/signup.html'; return false;" id="signup-link">Registrati (회원가입)</a>
+            Non hai un account? <a href="/signup">Registrati (회원가입)</a>
         </div>
     </div>
 
     <script>
-        // 회원가입 링크 처리 (Flask 라우트가 없으므로 JS로 처리하거나, 
-        // 만약 위에서 signup.html을 templates 폴더에 넣었다면 아래와 같이 이동해야 함)
-        document.getElementById('signup-link').onclick = function(e) {
-            e.preventDefault();
-            // Flask 렌더링을 위해 별도 라우트를 만들지 않았으므로, 
-            // 임시로 JS로 location을 이동시킵니다.
-            // 다만, signup 페이지를 보여주려면 백엔드에 라우트 하나가 더 필요할 수 있습니다.
-            // 일단은 아래 fetch 로직에 집중해주세요.
-            alert("잠시만요, 회원가입 페이지 라우트가 필요합니다. 백엔드에 추가해드리겠습니다.");
-        };
-
         document.getElementById('login-form').addEventListener('submit', async function(event) {
             event.preventDefault();
             const username = document.getElementById('username').value;
