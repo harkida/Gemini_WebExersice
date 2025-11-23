@@ -1249,18 +1249,23 @@ def get_student_dashboard_data():
             user_info = cur.fetchone()
 
             # 2. 전체 평균 점수 (반 구분 없이 모든 기록)
-            cur.execute("""
-                SELECT AVG(score) as avg_score 
-                FROM (
-                    SELECT score FROM translation_submissions WHERE student_id = %s
-                    UNION ALL
-                    SELECT (ai_analysis_json->>'score')::float FROM comprehension_submissions WHERE student_id = %s
-                    UNION ALL
-                    SELECT (ai_analysis_json->>'score')::float FROM speaking_submissions WHERE student_id = %s
-                ) all_scores
-            """, (username, username, username))
-            avg_result = cur.fetchone()
-            total_avg = round(avg_result['avg_score'], 1) if avg_result['avg_score'] else 0.0
+            # [수정] 3가지 영역별 평균 점수 분리 계산
+            def calculate_avg(query):
+                cur.execute(query, (username,))
+                result = cur.fetchone()
+                # 점수가 없으면 0.0, 있으면 소수점 첫째자리까지 반올림
+                return round(result[0], 1) if result and result[0] is not None else 0.0
+
+            # 2-1. 번역 평균
+            trans_avg = calculate_avg("SELECT AVG(score) FROM translation_submissions WHERE student_id = %s")
+            
+            # 2-2. 이해력 평균 (JSON 내부 score 추출)
+            comp_avg = calculate_avg("SELECT AVG((ai_analysis_json->>'score')::float) FROM comprehension_submissions WHERE student_id = %s")
+            
+            # 2-3. 말하기 평균 (JSON 내부 score 추출)
+            speak_avg = calculate_avg("SELECT AVG((ai_analysis_json->>'score')::float) FROM speaking_submissions WHERE student_id = %s")
+
+
 
             # 3. 말하기 기록 (최신순) - Title 포함
             cur.execute("""
@@ -1299,7 +1304,9 @@ def get_student_dashboard_data():
 
             return jsonify({
                 "user_info": dict(user_info),
-                "total_avg": total_avg,
+                "trans_avg": trans_avg,
+                "comp_avg": comp_avg,
+                "speak_avg": speak_avg,
                 "speaking_logs": [process_log(l) for l in speaking_logs],
                 "comprehension_logs": [process_log(l) for l in comprehension_logs]
             })
