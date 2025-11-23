@@ -60,6 +60,25 @@
             margin-bottom: -2px;
         }
 
+        /* [추가] 기록 탭 내부 필터 버튼 스타일 */
+        .sub-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .sub-tab-btn {
+            padding: 8px 16px;
+            background-color: #23272a;
+            border: 1px solid #40444b;
+            color: #b9bbbe;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .sub-tab-btn:hover { background-color: #2c2f33; color: white; }
+        .sub-tab-btn.active {
+            background-color: #7289da;
+            color: white;
+            border-color: #7289da;
+        }
+
         /* 탭 콘텐츠 영역 */
         .tab-content { display: none; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
@@ -329,7 +348,12 @@
     </div>
 
     <div id="history" class="tab-content">
-        <h3 style="color: #b9bbbe; border-bottom: 1px solid #40444b; padding-bottom: 10px;">Recenti (최신순)</h3>
+       
+        <div class="sub-tabs">
+            <button class="sub-tab-btn" onclick="filterHistory('comprehension')">Comprensione (이해력)</button>
+            <button class="sub-tab-btn" onclick="filterHistory('speaking')">Parlato (말하기)</button>
+        </div>        
+        
         <div id="history-list">
             <p style="text-align: center; color: #777; margin-top: 50px;">Caricamento...</p>
         </div>
@@ -424,7 +448,7 @@
     // 🎤 말하기 카드 생성 함수
     function createSpeakingCard(log) {
         const div = document.createElement('div');
-        div.className = 'record-card';
+        div.className = 'record-card type-speaking';
         
         const badgeClass = log.is_checked ? 'checked' : 'pending';
         const badgeText = log.is_checked ? '✅ Visto' : '⏳ Attesa';
@@ -479,7 +503,7 @@
     // 🧠 이해력 카드 생성 함수
     function createComprehensionCard(log) {
         const div = document.createElement('div');
-        div.className = 'record-card';
+        div.className = 'record-card type-comprehension';
         
         const badgeClass = log.is_checked ? 'checked' : 'pending';
         const badgeText = log.is_checked ? '✅ Visto' : '⏳ Attesa';
@@ -503,7 +527,7 @@
             <div class="content-box">
                 <div class="content-label">🔊 DIALOGO ORIGINALE</div>
                 <audio controls src="${log.audio_file_path}" style="width:100%; margin-bottom:10px;"></audio>
-                <div style="white-space: pre-line; color: #b9bbbe; max-height: 100px; overflow-y: auto; font-size:0.9rem;">${log.korean_dialogue}</div>
+                <div style="white-space: pre-line; color: #b9bbbe; font-size:0.9rem;">${log.korean_dialogue}</div>
             </div>
             <div class="content-box">
                 <div class="content-label">IL TUO RIASSUNTO</div>
@@ -586,6 +610,30 @@
             alert('Errore di connessione');
         }
     }
+
+    // ▼▼▼ [추가] 기록 탭 필터링 함수 (여기에 넣으시면 됩니다) ▼▼▼
+    function filterHistory(type) {
+        // 1. 버튼 스타일 업데이트
+        const buttons = document.querySelectorAll('.sub-tab-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        // 클릭된 버튼(event.target)에 active 클래스 추가
+        if (event && event.target) {
+            event.target.classList.add('active');
+        }
+
+        // 2. 카드 표시/숨김 처리
+        const allCards = document.querySelectorAll('.record-card');
+        allCards.forEach(card => {
+            if (type === 'all') {
+                card.style.display = 'block';
+            } else if (type === 'speaking') {
+                card.style.display = card.classList.contains('type-speaking') ? 'block' : 'none';
+            } else if (type === 'comprehension') {
+                card.style.display = card.classList.contains('type-comprehension') ? 'block' : 'none';
+            }
+        });
+    }
+    // ▲▲▲ [추가 끝] ▲▲▲
 </script>
 
 </body>

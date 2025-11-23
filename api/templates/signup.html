@@ -49,7 +49,7 @@
             font-weight: bold;
             cursor: pointer;
             margin-top: 20px;
-            transition: background 0.3s;
+            transition: background-color 0.3s;
         }
         .btn:hover { background-color: #5b6eae; }
         .footer-link { margin-top: 20px; font-size: 0.9rem; color: #a0a0a0; }
@@ -64,7 +64,7 @@
         <form id="signup-form">
             <div class="form-group">
                 <label>ID Utente (아이디 - 영문 소문자)</label>
-                <input type="text" id="username" required placeholder="es. mario" oninput="this.value = this.value.toLowerCase()">
+                <input type="text" id="username" required placeholder="Attenzione: L'ID non potrà essere modificato (ID는 변경 불가)" oninput="this.value = this.value.toLowerCase()">
             </div>
             <div class="form-group">
                 <label>Password (비밀번호)</label>

@@ -1137,7 +1137,7 @@ def signup():
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json()
-    username = data.get('username', '').lower().strip() # 소문자 강제
+    username = data.get('username', '').strip() # 소문자 강제
     password = data.get('password')
     full_name = data.get('full_name')
     student_number = data.get('student_number')
@@ -1175,7 +1175,7 @@ def api_register():
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json()
-    username = data.get('username', '').lower().strip()
+    username = data.get('username', '').strip()
     password = data.get('password')
 
     conn = get_db_connection()
