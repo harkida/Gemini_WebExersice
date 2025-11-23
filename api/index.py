@@ -1478,7 +1478,8 @@ def api_get_submissions():
                     if class_name == 'all':
                         cur.execute("""
                             SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
-                                s.created_at, e.korean_dialogue, e.key_points, s.class_name 
+                                s.created_at, s.teacher_feedback, s.is_checked,
+                                e.korean_dialogue, e.key_points, s.class_name 
                             FROM comprehension_submissions s 
                             JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
                             ORDER BY s.id DESC 
@@ -1487,7 +1488,8 @@ def api_get_submissions():
                     else:
                         cur.execute("""
                             SELECT s.id, s.student_id, s.student_answer, s.ai_analysis_json, 
-                                s.created_at, e.korean_dialogue, e.key_points, s.class_name 
+                                s.created_at, s.teacher_feedback, s.is_checked,
+                                e.korean_dialogue, e.key_points, s.class_name 
                             FROM comprehension_submissions s 
                             JOIN comprehension_exercises e ON e.id = s.comprehension_exercise_id 
                             WHERE s.class_name = %s
@@ -1509,7 +1511,7 @@ def api_get_submissions():
                     if class_name == 'all':
                         cur.execute("""
                             SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
-                                s.ai_analysis_json, s.created_at, 
+                                s.ai_analysis_json, s.created_at, s.teacher_feedback, s.is_checked,
                                 e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name 
                             FROM speaking_submissions s 
                             JOIN speaking_exercises e ON e.id = s.exercise_id 
@@ -1519,7 +1521,7 @@ def api_get_submissions():
                     else:
                         cur.execute("""
                             SELECT s.id, s.student_id, s.audio_file_url, s.recognized_korean_text, 
-                                s.ai_analysis_json, s.created_at, 
+                                s.ai_analysis_json, s.created_at, s.teacher_feedback, s.is_checked,
                                 e.situation_description, e.required_expression, e.expected_korean_answer, e.target_vocabulary, s.class_name 
                             FROM speaking_submissions s 
                             JOIN speaking_exercises e ON e.id = s.exercise_id 
