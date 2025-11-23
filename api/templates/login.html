@@ -1,4 +1,3 @@
-<!-- ★★★ 이 코드로 login.html의 전체 내용을 교체해주십시오 ★★★ -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -6,34 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aula di Coreano - Accesso</title>
     <style>
-        /* --- 교수님의 훌륭한 다크 모드 스타일을 그대로 유지합니다 --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #1e2124; 
+            background-color: #1e2124;
+            color: #e0e0e0;
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            color: #e0e0e0;
         }
         .login-container {
-            background-color: #282c34; 
+            background-color: #282c34;
             padding: 40px;
             border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             width: 90%;
             max-width: 400px;
+            text-align: center;
         }
-        h1 {
-            color: #ffffff;
-            margin-bottom: 4px;
-        }
+        h1 { color: #ffffff; margin-bottom: 5px; }
+        .version-tag { display: block; margin-bottom: 25px; font-size: 0.9rem; color: #9e9e9e; }
+        
         .input-field {
             width: 100%;
             padding: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             background-color: #36393f;
             border: 1px solid #4f545c;
             border-radius: 5px;
@@ -41,20 +38,8 @@
             color: #e0e0e0;
             box-sizing: border-box;
         }
-        .input-field:focus {
-            outline: none;
-            border-color: #27ae60;
-            box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.5);
-        }
-        select {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23e0e0e0%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.4-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
-            background-repeat: no-repeat;
-            background-position: right 15px top 50%;
-            background-size: .65em auto;
-        }
+        .input-field:focus { outline: none; border-color: #27ae60; }
+        
         .start-btn {
             background-color: #27ae60;
             color: white;
@@ -64,66 +49,65 @@
             font-weight: bold;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s;
             width: 100%;
+            transition: background 0.3s;
         }
-        .start-btn:hover {
-            background-color: #2ecc71;
-        }
-        .version-tag {
-            display: block; /* span을 블록 요소로 만들어 여백을 적용합니다. */
-            margin-bottom: 25px; /* h1에서 가져온 여백을 여기에 적용하여 폼과의 간격을 유지합니다. */
-            font-size: 0.9rem;
-            color: #9e9e9e;
-            font-weight: normal;
-        }
+        .start-btn:hover { background-color: #2ecc71; }
+        
+        .footer-link { margin-top: 20px; font-size: 0.9rem; color: #a0a0a0; }
+        .footer-link a { color: #27ae60; text-decoration: none; }
+        .footer-link a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="login-container">
         <h1>Aula di Coreano</h1>
-        <span class="version-tag">Ver. 0.94
-        </span>
+        <span class="version-tag">Ver. 6.0 (Login System)</span>
+        
         <form id="login-form">
-            <select id="class-name" class="input-field" required>
-                <option value="" disabled selected>Seleziona la tua classe</option>
-                <option value="siena-beginner">초급반 (Principianti)</option>
-                <option value="siena-3">3학년 (Triennale)</option>
-                <option value="siena-master-1">석사 1학년 (Magistrale 1)</option>
-                <option value="siena-master-2">석사 2학년 (Magistrale 2)</option>
-            </select>
-            
-            <select id="quiz-type" class="input-field" required>
-                <option value="" disabled selected>Seleziona il tipo di quiz</option>
-                <option value="translation">번역 (Traduzione)</option>
-                <option value="comprehension">이해력 (Comprensione)</option>
-                <option value="speaking">말하기 (Parlato)</option>
-            </select>
-
-            <input type="text" id="student-id" class="input-field" placeholder="Inserisci il tuo nome o ID" required>
-            <button type="submit" class="start-btn">Inizia</button>
+            <input type="text" id="username" class="input-field" placeholder="ID Utente (아이디)" required>
+            <input type="password" id="password" class="input-field" placeholder="Password (비밀번호)" required>
+            <button type="submit" class="start-btn">Accedi (로그인)</button>
         </form>
+
+        <div class="footer-link">
+            Non hai un account? <a href="/templates/signup.html" onclick="location.href='/static/signup.html'; return false;" id="signup-link">Registrati (회원가입)</a>
+        </div>
     </div>
 
     <script>
-        document.getElementById('login-form').addEventListener('submit', function(event) {
-            event.preventDefault(); 
+        // 회원가입 링크 처리 (Flask 라우트가 없으므로 JS로 처리하거나, 
+        // 만약 위에서 signup.html을 templates 폴더에 넣었다면 아래와 같이 이동해야 함)
+        document.getElementById('signup-link').onclick = function(e) {
+            e.preventDefault();
+            // Flask 렌더링을 위해 별도 라우트를 만들지 않았으므로, 
+            // 임시로 JS로 location을 이동시킵니다.
+            // 다만, signup 페이지를 보여주려면 백엔드에 라우트 하나가 더 필요할 수 있습니다.
+            // 일단은 아래 fetch 로직에 집중해주세요.
+            alert("잠시만요, 회원가입 페이지 라우트가 필요합니다. 백엔드에 추가해드리겠습니다.");
+        };
 
-            const studentId = document.getElementById('student-id').value;
-            const className = document.getElementById('class-name').value;
-            const quizType = document.getElementById('quiz-type').value; // ★★★ [핵심 추가] 퀴즈 유형 값 가져오기
+        document.getElementById('login-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
 
-            if (!className || !quizType) {
-                alert('Seleziona sia la classe che il tipo di quiz!');
-                return;
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    window.location.href = '/student-dashboard'; // 대시보드로 이동
+                } else {
+                    alert(result.error || 'Login fallito');
+                }
+            } catch (error) {
+                alert('Errore di connessione');
             }
-
-            localStorage.setItem('studentId', studentId);
-            localStorage.setItem('className', className);
-            localStorage.setItem('quizType', quizType); // ★★★ [핵심 추가] 퀴즈 유형도 로컬 스토리지에 저장
-
-            // ★★★ [핵심 수정] URL에 quiz_type 파라미터 추가
-            window.location.href = `/quiz?class_name=${encodeURIComponent(className)}&quiz_type=${encodeURIComponent(quizType)}`;
         });
     </script>
 </body>

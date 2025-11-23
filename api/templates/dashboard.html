@@ -58,6 +58,47 @@
             margin-top: 10px;
         }
         
+        /* ▼▼▼ [추가] 교수님 피드백 입력창 디자인 ▼▼▼ */
+        .teacher-action-box {
+            background-color: #232529;
+            padding: 1.5rem;
+            border-top: 1px solid #555;
+            margin-top: 15px;
+        }
+        .teacher-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #40444b;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            border-radius: 5px;
+            font-family: inherit;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .check-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .check-btn:hover { background-color: #2ecc71; }
+        .check-btn:disabled { background-color: #555; cursor: not-allowed; }
+        .check-status {
+            float: right;
+            font-weight: bold;
+            color: #2ecc71;
+            display: none; 
+            margin-top: 10px;
+        }
+        .check-status.visible { display: block; }
+        /* ▲▲▲ [추가 끝] ▲▲▲ */
+
         @keyframes fadeIn {
             to {
                 opacity: 1;
@@ -324,6 +365,7 @@
             const analysis = item.ai_analysis_json || {};
             let scoreValue, questionText, feedbackText;
             let cardBodyExtraHtml = '', criteriaHtml = '', studentFeedbackHtml = '';
+            let teacherActionHtml = ''; // ★ 추가
 
             // --- 퀴즈 타입에 따라 점수 추출 ---
             if (quizType === 'translation') {
@@ -372,6 +414,16 @@
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
                 const studentFeedbackKorean = item.feedback_korean || '(번역 없음)';
                 studentFeedbackHtml = `<div class="student-feedback-section"><strong>학생에게 보낸 피드백:</strong><p>${studentFeedbackItalian}</p><strong style="margin-top: 1rem;">학생에게 보낸 피드백 (번역):</strong><p>${studentFeedbackKorean}</p></div>`;
+                // ▼▼▼ [추가] 이해력 피드백 입력창 생성
+                const savedFeedback = item.teacher_feedback || '';
+                const checkStatus = item.is_checked ? 'visible' : '';
+                teacherActionHtml = `
+                    <div class="teacher-action-box">
+                        <textarea id="fb-${item.id}" class="teacher-input" placeholder="학생에게 보낼 피드백을 입력하세요...">${savedFeedback}</textarea>
+                        <button class="check-btn" onclick="saveFeedback(${item.id}, 'comprehension')">확인 및 피드백 저장</button>
+                        <span id="status-${item.id}" class="check-status ${checkStatus}">✅ 확인됨 (Controllato)</span>
+                    </div>
+                `;
             } else if (quizType === 'speaking') {
                 questionText = item.situation_description || '(상황 없음)';
                 feedbackText = analysis.evaluation || '(평가 없음)';
@@ -400,6 +452,19 @@
                 cardBodyExtraHtml = `<p><strong>AI 인식 텍스트:</strong> <span class="korean-translation">${recognizedText}</span></p><p><strong>어휘 사용 현황:</strong></p>${vocabUsageHtml}<p><strong>🔊 음성 파일:</strong></p><audio controls class="audio-playback"><source src="${item.audio_file_url}" type="audio/mp4">브라우저가 오디오 재생을 지원하지 않습니다.</audio>`;
                 const studentFeedbackItalian = analysis.feedback || '(피드백 없음)';
                 studentFeedbackHtml = `<div class="student-feedback-section"><strong>학생에게 보낸 피드백:</strong><p>${studentFeedbackItalian}</p></div>`;
+                // ▼▼▼ [추가] 말하기 피드백 입력창 생성
+                const savedFeedback = item.teacher_feedback || '';
+                const checkStatus = item.is_checked ? 'visible' : '';
+                teacherActionHtml = `
+                    <div class="teacher-action-box">
+                        <textarea id="fb-${item.id}" class="teacher-input" placeholder="학생에게 보낼 피드백을 입력하세요...">${savedFeedback}</textarea>
+                        <button class="check-btn" onclick="saveFeedback(${item.id}, 'speaking')">확인 및 피드백 저장</button>
+                        <span id="status-${item.id}" class="check-status ${checkStatus}">✅ 확인됨 (Controllato)</span>
+                    </div>
+                `;
+
+
+
             }
             
             const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
@@ -430,9 +495,58 @@
                     <strong>AI 평가 (교수용):</strong>
                     <p>${feedbackText}</p>
                 </div>
+
+                <div class="feedback-section">
+                    <strong>🤖 AI Feedback:</strong>
+                    <p>${feedbackText}</p>
+                </div>
+                ${teacherActionHtml}
             `;
+
+
+
+
+
             return card;
         }
+
+
+        // ▼▼▼ [추가] 피드백 저장 통신 함수
+        async function saveFeedback(id, type) {
+            const feedbackText = document.getElementById(`fb-${id}`).value;
+            const btn = document.querySelector(`#fb-${id} + button`);
+            const statusSpan = document.getElementById(`status-${id}`);
+
+            btn.textContent = '저장 중...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/save-teacher-feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ submission_id: id, quiz_type: type, feedback: feedbackText })
+                });
+                
+                const result = await res.json();
+
+                if (result.success) {
+                    statusSpan.classList.add('visible');
+                    btn.textContent = '저장 완료!';
+                    setTimeout(() => {
+                        btn.textContent = '확인 및 피드백 저장'; 
+                        btn.disabled = false;
+                    }, 1000);
+                } else {
+                    alert('저장 실패: ' + (result.error || 'Unknown error'));
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                console.error(e);
+                alert('서버 통신 오류');
+                btn.disabled = false;
+            }
+        }
+        // ▲▲▲ [추가 끝]
 
         function startAutoRefresh() {
             if (autoRefreshInterval) clearInterval(autoRefreshInterval); // 만약을 위해 기존 인터벌 정리

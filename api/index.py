@@ -13,6 +13,7 @@ from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 import psycopg2
 import psycopg2.extras
+from werkzeug.security import generate_password_hash, check_password_hash
 import google.generativeai as genai
 import requests
 import hashlib
@@ -57,106 +58,13 @@ def get_db_connection():
         print(f"🚨 데이터베이스 연결 오류: {e}")
         return None
 
-def init_db():
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS translation_exercises (
-                        id SERIAL PRIMARY KEY,
-                        korean_sentence TEXT NOT NULL,
-                        class_name VARCHAR(50),
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS translation_submissions (
-                        id SERIAL PRIMARY KEY,
-                        exercise_id INTEGER REFERENCES translation_exercises(id) ON DELETE SET NULL,
-                        student_id VARCHAR(255) NOT NULL,
-                        student_answer TEXT,
-                        score NUMERIC(3, 1),
-                        ai_analysis_json JSONB,
-                        class_name VARCHAR(50),
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS comprehension_exercises (
-                        id SERIAL PRIMARY KEY,
-                        korean_dialogue TEXT NOT NULL,
-                        audio_file_path VARCHAR(255),
-                        key_points JSONB,
-                        class_name VARCHAR(50),
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS comprehension_submissions (
-                        id SERIAL PRIMARY KEY,
-                        comprehension_exercise_id INTEGER REFERENCES comprehension_exercises(id) ON DELETE SET NULL,
-                        student_id VARCHAR(255) NOT NULL,
-                        class_name VARCHAR(50),
-                        student_answer TEXT,
-                        ai_analysis_json JSONB,
-                        feedback_korean TEXT,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                
-                cur.execute("""
-                    ALTER TABLE comprehension_submissions 
-                    ADD COLUMN IF NOT EXISTS feedback_korean TEXT;
-                """)
-                
-                # 1. 말하기 문제 테이블 (Speaking Exercises)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS speaking_exercises (
-                        id SERIAL PRIMARY KEY,
-                        class_name VARCHAR(50) NOT NULL,
-                        situation_description TEXT NOT NULL,
-                        required_expression TEXT NOT NULL,
-                        expected_korean_answer TEXT NOT NULL,
-                        target_vocabulary JSONB NOT NULL,
-                        teacher_criterion TEXT,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-
-                # 2. 말하기 제출 테이블 (Speaking Submissions)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS speaking_submissions (
-                        id SERIAL PRIMARY KEY,
-                        exercise_id INTEGER REFERENCES speaking_exercises(id) ON DELETE SET NULL,
-                        class_name VARCHAR(50) NOT NULL,
-                        student_id VARCHAR(100) NOT NULL,
-                        audio_file_url TEXT NOT NULL,
-                        recognized_korean_text TEXT,
-                        ai_analysis_json JSONB,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE(student_id, exercise_id)
-                    );
-                """)
-
-                print("✅ 말하기 테이블(speaking_exercises, speaking_submissions)이 생성되었습니다.")
-
-                cur.execute("""
-                    ALTER TABLE translation_exercises 
-                    ADD COLUMN IF NOT EXISTS dialogue_context TEXT;
-                """)
-                
-                print("✅ 번역 테이블(translation_exercises)에 dialogue_context 컬럼이 확인/추가되었습니다.")
-
-                conn.commit()
-                print("✅ 데이터베이스 테이블이 최종 블루프린트에 맞게 성공적으로 확인/생성되었습니다.")
-        except Exception as e:
-            print(f"🚨 테이블 구조 설정 중 심각한 오류 발생: {e}")
-            conn.rollback()
-        finally:
-            conn.close()
-init_db()
+def login_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return wrapper
 
 def get_rating_details(score):
     """프로젝트 전체에서 사용하는 표준화된 점수 평가 함수"""
@@ -843,7 +751,7 @@ SPEAKING_EVALUATION_PROMPT = """
 @app.route('/api/submit-answer', methods=['POST'])
 def submit_answer():
     data = request.get_json(silent=True) or {}
-    student_id = data.get('student_id')
+    student_id = session.get('username')
     student_answer = data.get('student_answer')
     exercise_id = data.get('exercise_id')
     class_name = data.get('class_name')
@@ -1018,7 +926,7 @@ def submit_speaking_answer():
     print("🎤 말하기 퀴즈 제출 요청 수신! (v2.1 - 견고한 에러 처리)")
     print("=" * 50)
 
-    student_id = request.form.get('student_id')
+    student_id = session.get('username')
     exercise_id = request.form.get('exercise_id')
     class_name = request.form.get('class_name')
     quiz_type = request.form.get('quiz_type')
@@ -1199,20 +1107,237 @@ def teacher_required(f):
     return wrapper
 
 @app.route('/')
-def login(): return render_template('login.html')
+def root():
+    if 'user_id' in session:
+        return redirect(url_for('student_dashboard'))
+    return redirect(url_for('login'))
 
-@app.route('/quiz')
-def quiz_page():
-    class_name = request.args.get('class_name')
-    quiz_type = request.args.get('quiz_type')
-    
-    if not class_name or not quiz_type:
-        return redirect(url_for('login'))
+@app.route('/login')
+def login():
+    if 'user_id' in session:
+        return redirect(url_for('student_dashboard'))
+    return render_template('login.html')
+
+@app.route('/signup')
+def signup():
+    return render_template('signup.html')
+
+# [추가] 회원가입 API
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.get_json()
+    username = data.get('username', '').lower().strip() # 소문자 강제
+    password = data.get('password')
+    full_name = data.get('full_name')
+    student_number = data.get('student_number')
+    school_email = data.get('school_email')
+
+    if not all([username, password, full_name]):
+        return jsonify({"error": "필수 정보(ID, 비번, 이름)를 입력해주세요."}), 400
 
     conn = get_db_connection()
-    if not conn:
-        return "데이터베이스 연결에 실패했습니다.", 500
-        
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+
+    try:
+        with conn.cursor() as cur:
+            # 중복 ID 체크
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if cur.fetchone():
+                return jsonify({"error": "이미 존재하는 아이디입니다."}), 409
+
+            # 비밀번호 해싱 및 저장
+            pw_hash = generate_password_hash(password)
+            cur.execute("""
+                INSERT INTO users (username, password_hash, full_name, student_number, school_email, created_at)
+                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            """, (username, pw_hash, full_name, student_number, school_email))
+            conn.commit()
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        print(f"회원가입 오류: {e}")
+        return jsonify({"error": "회원가입 처리 중 오류가 발생했습니다."}), 500
+    finally:
+        conn.close()
+
+# [추가] 로그인 API
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json()
+    username = data.get('username', '').lower().strip()
+    password = data.get('password')
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+            user = cur.fetchone()
+
+            if user and check_password_hash(user['password_hash'], password):
+                # 세션 설정 (로그인 유지)
+                session.permanent = True
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['full_name'] = user['full_name']
+                
+                # 마지막 로그인 시간 갱신
+                cur.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = %s", (user['id'],))
+                conn.commit()
+                
+                return jsonify({"success": True})
+            else:
+                return jsonify({"error": "아이디 또는 비밀번호가 일치하지 않습니다."}), 401
+    finally:
+        conn.close()
+
+# [추가] 로그아웃
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.route('/api/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    data = request.get_json()
+    full_name = data.get('full_name')
+    student_number = data.get('student_number')
+    school_email = data.get('school_email')
+    new_password = data.get('password')
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            if new_password:
+                pw_hash = generate_password_hash(new_password)
+                cur.execute("""
+                    UPDATE users SET full_name=%s, student_number=%s, school_email=%s, password_hash=%s
+                    WHERE id=%s
+                """, (full_name, student_number, school_email, pw_hash, session['user_id']))
+            else:
+                cur.execute("""
+                    UPDATE users SET full_name=%s, student_number=%s, school_email=%s
+                    WHERE id=%s
+                """, (full_name, student_number, school_email, session['user_id']))
+            conn.commit()
+            session['full_name'] = full_name
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/student-dashboard')
+@login_required
+def student_dashboard():
+    return render_template('student_dashboard.html', student_name=session.get('full_name'))
+
+@app.route('/api/student-dashboard-data')
+@login_required
+def get_student_dashboard_data():
+    username = session['username']
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB Error"}), 500
+
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # 1. 내 정보
+            cur.execute("SELECT full_name, student_number, school_email FROM users WHERE id = %s", (session['user_id'],))
+            user_info = cur.fetchone()
+
+            # 2. 전체 평균 점수 (반 구분 없이 모든 기록)
+            cur.execute("""
+                SELECT AVG(score) as avg_score 
+                FROM (
+                    SELECT score FROM translation_submissions WHERE student_id = %s
+                    UNION ALL
+                    SELECT (ai_analysis_json->>'score')::float FROM comprehension_submissions WHERE student_id = %s
+                    UNION ALL
+                    SELECT (ai_analysis_json->>'score')::float FROM speaking_submissions WHERE student_id = %s
+                ) all_scores
+            """, (username, username, username))
+            avg_result = cur.fetchone()
+            total_avg = round(avg_result['avg_score'], 1) if avg_result['avg_score'] else 0.0
+
+            # 3. 말하기 기록 (최신순) - Title 포함
+            cur.execute("""
+                SELECT s.*, e.title, e.situation_description, e.required_expression, e.expected_korean_answer 
+                FROM speaking_submissions s
+                JOIN speaking_exercises e ON s.exercise_id = e.id
+                WHERE s.student_id = %s
+                ORDER BY s.created_at DESC
+            """, (username,))
+            speaking_logs = [dict(row) for row in cur.fetchall()]
+
+            # 4. 이해력 기록 (최신순) - Title, Audio 포함
+            cur.execute("""
+                SELECT s.*, e.title, e.korean_dialogue, e.audio_file_path 
+                FROM comprehension_submissions s
+                JOIN comprehension_exercises e ON s.comprehension_exercise_id = e.id
+                WHERE s.student_id = %s
+                ORDER BY s.created_at DESC
+            """, (username,))
+            comprehension_logs = [dict(row) for row in cur.fetchall()]
+            
+            # 데이터 가공 (날짜 포맷 등)
+            def process_log(log):
+                log['created_at'] = log['created_at'].strftime('%Y-%m-%d %H:%M')
+                if isinstance(log.get('ai_analysis_json'), str):
+                    try: log['ai_analysis_json'] = json.loads(log['ai_analysis_json'])
+                    except: pass
+                
+                score = 0.0
+                if log.get('score') is not None: score = float(log['score'])
+                elif log.get('ai_analysis_json') and 'score' in log['ai_analysis_json']:
+                    score = float(log['ai_analysis_json']['score'])
+                
+                log['rating_color'] = get_rating_details(score)['color']
+                return log
+
+            return jsonify({
+                "user_info": dict(user_info),
+                "total_avg": total_avg,
+                "speaking_logs": [process_log(l) for l in speaking_logs],
+                "comprehension_logs": [process_log(l) for l in comprehension_logs]
+            })
+
+    finally:
+        conn.close()
+
+@app.route('/api/start-quiz', methods=['POST'])
+@login_required
+def start_quiz():
+    """대시보드에서 선택한 반/유형을 세션에 저장"""
+    data = request.get_json()
+    class_name = data.get('class_name')
+    quiz_type = data.get('quiz_type')
+
+    if not class_name or not quiz_type:
+        return jsonify({"error": "반과 유형을 선택해주세요."}), 400
+
+    session['current_class_name'] = class_name
+    session['current_quiz_type'] = quiz_type
+    return jsonify({"success": True})
+
+@app.route('/quiz')
+@login_required
+def quiz_page():
+    # 세션에서 정보 가져오기
+    class_name = session.get('current_class_name')
+    quiz_type = session.get('current_quiz_type')
+    
+    # URL 파라미터 호환성 (기존 방식 지원)
+    if request.args.get('class_name'): class_name = request.args.get('class_name')
+    if request.args.get('quiz_type'): quiz_type = request.args.get('quiz_type')
+
+    if not class_name or not quiz_type:
+        return redirect(url_for('student_dashboard'))
+
+    conn = get_db_connection()
+    if not conn: return "DB Error", 500
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
             if quiz_type == 'translation':
@@ -1220,24 +1345,14 @@ def quiz_page():
             elif quiz_type == 'comprehension':
                 cur.execute("SELECT id, korean_dialogue AS question_text, audio_file_path FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             elif quiz_type == 'speaking':
-                cur.execute("""
-                    SELECT id, situation_description, required_expression, expected_korean_answer 
-                    FROM speaking_exercises 
-                    WHERE class_name = %s 
-                    ORDER BY id
-                """, (class_name,))
+                cur.execute("SELECT id, situation_description, required_expression, expected_korean_answer FROM speaking_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             else:
-                return "잘못된 퀴즈 유형입니다.", 400            
-
+                return "잘못된 퀴즈 유형입니다.", 400
+            
             exercises = cur.fetchall()
-        
-        return render_template('index.html', exercises=exercises, class_name=class_name, quiz_type=quiz_type)
-    except Exception as e:
-        print(f"🚨 /quiz 페이지 로딩 오류: {e}")
-        return "퀴즈를 불러오는 중 오류가 발생했습니다.", 500
+            return render_template('index.html', exercises=exercises, class_name=class_name, quiz_type=quiz_type)
     finally:
-        if conn:
-            conn.close()
+        conn.close()
 
 @app.route('/teacher-login', methods=['GET', 'POST'])
 def teacher_login():
@@ -1256,6 +1371,32 @@ def teacher_logout():
 @app.route('/dashboard')
 @teacher_required
 def dashboard(): return render_template('dashboard.html')
+
+@app.route('/api/save-teacher-feedback', methods=['POST'])
+@teacher_required
+def save_teacher_feedback():
+    data = request.get_json()
+    submission_id = data.get('submission_id')
+    quiz_type = data.get('quiz_type')
+    feedback = data.get('feedback', '')
+
+    if not submission_id or not quiz_type: return jsonify({"error": "잘못된 요청"}), 400
+    
+    table = 'speaking_submissions' if quiz_type == 'speaking' else 'comprehension_submissions'
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 피드백 저장 및 확인 도장(is_checked) 찍기
+            query = f"UPDATE {table} SET teacher_feedback = %s, is_checked = TRUE, checked_at = CURRENT_TIMESTAMP WHERE id = %s"
+            cur.execute(query, (feedback, submission_id))
+            conn.commit()
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/get-submissions')
 @teacher_required

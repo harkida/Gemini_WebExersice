@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Aula di Coreano</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* --- 기본 스타일 (Dark Mode) --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #1e2124;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* 상단 네비게이션 */
+        nav {
+            background-color: #282c34;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #202225;
+        }
+        .nav-title { font-size: 1.2rem; font-weight: bold; color: #fff; }
+        .nav-user { font-size: 0.95rem; color: #b9bbbe; }
+        .logout-btn {
+            background-color: #f04747;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 0.85rem;
+        }
+
+        /* 메인 컨테이너 */
+        .container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
+
+        /* 탭 네비게이션 */
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #40444b; }
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.active {
+            color: #7289da;
+            border-bottom: 3px solid #7289da;
+            margin-bottom: -2px;
+        }
+
+        /* 탭 콘텐츠 영역 */
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- Tab 1: Overview 스타일 --- */
+        .stat-card {
+            background-color: #2c2f33;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 1px solid #23272a;
+        }
+        .score-display { font-size: 3.5rem; font-weight: bold; color: #2ecc71; margin: 10px 0; }
+        .action-btn {
+            background-color: #7289da;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        /* --- Tab 2: 학습 시작 스타일 --- */
+        .start-box {
+            background-color: #2c2f33;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background-color: #202225;
+            border: 1px solid #40444b;
+            color: white;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        .start-quiz-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: #27ae60;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* --- Tab 3: 기록 카드 스타일 (우리가 디자인한 것) --- */
+        .record-card {
+            background-color: #2c2f33;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #23272a;
+            position: relative;
+        }
+        
+        /* 뱃지 스타일 */
+        .status-badge {
+            position: absolute; top: 20px; right: 20px;
+            padding: 5px 12px; border-radius: 20px;
+            font-size: 0.85rem; font-weight: bold;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .status-badge.pending { background-color: rgba(230, 126, 34, 0.15); color: #e67e22; border: 1px solid #e67e22; }
+        .status-badge.checked { background-color: rgba(39, 174, 96, 0.15); color: #2ecc71; border: 1px solid #2ecc71; }
+
+        .header-row { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        .score-circle {
+            width: 50px; height: 50px; border-radius: 50%;
+            background-color: #23272a; border: 3px solid #f1c40f;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem; font-weight: bold; color: #fff;
+        }
+        .quiz-title { font-weight: bold; font-size: 1.1rem; color: white; margin-bottom: 4px; }
+        .date-info { color: #99aab5; font-size: 0.9rem; }
+
+        .content-box {
+            background-color: #202225;
+            padding: 15px; border-radius: 8px;
+            margin-bottom: 15px; color: #e0e0e0;
+        }
+        .content-label { color: #7289da; font-size: 0.85rem; margin-bottom: 8px; font-weight: bold; }
+        
+        /* 피드백 박스 */
+        .teacher-feedback-box {
+            background-color: #2f3136;
+            border-left: 4px solid #2ecc71;
+            padding: 15px; border-radius: 4px; margin-top: 15px;
+        }
+        .teacher-label { color: #2ecc71; font-weight: bold; margin-bottom: 5px; }
+        
+        /* 모달 (정보 수정) */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); }
+        .modal-content { background:#2c2f33; width:90%; max-width:400px; margin: 10% auto; padding: 20px; border-radius:10px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-title">Aula di Coreano</div>
+    <div class="nav-user">
+        Ciao, <span id="user-name-display">{{ student_name }}</span>!
+        <button class="logout-btn" onclick="location.href='/logout'">Esci</button>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('overview')">Overview</button>
+        <button class="tab-btn" onclick="openTab('study')">Inizia Quiz</button>
+        <button class="tab-btn" onclick="openTab('history')">Cronologia</button>
+    </div>
+
+    <div id="overview" class="tab-content active">
+        <div class="stat-card">
+            <h3>Media Totale (총 평균 점수)</h3>
+            <div class="score-display" id="total-avg">--</div>
+            <p style="color: #b9bbbe;">Tutti i quiz (번역, 이해력, 말하기)</p>
+            
+            <div style="margin-top: 30px; border-top: 1px solid #40444b; padding-top: 20px;">
+                <button class="action-btn" onclick="openModal()">✏️ Modifica Profilo (내 정보 수정)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="study" class="tab-content">
+        <div class="start-box">
+            <h2 style="color:white; margin-bottom: 20px;">Seleziona la Lezione</h2>
+            
+            <select id="class-select">
+                <option value="" disabled selected>Scegli la tua classe (반 선택)</option>
+                <option value="siena-beginner">초급반 (Principianti)</option>
+                <option value="siena-3">3학년 (Triennale 3)</option>
+                <option value="siena-master-1">석사 1학년 (Magistrale 1)</option>
+                <option value="siena-master-2">석사 2학년 (Magistrale 2)</option>
+            </select>
+
+            <select id="type-select">
+                <option value="" disabled selected>Tipo di Quiz (유형 선택)</option>
+                <option value="translation">Traduzione (번역)</option>
+                <option value="comprehension">Comprensione (이해력)</option>
+                <option value="speaking">Parlato (말하기)</option>
+            </select>
+
+            <button class="start-quiz-btn" onclick="startQuiz()">🚀 Inizia (시작하기)</button>
+        </div>
+    </div>
+
+    <div id="history" class="tab-content">
+        <h3 style="color: #b9bbbe; border-bottom: 1px solid #40444b; padding-bottom: 10px;">Recenti (최신순)</h3>
+        <div id="history-list">
+            <p style="text-align: center; color: #777; margin-top: 50px;">Caricamento...</p>
+        </div>
+    </div>
+</div>
+
+<div id="edit-modal" class="modal">
+    <div class="modal-content">
+        <h3 style="color: white;">Modifica Profilo</h3>
+        <input type="text" id="edit-fullname" placeholder="Nome Completo" style="width:100%; padding:10px; margin-bottom:10px;">
+        <input type="text" id="edit-student-num" placeholder="Matricola" style="width:100%; padding:10px; margin-bottom:10px;">
+        <input type="email" id="edit-email" placeholder="Email" style="width:100%; padding:10px; margin-bottom:10px;">
+        <input type="password" id="edit-password" placeholder="Nuova Password (비워두면 변경 안함)" style="width:100%; padding:10px; margin-bottom:20px;">
+        
+        <button class="action-btn" style="width:100%;" onclick="submitProfileUpdate()">Salva (저장)</button>
+        <button class="action-btn" style="width:100%; background-color:#555; margin-top:10px;" onclick="closeModal()">Annulla (취소)</button>
+    </div>
+</div>
+
+<script>
+    // 탭 전환 함수
+    function openTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        
+        // 탭 버튼 활성화 스타일 찾기 (간략화)
+        const btns = document.querySelectorAll('.tab-btn');
+        if(tabName === 'overview') btns[0].classList.add('active');
+        if(tabName === 'study') btns[1].classList.add('active');
+        if(tabName === 'history') btns[2].classList.add('active');
+    }
+
+    // 초기 데이터 로드
+    document.addEventListener('DOMContentLoaded', loadDashboardData);
+
+    let currentUserInfo = {}; // 수정용
+
+    async function loadDashboardData() {
+        try {
+            const res = await fetch('/api/student-dashboard-data');
+            const data = await res.json();
+
+            if (data.error) { alert('Errore: ' + data.error); return; }
+
+            // 1. Overview
+            document.getElementById('total-avg').textContent = data.total_avg;
+            currentUserInfo = data.user_info; // 저장해둠
+
+            // 2. History (말하기 + 이해력 합쳐서 최신순 정렬 필요하면 여기서 처리)
+            // 현재는 백엔드에서 각각 최신순으로 옴. 단순하게 합쳐서 보여줌.
+            const historyContainer = document.getElementById('history-list');
+            historyContainer.innerHTML = '';
+
+            // 말하기 카드 생성
+            data.speaking_logs.forEach(log => {
+                const card = createSpeakingCard(log);
+                historyContainer.appendChild(card);
+            });
+
+            // 이해력 카드 생성
+            data.comprehension_logs.forEach(log => {
+                const card = createComprehensionCard(log);
+                historyContainer.appendChild(card);
+            });
+
+            if (data.speaking_logs.length === 0 && data.comprehension_logs.length === 0) {
+                historyContainer.innerHTML = '<p style="text-align:center; color:#777;">Nessuna attività recente.</p>';
+            }
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // 🎤 말하기 카드 생성 함수
+    function createSpeakingCard(log) {
+        const div = document.createElement('div');
+        div.className = 'record-card';
+        
+        const badgeClass = log.is_checked ? 'checked' : 'pending';
+        const badgeText = log.is_checked ? '✅ Controllato' : '⏳ In attesa';
+        const title = log.title || 'Situazione (No Title)';
+        const profFeedback = log.teacher_feedback ? 
+            `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Prof's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
+
+        div.innerHTML = `
+            <div class="status-badge ${badgeClass}"><span>${badgeText}</span></div>
+            <div class="header-row">
+                <div class="score-circle" style="border-color: ${log.rating_color};">${log.ai_analysis_json.score}</div>
+                <div>
+                    <div class="quiz-title">${title}</div>
+                    <div class="date-info">${log.created_at}</div>
+                </div>
+            </div>
+            <div class="content-box" style="border-left: 3px solid #7289da;">
+                <div class="content-label">📖 Situazione & Cosa dire</div>
+                <p style="font-size:0.9rem; color:#ccc;">${log.situation_description}</p>
+                <p style="font-weight:bold; margin-top:5px;">"${log.required_expression}"</p>
+            </div>
+            <div class="content-box">
+                <div class="content-label">LA TUA RISPOSTA (Audio)</div>
+                <audio controls src="${log.audio_file_url}" style="width:100%; margin-bottom:5px;"></audio>
+                <div style="font-size:0.85rem; color:#999;">인식: ${log.recognized_korean_text}</div>
+            </div>
+            <div class="content-box" style="border-left: 3px solid #3498db;">
+                <div class="content-label" style="color: #3498db;">RISPOSTA CORRETTA</div>
+                <p style="font-weight:bold;">${log.expected_korean_answer}</p>
+            </div>
+            <div style="margin-top:10px; color:#b9bbbe; font-size:0.9rem;">
+                <strong>🤖 AI Feedback:</strong> ${log.ai_analysis_json.feedback}
+            </div>
+            ${profFeedback}
+        `;
+        return div;
+    }
+
+    // 🧠 이해력 카드 생성 함수
+    function createComprehensionCard(log) {
+        const div = document.createElement('div');
+        div.className = 'record-card';
+        
+        const badgeClass = log.is_checked ? 'checked' : 'pending';
+        const badgeText = log.is_checked ? '✅ Controllato' : '⏳ In attesa';
+        const title = log.title || 'Dialogo (No Title)';
+        const profFeedback = log.teacher_feedback ? 
+            `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Prof's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
+
+        div.innerHTML = `
+            <div class="status-badge ${badgeClass}"><span>${badgeText}</span></div>
+            <div class="header-row">
+                <div class="score-circle" style="border-color: ${log.rating_color};">${log.ai_analysis_json.score}</div>
+                <div>
+                    <div class="quiz-title">${title}</div>
+                    <div class="date-info">${log.created_at}</div>
+                </div>
+            </div>
+            <div class="content-box">
+                <div class="content-label">🔊 DIALOGO ORIGINALE</div>
+                <audio controls src="${log.audio_file_path}" style="width:100%; margin-bottom:10px;"></audio>
+                <div style="white-space: pre-line; color: #b9bbbe; max-height: 100px; overflow-y: auto; font-size:0.9rem;">${log.korean_dialogue}</div>
+            </div>
+            <div class="content-box">
+                <div class="content-label">IL TUO RIASSUNTO</div>
+                <p>${log.student_answer}</p>
+            </div>
+            <div style="margin-top:10px; color:#b9bbbe; font-size:0.9rem;">
+                <strong>🤖 AI Feedback:</strong> ${log.ai_analysis_json.feedback}
+            </div>
+            ${profFeedback}
+        `;
+        return div;
+    }
+
+    // 퀴즈 시작 (Tab 2)
+    async function startQuiz() {
+        const className = document.getElementById('class-select').value;
+        const quizType = document.getElementById('type-select').value;
+
+        if (!className || !quizType) {
+            alert('Seleziona sia la classe che il tipo di quiz!');
+            return;
+        }
+
+        const res = await fetch('/api/start-quiz', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ class_name: className, quiz_type: quizType })
+        });
+        
+        if (res.ok) {
+            window.location.href = '/quiz'; // 문제 풀이 화면으로 이동
+        }
+    }
+
+    // 정보 수정 모달 관련
+    function openModal() {
+        document.getElementById('edit-fullname').value = currentUserInfo.full_name || '';
+        document.getElementById('edit-student-num').value = currentUserInfo.student_number || '';
+        document.getElementById('edit-email').value = currentUserInfo.school_email || '';
+        document.getElementById('edit-password').value = '';
+        document.getElementById('edit-modal').style.display = 'block';
+    }
+    function closeModal() { document.getElementById('edit-modal').style.display = 'none'; }
+    
+    async function submitProfileUpdate() {
+        const newData = {
+            full_name: document.getElementById('edit-fullname').value,
+            student_number: document.getElementById('edit-student-num').value,
+            school_email: document.getElementById('edit-email').value,
+            password: document.getElementById('edit-password').value
+        };
+        
+        const res = await fetch('/api/update-profile', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(newData)
+        });
+        
+        if (res.ok) {
+            alert('Profilo aggiornato!');
+            location.reload();
+        } else {
+            alert('Errore durante l\'aggiornamento.');
+        }
+    }
+</script>
+
+</body>
+</html>

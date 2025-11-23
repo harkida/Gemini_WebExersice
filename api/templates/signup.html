@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aula di Coreano - Registrazione</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #1e2124;
+            color: #e0e0e0;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #282c34;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h1 { color: #ffffff; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 5px; color: #b9bbbe; font-size: 0.9rem; }
+        input {
+            width: 100%;
+            padding: 12px;
+            background-color: #36393f;
+            border: 1px solid #202225;
+            border-radius: 5px;
+            color: #e0e0e0;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        input:focus { outline: none; border-color: #7289da; }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #7289da;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        .btn:hover { background-color: #5b6eae; }
+        .footer-link { margin-top: 20px; font-size: 0.9rem; color: #a0a0a0; }
+        .footer-link a { color: #7289da; text-decoration: none; }
+        .footer-link a:hover { text-decoration: underline; }
+        .error-msg { color: #f04747; font-size: 0.85rem; margin-top: 5px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Registrazione (회원가입)</h1>
+        <form id="signup-form">
+            <div class="form-group">
+                <label>ID Utente (아이디 - 영문 소문자)</label>
+                <input type="text" id="username" required placeholder="es. mario" oninput="this.value = this.value.toLowerCase()">
+            </div>
+            <div class="form-group">
+                <label>Password (비밀번호)</label>
+                <input type="password" id="password" required placeholder="Password segreta">
+            </div>
+            <div class="form-group">
+                <label>Conferma Password (비밀번호 확인)</label>
+                <input type="password" id="confirm-password" required placeholder="Ripeti password">
+                <div class="error-msg" id="pwd-error">Le password non corrispondono.</div>
+            </div>
+            <div class="form-group">
+                <label>Nome Completo (이름 - 교수님 확인용)</label>
+                <input type="text" id="full_name" required placeholder="es. Mario Rossi">
+            </div>
+            <div class="form-group">
+                <label>Numero di Matricola (학번)</label>
+                <input type="text" id="student_number" placeholder="Optional">
+            </div>
+            <div class="form-group">
+                <label>Email Istituzionale (학교 이메일)</label>
+                <input type="email" id="school_email" placeholder="mario@student.unisi.it">
+            </div>
+
+            <button type="submit" class="btn">Registrati</button>
+        </form>
+        <div class="footer-link">
+            Hai già un account? <a href="/login">Accedi (로그인)</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('signup-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const fullName = document.getElementById('full_name').value;
+            const studentNumber = document.getElementById('student_number').value;
+            const schoolEmail = document.getElementById('school_email').value;
+
+            // 비밀번호 일치 확인
+            if (password !== confirmPassword) {
+                document.getElementById('pwd-error').style.display = 'block';
+                alert('Le password non corrispondono! (비밀번호가 일치하지 않습니다.)');
+                return;
+            } else {
+                document.getElementById('pwd-error').style.display = 'none';
+            }
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        full_name: fullName,
+                        student_number: studentNumber,
+                        school_email: schoolEmail
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('Registrazione completata! Per favore accedi. (가입 완료!)');
+                    window.location.href = '/login';
+                } else {
+                    alert('Errore: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Errore di connessione.');
+            }
+        });
+    </script>
+</body>
+</html>

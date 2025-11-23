@@ -135,6 +135,24 @@
             border-top: 1px solid #4f545c;
             margin: 15px 0;
         }
+
+        /* [추가] 대시보드 복귀 버튼 스타일 */
+        .return-btn {
+            background-color: #4f545c;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .return-btn:hover {
+            background-color: #7289da;
+        }
     </style>
 </head>
 <body data-quiz-type="{{ quiz_type }}">
@@ -407,6 +425,8 @@
                 <h3>Il tuo punteggio: ${parseFloat(result.score).toFixed(1)} / 10.0</h3>
                 ${feedbackHtml}
                 ${originalTextHtml}
+
+                <button class="return-btn" onclick="location.href='/student-dashboard'">🏠 Torna alla Dashboard</button>
             `;
           } else {
             // ★★★ 수정된 에러 처리 로직 ★★★
