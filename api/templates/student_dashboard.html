@@ -151,13 +151,13 @@
         /* 뱃지 스타일 */
         .status-badge {
             position: static; 
-            padding: 5px 12px; 
+            padding: 3px 12px; 
             border-radius: 20px;
-            font-size: 0.85rem; 
+            font-size: 0.7rem; 
             font-weight: bold;
             display: inline-flex; 
             align-items: center; 
-            gap: 5px;
+            gap: 3px;
             white-space: nowrap;
         }
         .status-badge.pending { background-color: rgba(230, 126, 34, 0.15); color: #e67e22; border: 1px solid #e67e22; }
@@ -427,7 +427,7 @@
         div.className = 'record-card';
         
         const badgeClass = log.is_checked ? 'checked' : 'pending';
-        const badgeText = log.is_checked ? '✅ Controllato' : '⏳ In attesa';
+        const badgeText = log.is_checked ? '✅ Visto' : '⏳ Attesa';
         const titleText = log.title || '(No Title)';
         const profFeedback = log.teacher_feedback ? 
             `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Prof's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
@@ -482,7 +482,7 @@
         div.className = 'record-card';
         
         const badgeClass = log.is_checked ? 'checked' : 'pending';
-        const badgeText = log.is_checked ? '✅ Controllato' : '⏳ In attesa';
+        const badgeText = log.is_checked ? '✅ Visto' : '⏳ Attesa';
         const titleText = log.title || '(No Title)';
         const profFeedback = log.teacher_feedback ? 
             `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Prof's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
