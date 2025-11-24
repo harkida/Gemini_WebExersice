@@ -224,13 +224,12 @@
   </div>
 
   <script>
-    const studentId = localStorage.getItem('studentId');
     const className = "{{ class_name }}";
     const quizType = "{{ quiz_type }}";
 
-    if (!studentId || !className || !quizType) {
-        alert('Informazioni sullo studente o tipo di quiz mancanti. Si prega di tornare alla pagina di login.');
-        window.location.href = '/';
+    if (!className || !quizType || className === 'None' || quizType === 'None') {
+        alert('Errore: Informazioni sulla lezione mancanti. Torna alla Dashboard.');
+        window.location.href = '/student-dashboard';
     }
 
     if (quizType === 'speaking') {
