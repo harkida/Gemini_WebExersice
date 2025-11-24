@@ -51,6 +51,32 @@
             margin-top: 20px;
             transition: background-color 0.3s;
         }
+
+        /* [추가] 아이디 중복 확인용 레이아웃 */
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .input-group input {
+            flex: 1; /* 입력창이 남은 공간 차지 */
+        }
+        .check-btn {
+            padding: 12px 15px;
+            background-color: #40444b;
+            border: 1px solid #202225;
+            color: #e0e0e0;
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+        .check-btn:hover { background-color: #555; }
+        
+        /* 확인 메시지 스타일 */
+        .status-msg { font-size: 0.85rem; margin-top: 5px; display: none; }
+        .status-msg.success { color: #2ecc71; }
+        .status-msg.error { color: #f04747; }
+
         .btn:hover { background-color: #5b6eae; }
         .footer-link { margin-top: 20px; font-size: 0.9rem; color: #a0a0a0; }
         .footer-link a { color: #7289da; text-decoration: none; }
@@ -65,6 +91,9 @@
             <div class="form-group">
                 <label>ID Utente (아이디)</label>
                 <input type="text" id="username" required placeholder="Attenzione: L'ID non potrà essere modificato">
+                <button type="button" class="check-btn" onclick="checkUsername()">Verifica (중복확인)</button>
+                </div>
+                <div id="id-status" class="status-msg"></div>
             </div>
             <div class="form-group">
                 <label>Password (비밀번호)</label>
@@ -96,6 +125,39 @@
     </div>
 
     <script>
+        // [추가] 아이디 중복 확인 함수
+        async function checkUsername() {
+            const username = document.getElementById('username').value.trim();
+            const statusDiv = document.getElementById('id-status');
+            
+            if (!username) {
+                alert('Inserisci un ID. (아이디를 입력하세요)');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/check-username', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+                
+                const result = await response.json();
+                statusDiv.style.display = 'block';
+                
+                if (result.available) {
+                    statusDiv.className = 'status-msg success';
+                    statusDiv.textContent = '✅ ' + result.message;
+                } else {
+                    statusDiv.className = 'status-msg error';
+                    statusDiv.textContent = '❌ ' + result.message;
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Errore di connessione');
+            }
+        }
+
         document.getElementById('signup-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             

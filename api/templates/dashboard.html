@@ -85,7 +85,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.2s;
+            transition: background-color 0.2s;
         }
         .check-btn:hover { background-color: #2ecc71; }
         .check-btn:disabled { background-color: #555; cursor: not-allowed; }
@@ -106,7 +106,7 @@
             }
         }        
 
-/* <style> 태그 안에 아래 코드를 추가 또는 수정/대체해 주세요. */
+        /* <style> 태그 안에 아래 코드를 추가 또는 수정/대체해 주세요. */
         .score-container { 
             display: flex; 
             align-items: center; 
@@ -125,6 +125,18 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         /* 기존 .score, .score.high, .score.low 스타일은 더 이상 필요 없으므로 삭제하셔도 됩니다. */
+
+        /* [추가] 모달 스타일 */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 1000; }
+        .modal-content { 
+            background: #2c2f33; width: 90%; max-width: 400px; margin: 10% auto; padding: 30px; 
+            border-radius: 10px; border: 1px solid #444; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .modal-input {
+            width: 100%; padding: 12px; margin-bottom: 15px; background-color: #40444b;
+            border: 1px solid #202225; color: #e0e0e0; border-radius: 5px; font-size: 1rem; box-sizing: border-box;
+        }
+
     </style>
 </head>
 <body>
@@ -135,6 +147,7 @@
             <button id="btn-comprehension" onclick="switchView('comprehension')">이해력 퀴즈 결과</button>
             <button id="btn-speaking" onclick="switchView('speaking')">말하기 퀴즈 결과</button>
             <button id="clear-btn" onclick="clearCurrentView()">화면 지우기</button>
+            <button onclick="openManagerModal()" style="background-color: #444;">🔑 학생 관리</button>
             <button id="logout-btn" onclick="location.href='/teacher-logout'">로그아웃</button>
         </div>
     </header>
@@ -470,9 +483,6 @@
                         <span id="status-${item.id}" class="check-status ${checkStatus}">✅ 확인됨 (Visto)</span>
                     </div>
                 `;
-
-
-
             }
             
             const formattedDate = new Date(item.created_at).toLocaleString('ko-KR');
@@ -569,6 +579,57 @@
             loadSubmissions('translation', 1, false);
             startAutoRefresh();
         });
+
+        // [추가] 학생 관리 모달 로직
+        function openManagerModal() {
+            document.getElementById('reset-student-id').value = '';
+            document.getElementById('manager-modal').style.display = 'block';
+        }
+        function closeManagerModal() {
+            document.getElementById('manager-modal').style.display = 'none';
+        }
+
+        async function resetPassword() {
+            const studentId = document.getElementById('reset-student-id').value.trim();
+            if (!studentId) { alert('학생 아이디를 입력하세요.'); return; }
+
+            if (!confirm(`정말 '${studentId}' 학생의 비밀번호를 '1234'로 초기화하시겠습니까?`)) return;
+
+            try {
+                const res = await fetch('/api/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ student_id: studentId })
+                });
+                const result = await res.json();
+
+                if (res.ok) {
+                    alert(result.message);
+                    closeManagerModal();
+                } else {
+                    alert('오류: ' + result.error);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('서버 통신 오류');
+            }
+        }
     </script>
+
+    <div id="manager-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: white; margin-top: 0; margin-bottom: 20px; text-align: center;">Gestione Studenti</h3>
+            <p style="color: #b9bbbe; font-size: 0.9rem; margin-bottom: 15px;">
+                비밀번호를 분실한 학생의 ID를 입력하세요.<br>
+                비밀번호가 <strong>'1234'</strong>로 초기화됩니다.
+            </p>
+            
+            <label style="color: #b9bbbe;">ID Studente (학생 아이디)</label>
+            <input type="text" id="reset-student-id" class="modal-input" placeholder="예: mario">
+            
+            <button class="check-btn" style="width:100%; margin-top: 10px; background-color: #e74c3c;" onclick="resetPassword()">초기화 (Reset)</button>
+            <button class="check-btn" style="width:100%; background-color: #555; margin-top: 10px;" onclick="closeManagerModal()">닫기</button>
+        </div>
+    </div>
 </body>
 </html>

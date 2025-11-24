@@ -1597,5 +1597,56 @@ def api_get_submissions():
         # 500 오류 대신, 'dashboard.html'이 이해할 수 있는 'JSON' 에러를 반환합니다.
         return jsonify({"error": "서버 내부 로직 오류", "details": str(e)}), 500
 
+# ▼▼▼ [추가] 아이디 중복 확인 API ▼▼▼
+@app.route('/api/check-username', methods=['POST'])
+def check_username():
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    
+    if not username:
+        return jsonify({"error": "아이디를 입력하세요."}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if cur.fetchone():
+                return jsonify({"available": False, "message": "이미 사용 중인 아이디입니다."})
+            else:
+                return jsonify({"available": True, "message": "사용 가능한 아이디입니다."})
+    finally:
+        conn.close()
+
+# ▼▼▼ [추가] 학생 비밀번호 초기화 API (교수용) ▼▼▼
+@app.route('/api/reset-password', methods=['POST'])
+@teacher_required
+def reset_password():
+    data = request.get_json()
+    target_username = data.get('student_id', '').strip()
+    
+    if not target_username:
+        return jsonify({"error": "학생 ID를 입력하세요."}), 400
+        
+    # 초기화 비밀번호: 1234
+    reset_pw_hash = generate_password_hash('1234')
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 학생이 존재하는지 확인
+            cur.execute("SELECT id FROM users WHERE username = %s", (target_username,))
+            if not cur.fetchone():
+                return jsonify({"error": "존재하지 않는 학생 ID입니다."}), 404
+            
+            # 비밀번호 업데이트
+            cur.execute("UPDATE users SET password_hash = %s WHERE username = %s", (reset_pw_hash, target_username))
+            conn.commit()
+            return jsonify({"success": True, "message": f"'{target_username}' 학생의 비밀번호가 '1234'로 초기화되었습니다."})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
