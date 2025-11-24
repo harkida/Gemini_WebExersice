@@ -1611,9 +1611,9 @@ def check_username():
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM users WHERE username = %s", (username,))
             if cur.fetchone():
-                return jsonify({"available": False, "message": "이미 사용 중인 아이디입니다."})
+                return jsonify({"available": False, "message": "ID già in uso. Scegline un altro."})
             else:
-                return jsonify({"available": True, "message": "사용 가능한 아이디입니다."})
+                return jsonify({"available": True, "message": "ID disponibile."})
     finally:
         conn.close()
 
