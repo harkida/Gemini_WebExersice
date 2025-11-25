@@ -784,13 +784,8 @@ def submit_answer():
             return jsonify({"error": f"AI 모델 미설정 ({model_name})"}), 500
 
         with conn.cursor() as cur:
-
-            if quiz_type == 'translation':
-                cur.execute("SELECT id FROM translation_submissions WHERE student_id = %s AND exercise_id = %s", (student_id, exercise_id))
-                if cur.fetchone():
-                    return jsonify({"success": False, "error": "Hai già inviato una risposta. (이미 제출했습니다)"}), 200
             
-            elif quiz_type == 'comprehension':
+            if quiz_type == 'comprehension':
                 cur.execute("SELECT id FROM comprehension_submissions WHERE student_id = %s AND comprehension_exercise_id = %s", (student_id, exercise_id))
                 if cur.fetchone():
                     return jsonify({"success": False, "error": "Hai già inviato una risposta. (이미 제출했습니다)"}), 200
