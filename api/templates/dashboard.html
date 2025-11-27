@@ -67,15 +67,20 @@
         }
         .teacher-input {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin-bottom: 10px;
             background-color: #40444b;
             border: 1px solid #555;
             color: #e0e0e0;
             border-radius: 5px;
             font-family: inherit;
-            resize: vertical;
+            line-height: 1.5;
             box-sizing: border-box;
+
+            min-height: 50px;       /* 기본 높이 */
+            max-height: 400px;      /* 너무 길어지면 그때 스크롤 생김 */
+            overflow-y: hidden;     /* 평소엔 스크롤 숨김 */
+            resize: none;           /* 빗금 치고 당기는 기능 끔 */
         }
         .check-btn {
             background-color: #27ae60;
@@ -436,7 +441,10 @@
                 const checkStatus = item.is_checked ? 'visible' : '';
                 teacherActionHtml = `
                     <div class="teacher-action-box">
-                        <textarea id="fb-${item.id}" class="teacher-input" placeholder="학생에게 보낼 피드백을 입력하세요...">${savedFeedback}</textarea>
+                        <textarea id="fb-${item.id}" class="teacher-input" rows="1" 
+                            oninput="autoResize(this)" 
+                            onfocus="autoResize(this)" 
+                            placeholder="학생에게 보낼 피드백을 입력하세요...">${savedFeedback}${savedFeedback}</textarea>
                         <button class="check-btn" onclick="saveFeedback(${item.id}, 'comprehension')">확인 및 피드백 저장</button>
                         <span id="status-${item.id}" class="check-status ${checkStatus}">✅ 확인됨 (Visto)</span>
                     </div>
@@ -613,6 +621,12 @@
                 console.error(e);
                 alert('서버 통신 오류');
             }
+        }
+
+        // [추가] 텍스트박스 자동 높이 조절 함수
+        function autoResize(textarea) {
+            textarea.style.height = 'auto'; // 높이 초기화
+            textarea.style.height = textarea.scrollHeight + 'px'; // 글자만큼 늘리기
         }
     </script>
 
