@@ -476,7 +476,7 @@
         const badgeText = log.is_checked ? '✅ Visto' : '⏳ Attesa';
         const titleText = log.title || '(No Title)';
         const profFeedback = log.teacher_feedback ? 
-            `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Instructor's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
+            `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Instructor's Comment</div><p style="white-space: pre-wrap; line-height: 1.6;">${log.teacher_feedback}</p></div>` : '';
 
         div.innerHTML = `
 
@@ -531,7 +531,7 @@
         const badgeText = log.is_checked ? '✅ Visto' : '⏳ Attesa';
         const titleText = log.title || '(No Title)';
         const profFeedback = log.teacher_feedback ? 
-            `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Instructor's Comment</div><p>${log.teacher_feedback}</p></div>` : '';
+            `<div class="teacher-feedback-box"><div class="teacher-label">👨‍🏫 Instructor's Comment</div><p style="white-space: pre-wrap; line-height: 1.6;">${log.teacher_feedback}</p></div>` : '';
 
         div.innerHTML = `
             <div class="header-row">
