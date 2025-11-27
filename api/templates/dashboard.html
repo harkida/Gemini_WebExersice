@@ -238,10 +238,18 @@
                         
                         itemsToDisplay.forEach(item => {
                             const card = createSubmissionCard(item, quizType);
+
+                            // 1. 카드를 화면에 붙임
                             if (isAutoRefresh) {
                                 container.prepend(card);
                             } else {
                                 container.appendChild(card);
+                            }
+
+                            // 2. ★★★ [핵심 추가] 붙이자마자 높이 자동 조절 실행 ★★★
+                            const textarea = card.querySelector('.teacher-input');
+                            if (textarea) {
+                                autoResize(textarea);
                             }
                         });
                     }
