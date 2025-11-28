@@ -157,17 +157,35 @@
 </head>
 <body data-quiz-type="{{ quiz_type }}">
   <div class="container">
-    <h1>
-      {% if quiz_type == 'translation' %}
-        Test di Traduzione Coreana
-      {% elif quiz_type == 'comprehension' %}
-        Test di Comprensione Coreana
-      {% elif quiz_type == 'speaking' %}
-        Test di Espressione Orale Coreana
-      {% else %}
-        Quiz Coreano
-      {% endif %}
-    </h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h1 style="margin: 0; text-align: left; flex-grow: 1;">
+          {% if quiz_type == 'translation' %}
+            Test di Traduzione Coreana
+          {% elif quiz_type == 'comprehension' %}
+            Test di Comprensione Coreana
+          {% elif quiz_type == 'speaking' %}
+            Test di Espressione Orale Coreana
+          {% else %}
+            Quiz Coreano
+          {% endif %}
+        </h1>
+        
+        <button onclick="location.href='/student-dashboard'" style="
+            background-color: #4f545c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: 'Montserrat', sans-serif;
+            white-space: nowrap;
+            margin-left: 15px;
+        ">
+            🏠 Dashboard
+        </button>
+    </div>
     <div id="quiz-list">
       {% for exercise in exercises %}
       <div class="quiz-item" id="item-{{ exercise.id }}">
@@ -423,8 +441,6 @@
                 <h3>Il tuo punteggio: ${parseFloat(result.score).toFixed(1)} / 10.0</h3>
                 ${feedbackHtml}
                 ${originalTextHtml}
-
-                <button class="return-btn" onclick="location.href='/student-dashboard'">🏠 Torna alla Dashboard</button>
             `;
           } else {
             // ★★★ 수정된 에러 처리 로직 ★★★
