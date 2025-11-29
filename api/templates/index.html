@@ -359,7 +359,6 @@
             const formData = new FormData();
             formData.append('audio_file', audioBlob, `recording.${extension}`);
             formData.append('mime_type', mimeType);
-            formData.append('student_id', studentId);
             formData.append('exercise_id', exerciseId);
             formData.append('class_name', className);
             formData.append('quiz_type', quizType);
