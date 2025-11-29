@@ -969,6 +969,9 @@ def submit_speaking_answer():
             
             situation_desc, required_expr, expected_ans, target_vocab, teacher_crit = row
             
+            if not pro_model:
+                return jsonify({"error": "AI 모델 미설정"}), 500
+
             audio_bytes = audio_file.read()
 
             BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN')
@@ -998,9 +1001,6 @@ def submit_speaking_answer():
                     return jsonify({"error": "파일 URL 생성 실패"}), 500
             except Exception as e:
                 return jsonify({"error": f"파일 저장 실패: {str(e)}"}), 500            
-
-            if not pro_model:
-                return jsonify({"error": "AI 모델 미설정"}), 500
                         
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{extension}') as tmp_file:
@@ -1060,23 +1060,20 @@ def submit_speaking_answer():
                     "reason": "Failed to parse JSON response from AI.",
                     "raw_response": raw_text
                 }
-            # ★★★ 수정된 핵심 로직 끝 ★★★
-
-            # DB 저장 (성공/실패와 무관하게 학생의 제출 기록은 항상 저장)
-            cur.execute("""
-                INSERT INTO speaking_submissions 
-                (exercise_id, class_name, student_id, audio_file_url, recognized_korean_text, ai_analysis_json)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                exercise_id, class_name, student_id, audio_url, recognized_text,
-                psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False))
-            ))
-            conn.commit()
             
             # 학생에게 보낼 최종 응답 생성
             if score is not None:
-                # 채점 성공 시
                 
+                cur.execute("""
+                    INSERT INTO speaking_submissions 
+                    (exercise_id, class_name, student_id, audio_file_url, recognized_korean_text, ai_analysis_json)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    exercise_id, class_name, student_id, audio_url, recognized_text,
+                    psycopg2.extras.Json(ai_result, dumps=lambda x: json.dumps(x, ensure_ascii=False))
+                ))
+                conn.commit()
+
                 rating_info = get_rating_details(score)
                 
                 return jsonify({
@@ -1089,11 +1086,12 @@ def submit_speaking_answer():
                     "expected_korean_answer": expected_ans  # ← 추가
                 })
             else:
-                # 채점 실패 시 (프론트엔드가 이해할 수 있는 에러 메시지 반환)
+                # ★ [변경] 점수가 없으면(실패하면) DB에 저장하지 않음 -> 그래야 다시 시도 가능
+                print(f"❌ 채점 실패로 저장 건너뜀 - 학생: {student_id}")
                 return jsonify({
                     "success": False,
-                    "error": "L'IA non è riuscita a valutare la tua risposta. Questo può accadere se l'audio non è chiaro. Per favore, prova a registrare di nuovo."
-                }), 200 # HTTP 상태는 200 OK. 요청 자체는 성공했기 때문.
+                    "error": "L'IA non è riuscita a valutare la tua risposta. Per favore, prova a registrare di nuovo. (AI 평가 실패, 다시 시도해주세요)"
+                }), 200            
 
     except Exception as e:
         print(f"🚨 /api/submit-speaking-answer 심각한 오류: {e}")
@@ -1132,7 +1130,7 @@ def signup():
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json()
-    username = data.get('username', '').strip() # 소문자 강제
+    username = data.get('username', '').strip()
     password = data.get('password')
     full_name = data.get('full_name')
     student_number = data.get('student_number')
