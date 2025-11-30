@@ -153,11 +153,37 @@
         .return-btn:hover {
             background-color: #7289da;
         }
+
+        .header-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .header-box {
+                flex-direction: column; /* 세로 정렬 */
+                align-items: stretch;   /* 가로 꽉 채우기 */
+                gap: 15px;              /* 제목과 버튼 사이 간격 */
+            }
+            
+            .header-box h1 {
+                text-align: center !important; /* 제목 가운데 정렬 */
+                font-size: 1.5rem;   /* 글자 크기 조정 */
+            }
+
+            .header-box button {
+                margin-left: 0 !important; /* 기존 여백 제거 */
+                width: 100% !important; /* 버튼 꽉 채우기 */
+                padding: 12px;       /* 터치하기 편하게 높이 키움 */
+            }
+        }
     </style>
 </head>
 <body data-quiz-type="{{ quiz_type }}">
   <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div class="header-box">
         <h1 style="margin: 0; text-align: left; flex-grow: 1;">
           {% if quiz_type == 'translation' %}
             Test di Traduzione Coreana
@@ -170,19 +196,7 @@
           {% endif %}
         </h1>
         
-        <button onclick="location.href='/student-dashboard'" style="
-            background-color: #4f545c;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            font-size: 0.9rem;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-family: 'Montserrat', sans-serif;
-            white-space: nowrap;
-            margin-left: 15px;
-        ">
+        <button onclick="location.href='/student-dashboard'" class="return-btn" style="margin-top:0; width: auto; margin-left: 15px;">
             🏠 Dashboard
         </button>
     </div>
