@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <style>
         body { 
             font-family: 'Lora', serif; 
@@ -217,6 +219,13 @@
             {% endif %}
           </p>
         </div>
+
+        {% if exercise.vocabulary_guide %}
+        <div class="vocab-hint-box" style="background-color: #2f3136; border: 1px dashed #b9bbbe; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px; font-size: 0.95rem; color: #b9bbbe;">
+            <i class="fas fa-info-circle" style="color: #7289da; margin-right: 5px;"></i>
+            {{ exercise.vocabulary_guide }}
+        </div>
+        {% endif %}
 
         <div class="audio-player">
           <audio controls preload="metadata">
