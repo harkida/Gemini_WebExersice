@@ -13,9 +13,12 @@ from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 import psycopg2
 import psycopg2.extras
+
 from werkzeug.security import generate_password_hash, check_password_hash
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import requests
+
 import hashlib
 from datetime import datetime
 
@@ -35,15 +38,12 @@ pro_model = None
 
 if api_key:
     try:
-        genai.configure(api_key=api_key)
-        flash_model = genai.GenerativeModel("gemini-3-flash-preview")
-        pro_model = genai.GenerativeModel('gemini-3-pro-preview')
+        gemini_client = genai.Client(api_key=api_key)
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
         print("   📌 번역 : gemini-3-flash (빠르고 경제적)")
         print("   📌 이해력 : gemini-3.0-pro (정밀한 평가)")
     except Exception as e:
-        flash_model = None
-        pro_model = None
+        gemini_client = None
         print(f"🚨 Gemini AI 모델 설정 오류: {e}")
 else:
     print("⚠️ GEMINI_API_KEY 미설정: 채점 기능이 비활성화됩니다.")
@@ -772,16 +772,14 @@ def submit_answer():
         if conn is None: return jsonify({"error": "DB 연결 실패"}), 500
         
         if quiz_type == 'translation':
-            selected_model = flash_model
-            model_name = "Flash"
+            selected_model_name = "gemini-3-flash-preview"
         elif quiz_type == 'comprehension':
-            selected_model = pro_model
-            model_name = "Pro"
+            selected_model_name = "gemini-3-pro-preview"
         else:
             return jsonify({"error": "잘못된 퀴즈 유형"}), 400
         
-        if not selected_model:
-            return jsonify({"error": f"AI 모델 미설정 ({model_name})"}), 500
+        if not gemini_client:
+            return jsonify({"error": "AI 모델 미설정"}), 500
 
         with conn.cursor() as cur:
             
@@ -832,8 +830,14 @@ def submit_answer():
                     Dialogue_Context_LevelC_Exception=dialogue_levelc_exception
                 )
             
-                response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
-                print(f"🤖 [번역 퀴즈] gemini-3-flash 사용 - 학생: {student_id}")
+                response = gemini_client.models.generate_content(
+                    model=selected_model_name,
+                    contents=prompt_text,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    )
+                )
+                print(f"🤖 [번역 퀴즈] {selected_model_name} 사용 - 학생: {student_id}")
                 
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
@@ -873,8 +877,14 @@ def submit_answer():
                     key_points_json=json.dumps(key_points, ensure_ascii=False)
                 )
 
-                response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
-                print(f"🤖 [이해력 퀴즈] gemini-3.0-pro 사용 - 학생: {student_id}")
+                response = gemini_client.models.generate_content(
+                    model=selected_model_name,
+                    contents=prompt_text,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    )
+                )
+                print(f"🤖 [이해력 퀴즈] {selected_model_name} 사용 - 학생: {student_id}")
                 
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
@@ -1007,7 +1017,7 @@ def submit_speaking_answer():
                 tmp_file.write(audio_bytes)
                 tmp_file_path = tmp_file.name
             
-            uploaded_audio = genai.upload_file(tmp_file_path, mime_type=mime_type)
+            uploaded_audio = gemini_client.files.upload(file=tmp_file_path)
             
             prompt_text = SPEAKING_EVALUATION_PROMPT.format(
                 situation_description=situation_desc,
@@ -1017,12 +1027,16 @@ def submit_speaking_answer():
                 teacher_criterion=teacher_crit or "자율 판단"
             )
             
-            response = pro_model.generate_content(
-                [prompt_text, uploaded_audio],
-                generation_config={"response_mime_type": "application/json", "temperature": 0.1}
+            response = gemini_client.models.generate_content(
+                model="gemini-3-pro-preview",
+                contents=[prompt_text, uploaded_audio],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1,
+                )
             )
             
-            print(f"🤖 [말하기 퀴즈] gemini-3.0-pro 사용 - 학생: {student_id}")
+            print(f"🤖 [말하기 퀴즈] gemini-3-pro-preview 사용 - 학생: {student_id}")
             os.unlink(tmp_file_path)
             
             # ★★★ 수정된 핵심 로직 시작 ★★★

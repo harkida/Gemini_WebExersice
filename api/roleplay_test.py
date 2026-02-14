@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, session
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import os
 import json
 import pathlib
@@ -20,13 +21,11 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 analyst_model = None
 
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
     try:
-        # ⚠️ Professor: 모델명이 다르면 여기만 수정하세요
-        analyst_model = genai.GenerativeModel("gemini-3-flash-preview")
-        print("✅ 분석가 모델 로드 완료")
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        print("✅ 분석가 클라이언트 로드 완료")
     except Exception as e:
-        print(f"🚨 모델 로드 실패: {e}")
+        print(f"🚨 클라이언트 로드 실패: {e}")
 else:
     print("⚠️ GEMINI_API_KEY 미설정")
 
@@ -138,7 +137,7 @@ def roleplay_test_page():
 @app.route('/api/analyst-test', methods=['POST'])
 def analyst_test():
     """분석가 테스트 엔드포인트"""
-    if not analyst_model:
+    if not gemini_client:
         return jsonify({"error": "Gemini 모델이 설정되지 않았습니다."}), 500
 
     data = request.get_json(silent=True) or {}
@@ -153,12 +152,13 @@ def analyst_test():
         prompt = build_analyst_prompt(TEST_SCENARIO, conversation_history, student_input)
 
         # Gemini 호출
-        response = analyst_model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
+        response = gemini_client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=prompt,
+            config=types.GenerateContentConfig(
                 temperature=0.3,
-                max_output_tokens=300,
-                response_mime_type="application/json"
+                max_output_tokens=1024,
+                response_mime_type="application/json",
             )
         )
 
