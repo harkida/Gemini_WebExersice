@@ -348,15 +348,15 @@
                 const resp = data.analyst_response;
 
                 // JSON 결과 표시
-                addJsonCard(turnNumber, text, resp, latency, data.prompt_used);
-
+                addJsonCard(turnNumber, text, resp, latency, data.prompt_used, data.actor_line, data.actor_latency);
+                
                 // 대화 기록에 추가
                 conversationHistory.push({
                     role: "player",
                     text: text
                 });
 
-                // NPC 응답 시뮬레이션 (분석가 판단 요약)
+                // NPC 응답 표시
                 let npcSummary = '';
                 if (resp.route === 'PRE') {
                     npcSummary = `[PRE → "${resp.category}"] (사전녹음 MP3가 재생될 위치)`;
@@ -366,16 +366,29 @@
                         route: "PRE"
                     });
                 } else if (resp.route === 'DYN') {
-                    if (resp.understood === 'partial') {
+                    if (data.actor_line) {
+                        // 연기자 대사가 있으면 표시
+                        npcSummary = data.actor_line;
+                        conversationHistory.push({
+                            role: "npc",
+                            text: data.actor_line,
+                            route: "DYN"
+                        });
+                    } else if (resp.understood === 'partial') {
                         npcSummary = `[DYN → 부분이해] 들린 부분: "${resp.heard}" — ${resp.direction}`;
+                        conversationHistory.push({
+                            role: "npc",
+                            text: resp.direction || "(동적 응답)",
+                            route: "DYN"
+                        });
                     } else {
                         npcSummary = `[DYN → ${resp.main_emotion}(${resp.intensity})] ${resp.direction}`;
+                        conversationHistory.push({
+                            role: "npc",
+                            text: resp.direction || "(동적 응답)",
+                            route: "DYN"
+                        });
                     }
-                    conversationHistory.push({
-                        role: "npc",
-                        text: resp.direction || "(동적 응답)",
-                        route: "DYN"
-                    });
                 } else {
                     npcSummary = `⚠️ 파싱 오류: ${JSON.stringify(resp)}`;
                 }
@@ -411,7 +424,7 @@
     }
 
     // JSON 카드 추가
-    function addJsonCard(turn, input, response, latency, prompt) {
+    function addJsonCard(turn, input, response, latency, prompt, actorLine, actorLatency) {
         const container = document.getElementById('jsonOutput');
 
         // 기본 안내 메시지 제거 (첫 턴에만)
@@ -431,8 +444,9 @@
         card.innerHTML = `
             <div class="turn-label">턴 ${turn} — 학생: "${input}"</div>
             <span class="route-badge ${routeClass}">${routeLabel}</span>
-            <span class="latency">${latency}ms</span>
+            <span class="latency">분석: ${latency}ms${actorLatency ? ' + 연기: ' + actorLatency + 'ms' : ''}</span>
             <pre>${JSON.stringify(response, null, 2)}</pre>
+            ${actorLine ? '<div style="margin-top:8px;padding:8px;background:#1a3a1a;border-radius:4px;border-left:3px solid #27ae60;"><span style="color:#27ae60;font-size:0.8em;font-weight:bold;">🎭 연기자 대사:</span><br><span style="color:#e0e0e0;">' + escapeHtml(actorLine) + '</span></div>' : ''}
             <div class="prompt-toggle" onclick="togglePrompt('${promptId}')">📋 프롬프트 보기/숨기기</div>
             <div class="prompt-content" id="${promptId}">
                 <pre>${escapeHtml(prompt || '(없음)')}</pre>

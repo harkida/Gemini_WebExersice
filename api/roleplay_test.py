@@ -181,11 +181,42 @@ def analyst_test():
         except json.JSONDecodeError:
             parsed = {"parse_error": True, "raw": raw_text}
 
+        # ============================================================
+        # 연기자 체인: DYN일 때만 연기자 호출
+        # ============================================================
+        actor_line = None
+        actor_raw = None
+        actor_latency = None
+
+        if parsed.get("route") == "DYN":
+            import time
+            actor_start = time.time()
+
+            actor_prompt = build_actor_prompt(
+                TEST_SCENARIO, conversation_history, parsed, student_input
+            )
+
+            actor_response = gemini_client.models.generate_content(
+                model="gemini-3-flash-preview",
+                contents=actor_prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.6,
+                    max_output_tokens=256,
+                )
+            )
+
+            actor_raw = (actor_response.text or "").strip()
+            # 따옴표 감싸기 제거
+            actor_line = actor_raw.strip('"').strip("'")
+            actor_latency = int((time.time() - actor_start) * 1000)
+
         return jsonify({
             "success": True,
             "analyst_response": parsed,
             "raw_text": raw_text,
-            "prompt_used": prompt  # 디버깅용: 실제 프롬프트 확인
+            "actor_line": actor_line,
+            "actor_latency": actor_latency,
+            "prompt_used": prompt
         })
 
     except Exception as e:
@@ -196,3 +227,66 @@ def analyst_test():
 def scenario_info():
     """현재 테스트 시나리오 정보 반환"""
     return jsonify(TEST_SCENARIO)
+
+def build_actor_prompt(scenario, conversation_history, analyst_json, student_input):
+    npc = scenario["npc"]
+
+    # 대화 기록을 읽기 쉬운 텍스트로 변환
+    history_text = ""
+    if conversation_history:
+        for turn in conversation_history:
+            role = "손님" if turn.get("role") == "player" else "점원(나)"
+            history_text += f"{role}: {turn.get('text', '')}\n"
+    else:
+        history_text = "(첫 번째 턴)"
+
+    prompt = f"""너는 롤플레이 게임에서 NPC를 연기하는 "연기자"이다.
+너는 분석가가 보내준 감정 가이드를 받아서, 그에 맞는 대사를 생성한다.
+
+## 너의 캐릭터
+- 이름: {npc['name']}
+- 나이: {npc['age']}세
+- 직업: {npc['job']}
+- 성격: {npc['personality']}
+
+## 현재 상황
+{scenario['situation']}
+
+## NPC 도메인 지식 (너는 이것을 알고 있다)
+- 메뉴: 아메리카노(핫/아이스, 4500원), 카페라떼(핫/아이스, 5000원), 카푸치노(핫만, 5000원), 녹차라떼(핫/아이스, 5500원), 바닐라라떼(핫/아이스, 5500원)
+- 사이즈: Regular(기본), Large(+500원). "Tall", "Grande" 같은 건 없음
+- 결제: 카드, 현금, 카카오페이
+- 와이파이: 비밀번호는 영수증 하단에 인쇄됨
+- 화장실: 매장 안쪽 왼편
+- 디카페인: 아메리카노, 카페라떼만 가능 (+500원)
+- 오늘의 추천: 바닐라라떼 (신메뉴)
+
+## 지금까지의 대화
+{history_text}
+
+## 손님(학생)이 방금 한 말
+"{student_input}"
+
+## 분석가의 감정 가이드 (반드시 따를 것)
+{json.dumps(analyst_json, ensure_ascii=False)}
+
+## 연기 규칙 (매우 중요)
+
+1. **audio tags를 대사 안에 자연스럽게 삽입하라.**
+   분석가가 제공한 audio_tags를 대사 텍스트 안에 넣어라.
+   예: "[laughing] 아 네, 카푸치노는 원래 따뜻한 거예요. [warmly] 맛있게 드세요!"
+
+2. **1~2문장으로 짧게.** 진짜 대화처럼 짧게 말하라. 길게 설명하지 마라.
+
+3. **캐릭터를 유지하라.** 김수진은 25세 카페 점원이다. 격식체("~요")를 쓰되 자연스럽게.
+
+4. **NPC 도메인 지식을 활용하라.** 카페 점원이 당연히 아는 정보는 자연스럽게 사용하라.
+   예: "카푸치노요? 카푸치노는 따뜻한 것만 있어요~"
+
+5. **direction을 충실히 따르되, 대사는 네가 직접 만들어라.** direction은 지시일 뿐, 그대로 읽지 마라.
+
+## 출력
+대사 텍스트만 출력하라. 따옴표, 설명, JSON 등 다른 것은 일절 금지.
+audio tags가 포함된 순수 대사 텍스트만."""
+
+    return prompt
