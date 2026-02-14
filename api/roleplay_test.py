@@ -159,10 +159,13 @@ def analyst_test():
                 temperature=0.3,
                 max_output_tokens=1024,
                 response_mime_type="application/json",
+                thinking_config=types.ThinkingConfig(
+                        thinking_level=types.ThinkingLevel.LOW
+                )
             )
         )
 
-        raw_text = response.text.strip()
+        raw_text = (response.text or "").strip()
 
         # JSON 파싱 시도
         # Gemini가 붙이는 불필요한 텍스트 + 마크다운 코드블록 제거
