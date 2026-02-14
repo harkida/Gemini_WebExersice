@@ -2,9 +2,15 @@ from flask import Flask, request, jsonify, render_template, session
 import google.generativeai as genai
 import os
 import json
+import pathlib
 import traceback
 
-app = Flask(__name__, template_folder='../templates')
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+TEMPLATES_DIR = BASE_DIR.parent / "templates"
+if not TEMPLATES_DIR.exists():
+    TEMPLATES_DIR = BASE_DIR / "templates"
+
+app = Flask(__name__, template_folder=str(TEMPLATES_DIR))
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'test-secret-key-change-me')
 
 # ============================================================
@@ -127,7 +133,7 @@ JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 # ============================================================
 @app.route('/roleplay-test')
 def roleplay_test_page():
-    return render_template('roleplay_test.html')
+    return render_template('roleplay/roleplay_test.html')
 
 @app.route('/api/analyst-test', methods=['POST'])
 def analyst_test():
