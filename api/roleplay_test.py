@@ -165,8 +165,13 @@ def analyst_test():
         raw_text = response.text.strip()
 
         # JSON 파싱 시도
-        # 마크다운 코드블록 제거
+        # Gemini가 붙이는 불필요한 텍스트 + 마크다운 코드블록 제거
         clean = raw_text.replace("```json", "").replace("```", "").strip()
+        # "Here is the JSON requested:" 같은 접두어 제거 — JSON은 { 로 시작함
+        if '{' in clean:
+            clean = clean[clean.index('{'):]
+        if '}' in clean:
+            clean = clean[:clean.rindex('}') + 1]
 
         try:
             parsed = json.loads(clean)
