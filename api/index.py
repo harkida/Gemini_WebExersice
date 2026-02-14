@@ -1360,7 +1360,7 @@ def quiz_page():
             if quiz_type == 'translation':
                 cur.execute("SELECT id, korean_sentence AS question_text FROM translation_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             elif quiz_type == 'comprehension':
-                cur.execute("SELECT id, korean_dialogue AS question_text, audio_file_path FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
+                cur.execute("SELECT id, korean_dialogue AS question_text, audio_file_path, vocabulary_guide FROM comprehension_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             elif quiz_type == 'speaking':
                 cur.execute("SELECT id, situation_description, required_expression, expected_korean_answer FROM speaking_exercises WHERE class_name = %s ORDER BY id;", (class_name,))
             else:
