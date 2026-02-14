@@ -3,9 +3,25 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "api/roleplay_test.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
+    {
+      "src": "/roleplay-test",
+      "dest": "api/roleplay_test.py"
+    },
+    {
+      "src": "/api/analyst-test",
+      "dest": "api/roleplay_test.py"
+    },
+    {
+      "src": "/api/scenario-info",
+      "dest": "api/roleplay_test.py"
+    },
     {
       "src": "/(.*)",
       "dest": "api/index.py"

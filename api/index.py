@@ -36,10 +36,10 @@ pro_model = None
 if api_key:
     try:
         genai.configure(api_key=api_key)
-        flash_model = genai.GenerativeModel('gemini-2.5-flash')
+        flash_model = genai.GenerativeModel("gemini-3-flash-preview")
         pro_model = genai.GenerativeModel('gemini-3-pro-preview')
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
-        print("   📌 번역 : gemini-2.5-flash (빠르고 경제적)")
+        print("   📌 번역 : gemini-3-flash (빠르고 경제적)")
         print("   📌 이해력 : gemini-3.0-pro (정밀한 평가)")
     except Exception as e:
         flash_model = None
@@ -833,7 +833,7 @@ def submit_answer():
                 )
             
                 response = selected_model.generate_content(prompt_text, generation_config={"response_mime_type": "application/json"})
-                print(f"🤖 [번역 퀴즈] gemini-2.5-flash 사용 - 학생: {student_id}")
+                print(f"🤖 [번역 퀴즈] gemini-3-flash 사용 - 학생: {student_id}")
                 
                 raw_text = getattr(response, 'text', '').strip()
                 json_str = extract_first_json_block(raw_text) or raw_text
