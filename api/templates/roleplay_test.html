@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎭 분석가(Analyst) 테스트</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #1a1b1e;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 헤더 */
+        .header {
+            background: #2b2d31;
+            padding: 15px 20px;
+            border-bottom: 1px solid #3a3c41;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 1.2em; color: #7289da; }
+        .header .badge {
+            background: #ffa500;
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        /* 메인 레이아웃 */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 왼쪽: 대화창 */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #3a3c41;
+        }
+
+        /* 시나리오 정보 */
+        .scenario-info {
+            background: #2b2d31;
+            padding: 12px 16px;
+            font-size: 0.85em;
+            border-bottom: 1px solid #3a3c41;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .scenario-info strong { color: #7289da; }
+        .scenario-info .npc-name { color: #ffa500; font-weight: bold; }
+
+        /* 대화 목록 */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 0.95em;
+        }
+        .message.student {
+            align-self: flex-end;
+            background: #7289da;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message.npc {
+            align-self: flex-start;
+            background: #3a3c41;
+            border-bottom-left-radius: 4px;
+        }
+        .message .label {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+        .message.system {
+            align-self: center;
+            background: #2b2d31;
+            border: 1px dashed #555;
+            color: #aaa;
+            font-size: 0.85em;
+            max-width: 90%;
+        }
+
+        /* 입력창 */
+        .input-area {
+            padding: 12px 16px;
+            background: #2b2d31;
+            border-top: 1px solid #3a3c41;
+            display: flex;
+            gap: 8px;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 10px 14px;
+            background: #40444b;
+            border: 1px solid #555;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 1em;
+            outline: none;
+        }
+        .input-area input:focus { border-color: #7289da; }
+        .input-area button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-send { background: #7289da; color: white; }
+        .btn-send:hover { background: #5b6eae; }
+        .btn-send:disabled { background: #555; cursor: not-allowed; }
+        .btn-reset { background: #e74c3c; color: white; }
+        .btn-reset:hover { background: #c0392b; }
+
+        /* 오른쪽: JSON 패널 */
+        .json-panel {
+            width: 45%;
+            display: flex;
+            flex-direction: column;
+            background: #1e1f23;
+        }
+        .json-panel .panel-header {
+            padding: 12px 16px;
+            background: #2b2d31;
+            border-bottom: 1px solid #3a3c41;
+            font-weight: bold;
+            color: #ffa500;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+        }
+        .json-panel .panel-header .turn-count {
+            color: #7289da;
+        }
+        .json-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .json-card {
+            background: #2b2d31;
+            border-radius: 8px;
+            padding: 12px;
+            border-left: 3px solid #7289da;
+        }
+        .json-card .turn-label {
+            font-size: 0.8em;
+            color: #7289da;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+        .json-card .route-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .route-badge.pre { background: #27ae60; color: white; }
+        .route-badge.dyn { background: #e67e22; color: white; }
+        .route-badge.error { background: #e74c3c; color: white; }
+        .json-card pre {
+            background: #1a1b1e;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.82em;
+            line-height: 1.5;
+            color: #b0d0b0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* 프롬프트 토글 */
+        .prompt-toggle {
+            color: #888;
+            font-size: 0.8em;
+            cursor: pointer;
+            margin-top: 8px;
+            user-select: none;
+        }
+        .prompt-toggle:hover { color: #aaa; }
+        .prompt-content {
+            display: none;
+            margin-top: 8px;
+        }
+        .prompt-content.visible { display: block; }
+        .prompt-content pre {
+            font-size: 0.75em;
+            color: #888;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        /* 로딩 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #7289da;
+        }
+        .loading.active { display: block; }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #555;
+            border-top: 3px solid #7289da;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 레이턴시 표시 */
+        .latency { font-size: 0.8em; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🎭 분석가(Analyst) 테스트 — 카페 시나리오</h1>
+    <span class="badge">⚙️ 테스트 모드 — 분석가만 작동</span>
+</div>
+
+<div class="main-container">
+    <!-- 왼쪽: 대화창 -->
+    <div class="chat-panel">
+        <div class="scenario-info" id="scenarioInfo">
+            로딩 중...
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message system">
+                💡 학생 역할로 한국어를 입력하세요. 분석가의 판단(PRE/DYN)을 오른쪽 패널에서 확인합니다.
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <span class="spinner"></span> 분석가가 판단 중...
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="studentInput" placeholder="학생으로서 한국어를 입력하세요..." 
+                   autocomplete="off" />
+            <button class="btn-send" id="sendBtn" onclick="sendMessage()">전송</button>
+            <button class="btn-reset" onclick="resetConversation()">초기화</button>
+        </div>
+    </div>
+
+    <!-- 오른쪽: JSON 결과 패널 -->
+    <div class="json-panel">
+        <div class="panel-header">
+            <span>📊 분석가 응답 (Raw JSON)</span>
+            <span class="turn-count" id="turnCount">턴: 0</span>
+        </div>
+        <div class="json-output" id="jsonOutput">
+            <div class="json-card">
+                <pre style="color: #888;">분석가의 응답이 여기에 표시됩니다.</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let conversationHistory = [];
+    let turnNumber = 0;
+
+    // 시나리오 정보 로드
+    async function loadScenario() {
+        try {
+            const res = await fetch('/api/scenario-info');
+            const data = await res.json();
+            document.getElementById('scenarioInfo').innerHTML = `
+                <strong>NPC:</strong> <span class="npc-name">${data.npc.name}</span> (${data.npc.age}세, ${data.npc.job}) — ${data.npc.personality}<br>
+                <strong>상황:</strong> ${data.situation}<br>
+                <strong>목표 문법:</strong> ${data.target_grammar}<br>
+                <strong>PRE 카테고리:</strong> ${Object.keys(data.pre_categories).join(', ')}
+            `;
+        } catch (e) {
+            document.getElementById('scenarioInfo').innerHTML = '⚠️ 시나리오 로드 실패';
+        }
+    }
+
+    // 메시지 전송
+    async function sendMessage() {
+        const input = document.getElementById('studentInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.disabled = true;
+        input.value = '';
+
+        // 학생 메시지 표시
+        addChatMessage('student', text);
+
+        // 로딩 표시
+        document.getElementById('loading').classList.add('active');
+
+        const startTime = Date.now();
+
+        try {
+            const res = await fetch('/api/analyst-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_input: text,
+                    conversation_history: conversationHistory
+                })
+            });
+
+            const data = await res.json();
+            const latency = Date.now() - startTime;
+
+            if (data.success) {
+                turnNumber++;
+                document.getElementById('turnCount').textContent = `턴: ${turnNumber}`;
+
+                const resp = data.analyst_response;
+
+                // JSON 결과 표시
+                addJsonCard(turnNumber, text, resp, latency, data.prompt_used);
+
+                // 대화 기록에 추가
+                conversationHistory.push({
+                    role: "player",
+                    text: text
+                });
+
+                // NPC 응답 시뮬레이션 (분석가 판단 요약)
+                let npcSummary = '';
+                if (resp.route === 'PRE') {
+                    npcSummary = `[PRE → "${resp.category}"] (사전녹음 MP3가 재생될 위치)`;
+                    conversationHistory.push({
+                        role: "npc",
+                        text: `[PRE: ${resp.category}]`,
+                        route: "PRE"
+                    });
+                } else if (resp.route === 'DYN') {
+                    if (resp.understood === 'partial') {
+                        npcSummary = `[DYN → 부분이해] 들린 부분: "${resp.heard}" — ${resp.direction}`;
+                    } else {
+                        npcSummary = `[DYN → ${resp.main_emotion}(${resp.intensity})] ${resp.direction}`;
+                    }
+                    conversationHistory.push({
+                        role: "npc",
+                        text: resp.direction || "(동적 응답)",
+                        route: "DYN"
+                    });
+                } else {
+                    npcSummary = `⚠️ 파싱 오류: ${JSON.stringify(resp)}`;
+                }
+
+                addChatMessage('npc', npcSummary);
+
+            } else {
+                addChatMessage('system', `❌ 오류: ${data.error}`);
+            }
+
+        } catch (e) {
+            addChatMessage('system', `❌ 네트워크 오류: ${e.message}`);
+        } finally {
+            document.getElementById('loading').classList.remove('active');
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    // 대화 메시지 추가
+    function addChatMessage(type, text) {
+        const container = document.getElementById('chatMessages');
+        const msg = document.createElement('div');
+        msg.className = `message ${type}`;
+
+        let label = '';
+        if (type === 'student') label = '🎓 학생';
+        else if (type === 'npc') label = '☕ NPC (분석가 판단)';
+
+        msg.innerHTML = label ? `<div class="label">${label}</div>${text}` : text;
+        container.appendChild(msg);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // JSON 카드 추가
+    function addJsonCard(turn, input, response, latency, prompt) {
+        const container = document.getElementById('jsonOutput');
+
+        // 기본 안내 메시지 제거 (첫 턴에만)
+        if (turn === 1) {
+            container.innerHTML = '';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'json-card';
+
+        const routeClass = response.route === 'PRE' ? 'pre' : 
+                          response.route === 'DYN' ? 'dyn' : 'error';
+        const routeLabel = response.route || 'ERROR';
+
+        const promptId = `prompt-${turn}`;
+
+        card.innerHTML = `
+            <div class="turn-label">턴 ${turn} — 학생: "${input}"</div>
+            <span class="route-badge ${routeClass}">${routeLabel}</span>
+            <span class="latency">${latency}ms</span>
+            <pre>${JSON.stringify(response, null, 2)}</pre>
+            <div class="prompt-toggle" onclick="togglePrompt('${promptId}')">📋 프롬프트 보기/숨기기</div>
+            <div class="prompt-content" id="${promptId}">
+                <pre>${escapeHtml(prompt || '(없음)')}</pre>
+            </div>
+        `;
+
+        container.appendChild(card);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // 프롬프트 토글
+    function togglePrompt(id) {
+        document.getElementById(id).classList.toggle('visible');
+    }
+
+    // HTML 이스케이프
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 초기화
+    function resetConversation() {
+        conversationHistory = [];
+        turnNumber = 0;
+        document.getElementById('turnCount').textContent = '턴: 0';
+        document.getElementById('chatMessages').innerHTML = `
+            <div class="message system">
+                💡 대화가 초기화되었습니다. 학생 역할로 한국어를 입력하세요.
+            </div>
+        `;
+        document.getElementById('jsonOutput').innerHTML = `
+            <div class="json-card">
+                <pre style="color: #888;">분석가의 응답이 여기에 표시됩니다.</pre>
+            </div>
+        `;
+    }
+
+    // Enter 키로 전송
+    document.getElementById('studentInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // 초기 로드
+    loadScenario();
+</script>
+
+</body>
+</html>
