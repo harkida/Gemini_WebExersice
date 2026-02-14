@@ -158,7 +158,7 @@ def analyst_test():
             generation_config=genai.types.GenerationConfig(
                 temperature=0.3,
                 max_output_tokens=300,
-                response_mime_type="application/json",
+                response_mime_type="application/json"
                 )
             )
         )
