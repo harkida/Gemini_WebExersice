@@ -156,8 +156,10 @@ def analyst_test():
         response = analyst_model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
-                temperature=0.3,  # 판단은 보수적으로
-                max_output_tokens=300,  # 출력 짧게 제한
+                temperature=0.3,
+                max_output_tokens=300,
+                response_mime_type="application/json",
+                )
             )
         )
 
