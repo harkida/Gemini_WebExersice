@@ -467,7 +467,9 @@
         sendAudioBtn.disabled = true;
         recordBtn.disabled = true;
 
-        addChatMessage('student', '🎤 (음성 입력)');
+        const audioBlobUrl = URL.createObjectURL(recordedBlob);
+        addChatMessage('student', `🎤 <button class="btn-play-inline" onclick="playInlineAudio(this, '${audioBlobUrl}')">▶ 듣기</button>`);
+
         document.getElementById('loading').classList.add('active');
 
         const extension = recordedMimeType.includes('webm') ? 'webm' : 'mp4';
@@ -558,8 +560,7 @@
         sendBtn.disabled = true;
         input.value = '';
 
-        const audioBlobUrl = URL.createObjectURL(recordedBlob);
-        addChatMessage('student', `🎤 <button class="btn-play-inline" onclick="playInlineAudio(this, '${audioBlobUrl}')">▶ 듣기</button>`);
+        addChatMessage('student', text);
 
         // 로딩 표시
         document.getElementById('loading').classList.add('active');
