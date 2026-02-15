@@ -279,6 +279,23 @@
         }
         .btn-listen:hover { background: #2980b9; }
         .btn-listen.playing { background: #8e44ad; }
+        .btn-play-inline {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            cursor: pointer;
+            margin-left: 4px;
+        }
+        .btn-play-inline:hover { background: #2980b9; }
+        .msg-time {
+            font-size: 0.7em;
+            color: rgba(255,255,255,0.4);
+            text-align: right;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -425,6 +442,20 @@
         };
     }
 
+    function playInlineAudio(btn, url) {
+        if (btn._audio && !btn._audio.paused) {
+            btn._audio.pause();
+            btn._audio.currentTime = 0;
+            btn.textContent = '▶ 듣기';
+            return;
+        }
+        const audio = new Audio(url);
+        btn._audio = audio;
+        btn.textContent = '⏹ 정지';
+        audio.play();
+        audio.onended = () => { btn.textContent = '▶ 듣기'; };
+    }
+
     async function sendAudio() {
         if (!recordedBlob) {
             addChatMessage('system', '❌ 녹음된 오디오가 없습니다.');
@@ -527,8 +558,8 @@
         sendBtn.disabled = true;
         input.value = '';
 
-        // 학생 메시지 표시
-        addChatMessage('student', text);
+        const audioBlobUrl = URL.createObjectURL(recordedBlob);
+        addChatMessage('student', `🎤 <button class="btn-play-inline" onclick="playInlineAudio(this, '${audioBlobUrl}')">▶ 듣기</button>`);
 
         // 로딩 표시
         document.getElementById('loading').classList.add('active');
@@ -625,7 +656,12 @@
         if (type === 'student') label = '🎓 학생';
         else if (type === 'npc') label = '☕ NPC (분석가 판단)';
 
-        msg.innerHTML = label ? `<div class="label">${label}</div>${text}` : text;
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+        msg.innerHTML = (label ? `<div class="label">${label}</div>` : '') 
+            + text 
+            + `<div class="msg-time">${timeStr}</div>`;
         container.appendChild(msg);
         container.scrollTop = container.scrollHeight;
     }
