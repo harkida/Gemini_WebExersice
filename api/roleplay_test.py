@@ -18,7 +18,6 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'test-secret-key-change-me')
 # Gemini 모델 설정
 # ============================================================
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-analyst_model = None
 
 if GEMINI_API_KEY:
     try:
