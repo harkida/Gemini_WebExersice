@@ -23,12 +23,12 @@
       "dest": "api/roleplay_test.py"
     },
     {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    },
-    {
       "src": "/api/analyst-test-audio",
       "dest": "api/roleplay_test.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
     }
   ]
 }
