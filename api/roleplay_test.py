@@ -147,16 +147,18 @@ def analyst_test():
         return jsonify({"error": "학생 입력이 비어있습니다."}), 400
 
     try:
+        import time
         # 분석가 프롬프트 생성
         prompt = build_analyst_prompt(TEST_SCENARIO, conversation_history, student_input)
 
-        # Gemini 호출
+        # Gemini 호출 (분석가)
+        analyst_start = time.time()
         response = gemini_client.models.generate_content(
             model="gemini-3-flash-preview",
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.3,
-                max_output_tokens=1024,
+                max_output_tokens=2048,
                 response_mime_type="application/json",
                 thinking_config=types.ThinkingConfig(
                         thinking_level=types.ThinkingLevel.LOW
@@ -180,6 +182,7 @@ def analyst_test():
         except json.JSONDecodeError:
             parsed = {"parse_error": True, "raw": raw_text}
 
+        analyst_latency = int((time.time() - analyst_start) * 1000)
         # ============================================================
         # 연기자 체인: DYN일 때만 연기자 호출
         # ============================================================
@@ -200,7 +203,10 @@ def analyst_test():
                 contents=actor_prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.6,
-                    max_output_tokens=256,
+                    max_output_tokens=1024,
+                    thinking_config=types.ThinkingConfig(
+                            thinking_level=types.ThinkingLevel.LOW
+                    )
                 )
             )
 
@@ -212,6 +218,7 @@ def analyst_test():
         return jsonify({
             "success": True,
             "analyst_response": parsed,
+            "analyst_latency": analyst_latency,
             "raw_text": raw_text,
             "actor_line": actor_line,
             "actor_latency": actor_latency,

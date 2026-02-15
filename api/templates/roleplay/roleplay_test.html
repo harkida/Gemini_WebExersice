@@ -348,7 +348,7 @@
                 const resp = data.analyst_response;
 
                 // JSON 결과 표시
-                addJsonCard(turnNumber, text, resp, latency, data.prompt_used, data.actor_line, data.actor_latency);
+                addJsonCard(turnNumber, text, resp, data.analyst_latency || latency, data.prompt_used, data.actor_line, data.actor_latency);
                 
                 // 대화 기록에 추가
                 conversationHistory.push({
