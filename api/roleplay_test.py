@@ -54,14 +54,20 @@ TEST_SCENARIO = {
 # ============================================================
 # 분석가 프롬프트
 # ============================================================
-def build_analyst_prompt(scenario, conversation_history, student_input):
+def build_analyst_prompt_for_audio(scenario, conversation_history):
+    """음성 입력용 분석가 프롬프트 — 텍스트 버전에 STT 지시를 추가"""
     npc = scenario["npc"]
     pre_cats = scenario["pre_categories"]
-
-    # PRE 카테고리 목록을 텍스트로 변환
     pre_list = "\n".join([f'  - "{key}": {desc}' for key, desc in pre_cats.items()])
 
     prompt = f"""너는 롤플레이 게임의 "분석가"이다. 너의 역할은 플레이어(한국어 학습 중인 이탈리아 학생)의 발화를 분석하고, NPC가 어떻게 반응해야 하는지 판단하는 것이다.
+
+## 🎤 중요: 음성 입력
+첨부된 오디오 파일은 학생이 직접 말한 한국어 음성이다.
+1. 먼저 음성을 듣고 한국어 텍스트로 변환하라.
+2. 변환한 텍스트를 "transcribed_text" 필드에 포함하라.
+3. 그 텍스트를 기반으로 아래 분석을 수행하라.
+※ 학생은 한국어 학습자이므로 발음이 부정확할 수 있다. 최대한 관대하게 인식하라.
 
 ## NPC 정보
 - 이름: {npc['name']}
@@ -76,11 +82,9 @@ def build_analyst_prompt(scenario, conversation_history, student_input):
 {scenario['target_grammar']}
 
 ## 사용 가능한 PRE(사전녹음) 카테고리
-아래 목록에 해당하는 상황이면 PRE를 우선 사용하라. 레이턴시 절약에 매우 중요하다.
 {pre_list}
 
 ## 감정 프레임워크
-NPC의 반응 감정을 아래에서 선택하라:
 - 보통 (neutral)
 - 행복 → 안도 / 웃김 / 감동 / 통쾌함
 - 분노 → 불쾌 / 증오 / 권태
@@ -89,42 +93,36 @@ NPC의 반응 감정을 아래에서 선택하라:
 - 놀람 → 당황 / 혼란 / 감탄
 
 ## 판단 우선순위 (반드시 이 순서를 따를 것)
-
 1단계: 학생의 발화를 이해할 수 있는가?
-  - 완전히 이해 불가 → PRE "not_understood" 반환
-  - 부분적으로 이해 → DYN (되묻기 생성 필요)
+  - 완전히 이해 불가 → PRE "not_understood"
+  - 부분적으로 이해 → DYN (되묻기)
   - 이해 가능 → 2단계로
-
-2단계: 현재 대화 흐름에서 PRE 웨이포인트에 해당하는가?
-  - 해당함 → PRE + 해당 category 반환
+2단계: PRE 웨이포인트에 해당하는가?
+  - 해당함 → PRE + category
   - 해당하지 않음 → 3단계로
-
-3단계: 동적 응답이 필요하다 → DYN + 감정 분석 결과 반환
+3단계: DYN + 감정 분석
 
 ## 대화 기록
 {json.dumps(conversation_history, ensure_ascii=False) if conversation_history else "(첫 번째 턴)"}
 
-## 학생의 현재 발화
-"{student_input}"
+## 출력 형식 (4가지 중 하나 선택):
 
-## 출력 규칙 (매우 중요)
-- 반드시 JSON만 출력하라. 다른 텍스트는 일절 금지.
-- 가능한 한 짧게 출력하라. 짧을수록 좋다.
+형식1 - PRE:
+{{"route":"PRE","category":"카테고리명","transcribed_text":"인식된 텍스트"}}
 
-### 출력 형식 (3가지 중 하나를 선택):
+형식2 - DYN 부분 이해:
+{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","transcribed_text":"인식된 텍스트"}}
 
-형식1 - PRE (사전녹음 사용):
-{{"route":"PRE","category":"카테고리명"}}
+형식3 - DYN 완전 이해:
+{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트"}}
 
-형식2 - DYN 부분 이해 (되묻기 생성 필요):
-{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"NPC가 어떻게 되물어야 하는지"}}
-
-형식3 - DYN 완전 이해 (동적 응답 생성 필요):
-{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도1~10,"sub_emotion":"보조감정또는null","sub_intensity":강도1~10또는null,"audio_tags":"[태그1][태그2]","direction":"NPC가 어떻게 반응해야 하는지 간략 설명"}}
+형식4 - 음성 인식 실패 (잡음만 들리거나 아무 말도 안 한 경우):
+{{"route":"PRE","category":"not_understood","transcribed_text":""}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 
     return prompt
+
 
 # ============================================================
 # 라우트
@@ -228,6 +226,111 @@ def analyst_test():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Gemini 호출 실패: {str(e)}"}), 500
+
+
+@app.route('/api/analyst-test-audio', methods=['POST'])
+def analyst_test_audio():
+    """음성 입력 → 분석가 테스트 엔드포인트"""
+    if not gemini_client:
+        return jsonify({"error": "Gemini 클라이언트 미설정"}), 500
+
+    audio_file = request.files.get('audio_file')
+    mime_type = request.form.get('mime_type', 'audio/mp4')
+    conversation_history_str = request.form.get('conversation_history', '[]')
+
+    if not audio_file:
+        return jsonify({"error": "오디오 파일이 없습니다."}), 400
+
+    try:
+        conversation_history = json.loads(conversation_history_str)
+    except json.JSONDecodeError:
+        conversation_history = []
+
+    try:
+        import time
+
+        # 오디오 바이트 읽기
+        audio_bytes = audio_file.read()
+
+        # 분석가 프롬프트 생성 (음성용 — student_input 자리에 지시 추가)
+        prompt_text = build_analyst_prompt_for_audio(TEST_SCENARIO, conversation_history)
+
+        # Gemini에 오디오 + 프롬프트 함께 전달
+        analyst_start = time.time()
+        response = gemini_client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=[
+                types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                prompt_text
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                thinking_config=types.ThinkingConfig(
+                    thinking_level=types.ThinkingLevel.LOW
+                )
+            )
+        )
+
+        raw_text = (response.text or "").strip()
+
+        # JSON 파싱
+        clean = raw_text.replace("```json", "").replace("```", "").strip()
+        if '{' in clean:
+            clean = clean[clean.index('{'):]
+        if '}' in clean:
+            clean = clean[:clean.rindex('}') + 1]
+
+        try:
+            parsed = json.loads(clean)
+        except json.JSONDecodeError:
+            parsed = {"parse_error": True, "raw": raw_text}
+
+        analyst_latency = int((time.time() - analyst_start) * 1000)
+
+        # 인식된 텍스트 추출
+        transcribed_text = parsed.get("transcribed_text", "(인식 실패)")
+
+        # 연기자 체인: DYN일 때만
+        actor_line = None
+        actor_latency = None
+
+        if parsed.get("route") == "DYN":
+            actor_start = time.time()
+            actor_prompt = build_actor_prompt(
+                TEST_SCENARIO, conversation_history, parsed, transcribed_text
+            )
+            actor_response = gemini_client.models.generate_content(
+                model="gemini-3-flash-preview",
+                contents=actor_prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.6,
+                    max_output_tokens=1024,
+                    thinking_config=types.ThinkingConfig(
+                        thinking_level=types.ThinkingLevel.LOW
+                    )
+                )
+            )
+            actor_raw = (actor_response.text or "").strip()
+            actor_line = actor_raw.strip('"').strip("'")
+            actor_latency = int((time.time() - actor_start) * 1000)
+
+        return jsonify({
+            "success": True,
+            "analyst_response": parsed,
+            "analyst_latency": analyst_latency,
+            "transcribed_text": transcribed_text,
+            "raw_text": raw_text,
+            "actor_line": actor_line,
+            "actor_latency": actor_latency,
+            "prompt_used": prompt_text
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"음성 처리 실패: {str(e)}"}), 500
+
 
 @app.route('/api/scenario-info')
 def scenario_info():

@@ -242,6 +242,43 @@
 
         /* 레이턴시 표시 */
         .latency { font-size: 0.8em; color: #aaa; }
+
+        .record-area {
+            padding: 12px 16px;
+            background: #2b2d31;
+            border-top: 1px solid #3a3c41;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .btn-record {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            background: #e74c3c;
+            color: white;
+            font-size: 0.95em;
+            transition: background 0.2s;
+        }
+        .btn-record:hover { background: #c0392b; }
+        .btn-record.recording {
+            background: #27ae60;
+            animation: pulse 1.5s infinite;
+        }
+        .btn-listen {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            background: #3498db;
+            color: white;
+            font-size: 0.95em;
+        }
+        .btn-listen:hover { background: #2980b9; }
+        .btn-listen.playing { background: #8e44ad; }
     </style>
 </head>
 <body>
@@ -268,11 +305,19 @@
             <span class="spinner"></span> 분석가가 판단 중...
         </div>
 
-        <div class="input-area">
-            <input type="text" id="studentInput" placeholder="학생으로서 한국어를 입력하세요..." 
-                   autocomplete="off" />
-            <button class="btn-send" id="sendBtn" onclick="sendMessage()">전송</button>
+        <!-- 녹음 컨트롤 -->
+        <div class="record-area">
+            <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎤 녹음 시작</button>
+            <button class="btn-listen" id="listenBtn" onclick="playRecording()" style="display:none;">🔊 듣기</button>
+            <button class="btn-send" id="sendAudioBtn" onclick="sendAudio()" style="display:none;">📤 전송</button>
             <button class="btn-reset" onclick="resetConversation()">초기화</button>
+        </div>
+
+        <!-- 텍스트 입력 (디버깅용) -->
+        <div class="input-area">
+            <input type="text" id="studentInput" placeholder="[디버깅] 텍스트로 직접 입력..." 
+                   autocomplete="off" />
+            <button class="btn-send" id="sendBtn" onclick="sendMessage()">텍스트 전송</button>
         </div>
     </div>
 
@@ -293,6 +338,168 @@
 <script>
     let conversationHistory = [];
     let turnNumber = 0;
+    // ============================================================
+    // 녹음 관련
+    // ============================================================
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedBlob = null;
+    let recordedMimeType = 'audio/mp4';
+    let playbackAudioEl = new Audio();
+
+    function toggleRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            // 녹음 중단
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        } else {
+            // 녹음 시작 (또는 재녹음)
+            startRecording();
+        }
+    }
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                recordedMimeType = 'audio/mp4';
+            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                recordedMimeType = 'audio/webm';
+            } else {
+                recordedMimeType = '';
+            }
+
+            const options = recordedMimeType ? { mimeType: recordedMimeType } : {};
+            mediaRecorder = new MediaRecorder(stream, options);
+            audioChunks = [];
+            recordedBlob = null;
+
+            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+
+            mediaRecorder.onstop = () => {
+                recordedBlob = new Blob(audioChunks, { type: recordedMimeType });
+
+                const recordBtn = document.getElementById('recordBtn');
+                recordBtn.textContent = '🔄 재녹음';
+                recordBtn.classList.remove('recording');
+
+                document.getElementById('listenBtn').style.display = 'inline-block';
+                document.getElementById('sendAudioBtn').style.display = 'inline-block';
+            };
+
+            mediaRecorder.start();
+            const recordBtn = document.getElementById('recordBtn');
+            recordBtn.textContent = '⏹️ 녹음 중단';
+            recordBtn.classList.add('recording');
+
+            // 녹음 시작하면 듣기/전송 숨김
+            document.getElementById('listenBtn').style.display = 'none';
+            document.getElementById('sendAudioBtn').style.display = 'none';
+
+        } catch (err) {
+            addChatMessage('system', `❌ 마이크 접근 실패: ${err.message}`);
+        }
+    }
+
+    function playRecording() {
+        if (!recordedBlob) return;
+        const listenBtn = document.getElementById('listenBtn');
+
+        if (!playbackAudioEl.paused) {
+            playbackAudioEl.pause();
+            playbackAudioEl.currentTime = 0;
+            listenBtn.textContent = '🔊 듣기';
+            listenBtn.classList.remove('playing');
+            return;
+        }
+
+        playbackAudioEl.src = URL.createObjectURL(recordedBlob);
+        playbackAudioEl.play();
+        listenBtn.textContent = '⏹️ 정지';
+        listenBtn.classList.add('playing');
+
+        playbackAudioEl.onended = () => {
+            listenBtn.textContent = '🔊 듣기';
+            listenBtn.classList.remove('playing');
+        };
+    }
+
+    async function sendAudio() {
+        if (!recordedBlob) {
+            addChatMessage('system', '❌ 녹음된 오디오가 없습니다.');
+            return;
+        }
+
+        const sendAudioBtn = document.getElementById('sendAudioBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        sendAudioBtn.disabled = true;
+        recordBtn.disabled = true;
+
+        addChatMessage('student', '🎤 (음성 입력)');
+        document.getElementById('loading').classList.add('active');
+
+        const extension = recordedMimeType.includes('webm') ? 'webm' : 'mp4';
+        const formData = new FormData();
+        formData.append('audio_file', recordedBlob, `roleplay_audio.${extension}`);
+        formData.append('mime_type', recordedMimeType);
+        formData.append('conversation_history', JSON.stringify(conversationHistory));
+
+        try {
+            const res = await fetch('/api/analyst-test-audio', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                turnNumber++;
+                document.getElementById('turnCount').textContent = `턴: ${turnNumber}`;
+
+                const resp = data.analyst_response;
+                const transcribedText = data.transcribed_text || '(인식 실패)';
+
+                // JSON 카드에 인식된 텍스트 표시
+                addJsonCard(turnNumber, `🎤 "${transcribedText}"`, resp, data.analyst_latency, data.prompt_used, data.actor_line, data.actor_latency);
+
+                conversationHistory.push({ role: "player", text: transcribedText });
+
+                let npcSummary = '';
+                if (resp.route === 'PRE') {
+                    npcSummary = `[PRE → "${resp.category}"] (사전녹음 MP3가 재생될 위치)`;
+                    conversationHistory.push({ role: "npc", text: `[PRE: ${resp.category}]`, route: "PRE" });
+                } else if (resp.route === 'DYN') {
+                    if (data.actor_line) {
+                        npcSummary = data.actor_line;
+                        conversationHistory.push({ role: "npc", text: data.actor_line, route: "DYN" });
+                    } else {
+                        npcSummary = `[DYN → ${resp.main_emotion}(${resp.intensity})] ${resp.direction}`;
+                        conversationHistory.push({ role: "npc", text: resp.direction || "(동적 응답)", route: "DYN" });
+                    }
+                } else {
+                    npcSummary = `⚠️ 파싱 오류: ${JSON.stringify(resp)}`;
+                }
+                addChatMessage('npc', npcSummary);
+            } else {
+                addChatMessage('system', `❌ 오류: ${data.error}`);
+            }
+        } catch (e) {
+            addChatMessage('system', `❌ 네트워크 오류: ${e.message}`);
+        } finally {
+            document.getElementById('loading').classList.remove('active');
+            sendAudioBtn.disabled = false;
+            recordBtn.disabled = false;
+
+            // 전송 후 녹음 상태 리셋
+            recordedBlob = null;
+            document.getElementById('recordBtn').textContent = '🎤 녹음 시작';
+            document.getElementById('listenBtn').style.display = 'none';
+            document.getElementById('sendAudioBtn').style.display = 'none';
+        }
+    }
+
+
 
     // 시나리오 정보 로드
     async function loadScenario() {
