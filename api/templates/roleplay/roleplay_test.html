@@ -494,7 +494,7 @@
                 const transcribedText = data.transcribed_text || '(인식 실패)';
 
                 // JSON 카드에 인식된 텍스트 표시
-                addJsonCard(turnNumber, `🎤 "${transcribedText}"`, resp, data.analyst_latency, data.prompt_used, data.actor_line, data.actor_latency);
+                addJsonCard(turnNumber, `🎤 "${transcribedText}"`, resp, data.analyst_latency, data.prompt_used, data.actor_line, data.actor_latency, data.tts_latency);
 
                 conversationHistory.push({ role: "player", text: transcribedText });
 
@@ -504,11 +504,17 @@
                     conversationHistory.push({ role: "npc", text: `[PRE: ${resp.category}]`, route: "PRE" });
                 } else if (resp.route === 'DYN') {
                     if (data.actor_line) {
-                        npcSummary = data.actor_line;
+                        if (data.tts_audio_base64) {
+                            const audioDataUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
+                            npcSummary = data.actor_line 
+                                + `<br><button class="btn-play-inline" onclick="playInlineAudio(this, '${audioDataUrl}')">▶ 듣기</button>`
+                                + `<span class="latency"> TTS: ${data.tts_latency}ms</span>`;
+                            const autoAudio = new Audio(audioDataUrl);
+                            autoAudio.play().catch(e => console.log('자동재생 차단:', e));
+                        } else {
+                            npcSummary = data.actor_line + ' <span class="latency">(TTS 없음)</span>';
+                        }
                         conversationHistory.push({ role: "npc", text: data.actor_line, route: "DYN" });
-                    } else {
-                        npcSummary = `[DYN → ${resp.main_emotion}(${resp.intensity})] ${resp.direction}`;
-                        conversationHistory.push({ role: "npc", text: resp.direction || "(동적 응답)", route: "DYN" });
                     }
                 } else {
                     npcSummary = `⚠️ 파싱 오류: ${JSON.stringify(resp)}`;
@@ -587,7 +593,7 @@
                 const resp = data.analyst_response;
 
                 // JSON 결과 표시
-                addJsonCard(turnNumber, text, resp, data.analyst_latency || latency, data.prompt_used, data.actor_line, data.actor_latency);
+                addJsonCard(turnNumber, text, resp, data.analyst_latency || latency, data.prompt_used, data.actor_line, data.actor_latency, data.tts_latency);
                 
                 // 대화 기록에 추가
                 conversationHistory.push({
@@ -606,8 +612,18 @@
                     });
                 } else if (resp.route === 'DYN') {
                     if (data.actor_line) {
-                        // 연기자 대사가 있으면 표시
-                        npcSummary = data.actor_line;
+                        // 연기자 대사 + TTS 오디오
+                        if (data.tts_audio_base64) {
+                            const audioDataUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
+                            npcSummary = data.actor_line 
+                                + `<br><button class="btn-play-inline" onclick="playInlineAudio(this, '${audioDataUrl}')">▶ 듣기</button>`
+                                + `<span class="latency"> TTS: ${data.tts_latency}ms</span>`;
+                            // 자동 재생
+                            const autoAudio = new Audio(audioDataUrl);
+                            autoAudio.play().catch(e => console.log('자동재생 차단:', e));
+                        } else {
+                            npcSummary = data.actor_line + ' <span class="latency">(TTS 없음)</span>';
+                        }
                         conversationHistory.push({
                             role: "npc",
                             text: data.actor_line,
@@ -668,7 +684,7 @@
     }
 
     // JSON 카드 추가
-    function addJsonCard(turn, input, response, latency, prompt, actorLine, actorLatency) {
+    function addJsonCard(turn, input, response, latency, prompt, actorLine, actorLatency, ttsLatency) {
         const container = document.getElementById('jsonOutput');
 
         // 기본 안내 메시지 제거 (첫 턴에만)
@@ -688,7 +704,7 @@
         card.innerHTML = `
             <div class="turn-label">턴 ${turn} — 학생: "${input}"</div>
             <span class="route-badge ${routeClass}">${routeLabel}</span>
-            <span class="latency">분석: ${latency}ms${actorLatency ? ' + 연기: ' + actorLatency + 'ms' : ''}</span>
+            <span class="latency">분석: ${latency}ms${actorLatency ? ` | 연기: ${actorLatency}ms` : ''}${ttsLatency ? ` | TTS: ${ttsLatency}ms` : ''}</span>
             <pre>${JSON.stringify(response, null, 2)}</pre>
             ${actorLine ? '<div style="margin-top:8px;padding:8px;background:#1a3a1a;border-radius:4px;border-left:3px solid #27ae60;"><span style="color:#27ae60;font-size:0.8em;font-weight:bold;">🎭 연기자 대사:</span><br><span style="color:#e0e0e0;">' + escapeHtml(actorLine) + '</span></div>' : ''}
             <div class="prompt-toggle" onclick="togglePrompt('${promptId}')">📋 프롬프트 보기/숨기기</div>

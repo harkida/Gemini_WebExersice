@@ -5,6 +5,9 @@ import os
 import json
 import pathlib
 import traceback
+import requests as http_requests
+import base64
+import time    
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR.parent / "templates"
@@ -27,6 +30,59 @@ if GEMINI_API_KEY:
         print(f"🚨 클라이언트 로드 실패: {e}")
 else:
     print("⚠️ GEMINI_API_KEY 미설정")
+
+
+# ============================================================
+# ElevenLabs TTS 설정
+# ============================================================
+ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY')
+ELEVENLABS_VOICE_ID = "xi3rF0t7dg7uN2M0WUhr"
+ELEVENLABS_MODEL_ID = "eleven_v3"
+
+def call_elevenlabs_tts(text, voice_id=None, model_id=None):
+    """
+    ElevenLabs TTS API 호출 → MP3 bytes 반환.
+    실패 시 None 반환 (TTS 실패가 전체 응답을 막으면 안 됨).
+    """
+    if not ELEVENLABS_API_KEY:
+        print("⚠️ ELEVENLABS_API_KEY 미설정 — TTS 건너뜀")
+        return None
+
+    voice_id = voice_id or ELEVENLABS_VOICE_ID
+    model_id = model_id or ELEVENLABS_MODEL_ID
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+
+    headers = {
+        "Content-Type": "application/json",
+        "xi-api-key": ELEVENLABS_API_KEY
+    }
+
+    payload = {
+        "text": text,
+        "model_id": model_id,
+        "language_code": "ko"
+    }
+
+    try:
+        resp = http_requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            params={"output_format": "mp3_44100_128"},
+            timeout=15
+        )
+
+        if resp.status_code == 200:
+            return resp.content   # MP3 bytes
+        else:
+            print(f"🚨 ElevenLabs 오류 {resp.status_code}: {resp.text[:200]}")
+            return None
+
+    except Exception as e:
+        print(f"🚨 ElevenLabs 요청 실패: {e}")
+        return None
+
 
 # ============================================================
 # 테스트용 하드코딩 시나리오 (카페)
@@ -215,6 +271,23 @@ def analyst_test():
             actor_line = actor_raw.strip('"').strip("'")
             actor_latency = int((time.time() - actor_start) * 1000)
 
+        # ============================================================
+        # TTS: 연기자 대사가 있으면 ElevenLabs로 음성 생성
+        # ============================================================
+        tts_audio_b64 = None
+        tts_latency = None
+
+        if actor_line:
+            tts_start = time.time()
+            tts_bytes = call_elevenlabs_tts(actor_line)
+            tts_latency = int((time.time() - tts_start) * 1000)
+
+            if tts_bytes:
+                tts_audio_b64 = base64.b64encode(tts_bytes).decode('utf-8')
+                print(f"✅ TTS 완료: {len(tts_bytes)} bytes, {tts_latency}ms")
+            else:
+                print(f"⚠️ TTS 실패 — 텍스트만 반환")
+
         return jsonify({
             "success": True,
             "analyst_response": parsed,
@@ -222,6 +295,8 @@ def analyst_test():
             "raw_text": raw_text,
             "actor_line": actor_line,
             "actor_latency": actor_latency,
+            "tts_audio_base64": tts_audio_b64,
+            "tts_latency": tts_latency,
             "prompt_used": prompt
         })
 
@@ -318,6 +393,23 @@ def analyst_test_audio():
             actor_line = actor_raw.strip('"').strip("'")
             actor_latency = int((time.time() - actor_start) * 1000)
 
+        # ============================================================
+        # TTS: 연기자 대사가 있으면 ElevenLabs로 음성 생성
+        # ============================================================
+        tts_audio_b64 = None
+        tts_latency = None
+
+        if actor_line:
+            tts_start = time.time()
+            tts_bytes = call_elevenlabs_tts(actor_line)
+            tts_latency = int((time.time() - tts_start) * 1000)
+
+            if tts_bytes:
+                tts_audio_b64 = base64.b64encode(tts_bytes).decode('utf-8')
+                print(f"✅ TTS 완료: {len(tts_bytes)} bytes, {tts_latency}ms")
+            else:
+                print(f"⚠️ TTS 실패 — 텍스트만 반환")
+
         return jsonify({
             "success": True,
             "analyst_response": parsed,
@@ -326,6 +418,8 @@ def analyst_test_audio():
             "raw_text": raw_text,
             "actor_line": actor_line,
             "actor_latency": actor_latency,
+            "tts_audio_base64": tts_audio_b64,
+            "tts_latency": tts_latency,
             "prompt_used": prompt_text
         })
 
