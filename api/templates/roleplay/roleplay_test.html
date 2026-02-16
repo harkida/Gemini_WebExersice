@@ -283,9 +283,9 @@
             background: #3498db;
             color: white;
             border: none;
-            padding: 3px 10px;
+            padding: 5px 10px;
             border-radius: 4px;
-            font-size: 0.8em;
+            font-size: 1.0em;
             cursor: pointer;
             margin-left: 4px;
         }
@@ -385,12 +385,10 @@
         const store = npcAudioStore[msgId];
         if (!store) return;
 
-        // 재생 중이면 정지
         if (store.audio && !store.audio.paused) {
             store.audio.pause();
             store.audio.currentTime = 0;
-            const label = store.playCount >= 3 ? '▶ 다시 듣기' : `▶ 듣기 (${store.playCount}/3)`;
-            btn.textContent = label;
+            btn.textContent = '▶ 듣기';
             return;
         }
 
@@ -398,17 +396,14 @@
         store.audio = audio;
         btn.textContent = '⏹ 정지';
         audio.play();
+        audio.onended = () => { btn.textContent = '▶ 듣기'; };
+    }
 
-        audio.onended = () => {
-            store.playCount++;
-            if (store.playCount >= 3) {
-                btn.textContent = '▶ 다시 듣기';
-                const textEl = document.getElementById(msgId + '-text');
-                if (textEl) textEl.classList.add('visible');
-            } else {
-                btn.textContent = `▶ 듣기 (${store.playCount}/3)`;
-            }
-        };
+    function toggleNpcText(btn, msgId) {
+        const textEl = document.getElementById(msgId + '-text');
+        if (!textEl) return;
+        textEl.classList.toggle('visible');
+        btn.textContent = textEl.classList.contains('visible') ? '🔽 텍스트 숨기기' : '📝 텍스트 보기';
     }
 
     function toggleRecording() {
@@ -552,23 +547,15 @@
                 } else if (resp.route === 'DYN') {
                     if (data.actor_line) {
                         const cleanLine = data.actor_line.replace(/\[.*?\]/g, '').trim();
-
                         if (data.tts_audio_base64) {
                             const audioDataUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
                             const msgId = 'npc-' + Date.now();
 
-                            npcAudioStore[msgId] = { url: audioDataUrl, playCount: 0, audio: null };
+                            npcAudioStore[msgId] = { url: audioDataUrl, audio: null };
 
-                            npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this, '${msgId}')">▶ 듣기 (0/3)</button>`
+                            npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this, '${msgId}')">▶ 듣기</button>`
+                                + ` <button class="btn-play-inline" style="background:#6c5ce7;" onclick="toggleNpcText(this, '${msgId}')">📝 텍스트 보기</button>`
                                 + `<div class="npc-hidden-text" id="${msgId}-text">${escapeHtml(cleanLine)}</div>`;
-
-                            const autoAudio = new Audio(audioDataUrl);
-                            autoAudio.onended = () => {
-                                npcAudioStore[msgId].playCount = 1;
-                                const btn = document.querySelector(`[onclick*="${msgId}"]`);
-                                if (btn) btn.textContent = '▶ 듣기 (1/3)';
-                            };
-                            autoAudio.play().catch(e => console.log('자동재생 차단:', e));
                         } else {
                             npcSummary = cleanLine;
                         }
@@ -672,26 +659,20 @@
                     if (data.actor_line) {
                         const cleanLine = data.actor_line.replace(/\[.*?\]/g, '').trim();
 
+
                         if (data.tts_audio_base64) {
                             const audioDataUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
                             const msgId = 'npc-' + Date.now();
 
-                            npcAudioStore[msgId] = { url: audioDataUrl, playCount: 0, audio: null };
+                            npcAudioStore[msgId] = { url: audioDataUrl, audio: null };
 
-                            npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this, '${msgId}')">▶ 듣기 (0/3)</button>`
+                            npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this, '${msgId}')">▶ 듣기</button>`
+                                + ` <button class="btn-play-inline" style="background:#6c5ce7;" onclick="toggleNpcText(this, '${msgId}')">📝 텍스트 보기</button>`
                                 + `<div class="npc-hidden-text" id="${msgId}-text">${escapeHtml(cleanLine)}</div>`;
-
-                            // 자동 재생 (완료 시 1회 카운트)
-                            const autoAudio = new Audio(audioDataUrl);
-                            autoAudio.onended = () => {
-                                npcAudioStore[msgId].playCount = 1;
-                                const btn = document.querySelector(`[onclick*="${msgId}"]`);
-                                if (btn) btn.textContent = '▶ 듣기 (1/3)';
-                            };
-                            autoAudio.play().catch(e => console.log('자동재생 차단:', e));
                         } else {
                             npcSummary = cleanLine;
                         }
+
                         conversationHistory.push({
                             role: "npc",
                             text: data.actor_line,
