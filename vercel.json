@@ -7,9 +7,21 @@
     {
       "src": "api/roleplay_test.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "api/roleplay_admin.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
+    {
+      "src": "/roleplay-admin",
+      "dest": "api/roleplay_admin.py"
+    },
+    {
+      "src": "/api/rp-admin/(.*)",
+      "dest": "api/roleplay_admin.py"
+    },
     {
       "src": "/roleplay-test",
       "dest": "api/roleplay_test.py"
