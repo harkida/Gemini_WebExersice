@@ -51,7 +51,7 @@ def teacher_required(f):
 def roleplay_admin_page():
     if not session.get('is_teacher'):
         return redirect('/teacher-login')
-    return render_template('roleplay_admin.html')
+    return render_template('roleplay/roleplay_admin.html')
 
 # ============================================================
 # 시나리오 API
