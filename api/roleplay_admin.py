@@ -53,6 +53,12 @@ def roleplay_admin_page():
         return redirect('/teacher-login')
     return render_template('roleplay/roleplay_admin.html')
 
+@app.route('/roleplay-session')
+def roleplay_session_page():
+    if not session.get('is_teacher'):
+        return redirect('/teacher-login')
+    return render_template('roleplay/roleplay_session.html')
+
 # ============================================================
 # 시나리오 API
 # ============================================================
@@ -412,6 +418,158 @@ def update_pre_recording(recording_id):
     except psycopg2.errors.UniqueViolation:
         conn.rollback()
         return jsonify({"error": "이미 존재하는 조합입니다 (scenario_id + category + variant)"}), 409
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+# ============================================================
+# 세션 API
+# ============================================================
+
+@app.route('/api/rp-admin/sessions', methods=['GET'])
+@teacher_required
+def get_sessions():
+    """세션 목록 조회 (목표/시나리오 정보 포함)"""
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT s.*, g.title as goal_title
+                FROM rp_sessions s
+                LEFT JOIN rp_goals g ON s.goal_id = g.id
+                ORDER BY s.id DESC
+            """)
+            sessions = cur.fetchall()
+
+            for sess in sessions:
+                cur.execute("""
+                    SELECT sc.title, sc.id as scenario_id
+                    FROM rp_session_scenarios ss
+                    JOIN rp_scenarios sc ON ss.scenario_id = sc.id
+                    WHERE ss.session_id = %s ORDER BY ss.order_num
+                """, (sess['id'],))
+                sess['scenarios'] = cur.fetchall()
+
+                cur.execute("""
+                    SELECT t.id, t.team_code, COUNT(m.id) as member_count
+                    FROM rp_session_teams t
+                    LEFT JOIN rp_session_members m ON m.team_id = t.id
+                    WHERE t.session_id = %s
+                    GROUP BY t.id, t.team_code
+                    ORDER BY t.team_code
+                """, (sess['id'],))
+                sess['teams'] = cur.fetchall()
+
+            return jsonify({"sessions": sessions})
+    except Exception as e:
+        print(f"🚨 세션 조회 오류: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-admin/sessions', methods=['POST'])
+@teacher_required
+def create_session():
+    """세션 생성 + 팀 자동 생성"""
+    data = request.get_json()
+    class_name = data.get('class_name')
+    goal_id = data.get('goal_id')
+    scenario_ids = data.get('scenario_ids', [])
+    team_count = data.get('team_count', 1)
+
+    if not class_name or not scenario_ids:
+        return jsonify({"error": "반, 시나리오는 필수입니다"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO rp_sessions (class_name, goal_id, team_count, status)
+                VALUES (%s, %s, %s, 'waiting') RETURNING id
+            """, (class_name, goal_id if goal_id else None, team_count))
+            session_id = cur.fetchone()[0]
+
+            for idx, sc_id in enumerate(scenario_ids):
+                cur.execute("""
+                    INSERT INTO rp_session_scenarios (session_id, scenario_id, order_num)
+                    VALUES (%s, %s, %s)
+                """, (session_id, sc_id, idx + 1))
+
+            for i in range(1, team_count + 1):
+                team_code = f"A{i}"
+                cur.execute("""
+                    INSERT INTO rp_session_teams (session_id, team_code)
+                    VALUES (%s, %s)
+                """, (session_id, team_code))
+
+            conn.commit()
+            return jsonify({"success": True, "id": session_id, "team_count": team_count})
+    except Exception as e:
+        conn.rollback()
+        print(f"🚨 세션 생성 오류: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-admin/sessions/<int:session_id>/start', methods=['PUT'])
+@teacher_required
+def start_session(session_id):
+    """세션 시작 (waiting → active)"""
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE rp_sessions SET status='active', started_at=CURRENT_TIMESTAMP
+                WHERE id=%s AND status='waiting'
+            """, (session_id,))
+            if cur.rowcount == 0:
+                return jsonify({"error": "시작할 수 없는 세션입니다 (이미 시작됨 또는 종료됨)"}), 400
+            conn.commit()
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-admin/sessions/<int:session_id>/complete', methods=['PUT'])
+@teacher_required
+def complete_session(session_id):
+    """세션 종료 (active → completed)"""
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE rp_sessions SET status='completed', completed_at=CURRENT_TIMESTAMP
+                WHERE id=%s AND status IN ('waiting','active')
+            """, (session_id,))
+            conn.commit()
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-admin/sessions/<int:session_id>', methods=['DELETE'])
+@teacher_required
+def delete_session(session_id):
+    """세션 삭제 (CASCADE로 팀/멤버도 삭제)"""
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM rp_sessions WHERE id = %s", (session_id,))
+            conn.commit()
+            return jsonify({"success": True})
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500

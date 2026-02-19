@@ -19,6 +19,10 @@
       "dest": "api/roleplay_admin.py"
     },
     {
+      "src": "/roleplay-session",
+      "dest": "api/roleplay_admin.py"
+    },
+    {
       "src": "/api/rp-admin/(.*)",
       "dest": "api/roleplay_admin.py"
     },

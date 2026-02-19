@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 세션 관리</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans KR', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; font-size: 15px; }
+
+        .header {
+            background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 100%);
+            border-bottom: 1px solid #2a2d3e; padding: 18px 28px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 22px; font-weight: 700; color: #fff; }
+        .header h1 span { color: #f0a500; }
+        .header-actions { display: flex; gap: 10px; }
+        .header-actions a {
+            color: #888; text-decoration: none; font-size: 14px;
+            padding: 8px 16px; border: 1px solid #333; border-radius: 6px; transition: all 0.2s;
+        }
+        .header-actions a:hover { color: #fff; border-color: #555; }
+
+        .main { padding: 28px; max-width: 1200px; margin: 0 auto; }
+
+        /* ── 카드 ── */
+        .card { background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 10px; padding: 22px; margin-bottom: 18px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .card-title { font-size: 18px; font-weight: 700; color: #fff; }
+
+        /* ── 폼 ── */
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .form-row.full { grid-template-columns: 1fr; }
+        .form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 13px; color: #888; font-weight: 500; }
+        .form-group input, .form-group select {
+            background: #0f1117; border: 1px solid #2a2d3e; border-radius: 6px;
+            padding: 10px 14px; color: #e0e0e0; font-size: 15px; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #f0a500; }
+
+        /* 시나리오 체크박스 */
+        .scenario-checklist { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+        .scenario-checklist label {
+            display: flex; align-items: center; gap: 8px; font-size: 15px; color: #ccc;
+            cursor: pointer; padding: 8px 12px; border: 1px solid #2a2d3e; border-radius: 6px;
+            transition: background 0.15s;
+        }
+        .scenario-checklist label:hover { background: #1f2233; }
+        .scenario-checklist input[type="checkbox"] { accent-color: #f0a500; width: 18px; height: 18px; }
+
+        /* ── 버튼 ── */
+        .btn { padding: 9px 22px; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+        .btn-primary { background: #f0a500; color: #000; }
+        .btn-primary:hover { background: #d99400; }
+        .btn-success { background: #28a745; color: #fff; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: #dc3545; color: #fff; }
+        .btn-warning:hover { background: #c82333; }
+        .btn-danger { background: #dc3545; color: #fff; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-ghost { background: none; border: 1px solid #333; color: #888; }
+        .btn-ghost:hover { border-color: #555; color: #ccc; }
+        .btn-sm { padding: 5px 12px; font-size: 13px; }
+        .btn-row { display: flex; gap: 8px; margin-top: 18px; }
+
+        /* ── 상태 배지 ── */
+        .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+        .status-waiting { background: #2d2a1f; color: #ffd43b; }
+        .status-active { background: #1f2d1f; color: #69db7c; }
+        .status-completed { background: #2d1f2d; color: #b197fc; }
+
+        /* ── 세션 카드 ── */
+        .session-card { background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 10px; padding: 20px; margin-bottom: 14px; }
+        .session-meta { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+        .session-meta .item { font-size: 14px; color: #999; }
+        .session-meta .item strong { color: #ccc; }
+        .session-scenarios { font-size: 14px; color: #888; margin-bottom: 12px; }
+        .session-scenarios span { color: #f0a500; }
+
+        /* ── 팀 그리드 ── */
+        .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 12px; }
+        .team-badge {
+            background: #0f1117; border: 1px solid #2a2d3e; border-radius: 8px;
+            padding: 12px; text-align: center;
+        }
+        .team-badge .code { font-size: 20px; font-weight: 700; color: #f0a500; }
+        .team-badge .count { font-size: 13px; color: #666; margin-top: 4px; }
+
+        /* ── 상태 메시지 ── */
+        .status-msg { padding: 12px 18px; border-radius: 6px; margin-bottom: 18px; font-size: 14px; display: none; }
+        .status-msg.success { display: block; background: #1a2e1a; color: #69db7c; border: 1px solid #2d4a2d; }
+        .status-msg.error { display: block; background: #2e1a1a; color: #ff6b6b; border: 1px solid #4a2d2d; }
+        .empty-state { text-align: center; padding: 40px; color: #555; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📋 <span>세션</span> 관리</h1>
+    <div class="header-actions">
+        <a href="/roleplay-admin">🎭 콘텐츠 관리</a>
+        <a href="/dashboard">← 교사 대시보드</a>
+    </div>
+</div>
+
+<div class="main">
+    <div id="session-status" class="status-msg"></div>
+
+    <!-- ═══════════ 세션 생성 폼 ═══════════ -->
+    <div class="card" style="border-color: #f0a50040;">
+        <div class="card-header"><div class="card-title">➕ 새 세션 만들기</div></div>
+
+        <div class="form-row triple">
+            <div class="form-group">
+                <label>반 (Class) *</label>
+                <select id="ss-class">
+                    <option value="">-- 선택 --</option>
+                    <option value="3학년">3학년</option>
+                    <option value="석사1">석사1</option>
+                    <option value="석사2">석사2</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>학습 목표</label>
+                <select id="ss-goal"><option value="">-- 목표 선택 (선택사항) --</option></select>
+            </div>
+            <div class="form-group">
+                <label>팀 수 *</label>
+                <input type="number" id="ss-teams" value="6" min="1" max="20">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>시나리오 선택 * (복수 가능)</label>
+            <div class="scenario-checklist" id="ss-scenarios">
+                <span style="color:#555;">로딩 중...</span>
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="createSession()">세션 생성</button>
+        </div>
+    </div>
+
+    <!-- ═══════════ 세션 목록 ═══════════ -->
+    <div id="session-list"><div class="empty-state">로딩 중...</div></div>
+</div>
+
+<script>
+function showStatus(msg, type) {
+    const el = document.getElementById('session-status');
+    el.textContent = msg; el.className = `status-msg ${type}`;
+    setTimeout(() => { el.className = 'status-msg'; }, 5000);
+}
+
+// ═══════════ 드롭다운/체크박스 로드 ═══════════
+async function loadFormData() {
+    try {
+        // 목표 드롭다운
+        const goalRes = await fetch('/api/rp-admin/goals');
+        const goalData = await goalRes.json();
+        const goalSel = document.getElementById('ss-goal');
+        if (goalData.goals) {
+            for (const g of goalData.goals) {
+                goalSel.innerHTML += `<option value="${g.id}">${g.title} (${g.class_name || ''})</option>`;
+            }
+        }
+
+        // 시나리오 체크박스
+        const scRes = await fetch('/api/rp-admin/scenarios');
+        const scData = await scRes.json();
+        const container = document.getElementById('ss-scenarios');
+        container.innerHTML = '';
+        if (scData.scenarios?.length) {
+            for (const s of scData.scenarios) {
+                container.innerHTML += `
+                    <label>
+                        <input type="checkbox" value="${s.id}">
+                        ${s.title} — ${s.npc_name || '?'} (${s.npc_job || '?'})
+                    </label>`;
+            }
+        } else {
+            container.innerHTML = '<span style="color:#ff6b6b;">시나리오가 없습니다. 먼저 콘텐츠 관리에서 추가하세요.</span>';
+        }
+    } catch (e) { console.error('폼 데이터 로드 실패:', e); }
+}
+
+// ═══════════ 세션 생성 ═══════════
+async function createSession() {
+    const className = document.getElementById('ss-class').value;
+    const goalId = document.getElementById('ss-goal').value;
+    const teamCount = parseInt(document.getElementById('ss-teams').value) || 1;
+
+    const checked = document.querySelectorAll('#ss-scenarios input[type="checkbox"]:checked');
+    const scenarioIds = Array.from(checked).map(c => parseInt(c.value));
+
+    if (!className) { showStatus('❌ 반을 선택하세요.', 'error'); return; }
+    if (scenarioIds.length === 0) { showStatus('❌ 시나리오를 1개 이상 선택하세요.', 'error'); return; }
+
+    try {
+        const res = await fetch('/api/rp-admin/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                class_name: className,
+                goal_id: goalId ? parseInt(goalId) : null,
+                scenario_ids: scenarioIds,
+                team_count: teamCount
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showStatus(`✅ 세션 생성 완료! (ID: ${data.id}, 팀 ${data.team_count}개)`, 'success');
+            loadSessions();
+        } else {
+            showStatus(`❌ ${data.error}`, 'error');
+        }
+    } catch (e) { showStatus(`❌ ${e.message}`, 'error'); }
+}
+
+// ═══════════ 세션 목록 ═══════════
+async function loadSessions() {
+    try {
+        const res = await fetch('/api/rp-admin/sessions');
+        const data = await res.json();
+
+        if (!data.sessions?.length) {
+            document.getElementById('session-list').innerHTML = '<div class="empty-state">아직 세션이 없습니다. 위에서 생성하세요.</div>';
+            return;
+        }
+
+        let html = '';
+        for (const s of data.sessions) {
+            const statusClass = `status-${s.status}`;
+            const statusLabel = { waiting: '⏳ 대기 중', active: '🟢 진행 중', completed: '✅ 완료' }[s.status] || s.status;
+            const scenarioNames = s.scenarios?.map(sc => sc.title).join(', ') || '-';
+            const createdAt = new Date(s.created_at).toLocaleString('ko-KR');
+
+            // 액션 버튼
+            let actions = '';
+            if (s.status === 'waiting') {
+                actions = `
+                    <button class="btn btn-success btn-sm" onclick="startSession(${s.id})">▶ 시작</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteSession(${s.id})">삭제</button>`;
+            } else if (s.status === 'active') {
+                actions = `<button class="btn btn-warning btn-sm" onclick="completeSession(${s.id})">⏹ 종료</button>`;
+            } else {
+                actions = `<button class="btn btn-danger btn-sm" onclick="deleteSession(${s.id})">삭제</button>`;
+            }
+
+            // 팀 배지
+            let teamHtml = '';
+            if (s.teams?.length) {
+                teamHtml = '<div class="team-grid">';
+                for (const t of s.teams) {
+                    teamHtml += `
+                        <div class="team-badge">
+                            <div class="code">${t.team_code}</div>
+                            <div class="count">${t.member_count}명</div>
+                        </div>`;
+                }
+                teamHtml += '</div>';
+            }
+
+            html += `
+            <div class="session-card">
+                <div class="card-header">
+                    <div>
+                        <span class="card-title">세션 #${s.id}</span>
+                        <span class="status ${statusClass}" style="margin-left:12px;">${statusLabel}</span>
+                    </div>
+                    <div style="display:flex; gap:6px;">${actions}</div>
+                </div>
+                <div class="session-meta">
+                    <div class="item"><strong>반:</strong> ${s.class_name}</div>
+                    <div class="item"><strong>목표:</strong> ${s.goal_title || '-'}</div>
+                    <div class="item"><strong>생성:</strong> ${createdAt}</div>
+                </div>
+                <div class="session-scenarios">시나리오: <span>${scenarioNames}</span></div>
+                ${teamHtml}
+            </div>`;
+        }
+        document.getElementById('session-list').innerHTML = html;
+    } catch (e) {
+        document.getElementById('session-list').innerHTML = `<div class="empty-state" style="color:#ff6b6b;">${e.message}</div>`;
+    }
+}
+
+// ═══════════ 세션 상태 변경 ═══════════
+async function startSession(id) {
+    if (!confirm(`세션 #${id}를 시작하시겠습니까?`)) return;
+    try {
+        const res = await fetch(`/api/rp-admin/sessions/${id}/start`, { method: 'PUT' });
+        const data = await res.json();
+        if (data.success) { showStatus('✅ 세션 시작!', 'success'); loadSessions(); }
+        else showStatus(`❌ ${data.error}`, 'error');
+    } catch (e) { showStatus(`❌ ${e.message}`, 'error'); }
+}
+
+async function completeSession(id) {
+    if (!confirm(`세션 #${id}를 종료하시겠습니까? 학생들은 더 이상 대화할 수 없습니다.`)) return;
+    try {
+        const res = await fetch(`/api/rp-admin/sessions/${id}/complete`, { method: 'PUT' });
+        if ((await res.json()).success) { showStatus('✅ 세션 종료', 'success'); loadSessions(); }
+    } catch (e) { showStatus(`❌ ${e.message}`, 'error'); }
+}
+
+async function deleteSession(id) {
+    if (!confirm(`세션 #${id}를 삭제하시겠습니까?\n팀, 멤버 데이터도 모두 삭제됩니다.`)) return;
+    try {
+        const res = await fetch(`/api/rp-admin/sessions/${id}`, { method: 'DELETE' });
+        if ((await res.json()).success) { showStatus('✅ 삭제 완료', 'success'); loadSessions(); }
+    } catch (e) { showStatus(`❌ ${e.message}`, 'error'); }
+}
+
+// ═══════════ 초기 로드 ═══════════
+document.addEventListener('DOMContentLoaded', () => {
+    loadFormData();
+    loadSessions();
+});
+</script>
+</body>
+</html>
