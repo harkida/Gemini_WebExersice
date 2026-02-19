@@ -51,7 +51,7 @@ def teacher_required(f):
 def roleplay_admin_page():
     if not session.get('is_teacher'):
         return redirect('/teacher-login')
-    return render_template('roleplay/roleplay_admin.html')
+    return render_template('roleplay_admin.html')
 
 # ============================================================
 # 시나리오 API
@@ -167,6 +167,56 @@ def delete_scenario(scenario_id):
     finally:
         conn.close()
 
+@app.route('/api/rp-admin/scenarios/<int:scenario_id>', methods=['PUT'])
+@teacher_required
+def update_scenario(scenario_id):
+    """시나리오 수정"""
+    data = request.get_json()
+    if not data: return jsonify({"error": "데이터 없음"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            npc_knowledge = data.get('npc_knowledge')
+            if npc_knowledge and isinstance(npc_knowledge, dict):
+                npc_knowledge = json.dumps(npc_knowledge, ensure_ascii=False)
+            elif npc_knowledge and isinstance(npc_knowledge, str):
+                try: json.loads(npc_knowledge)
+                except: npc_knowledge = None
+
+            boundary_strategies = data.get('boundary_strategies', '["되묻기","저의확인","목표환기"]')
+            if isinstance(boundary_strategies, list):
+                boundary_strategies = json.dumps(boundary_strategies, ensure_ascii=False)
+
+            cur.execute("""
+                UPDATE rp_scenarios SET
+                    title=%s, situation=%s, conversation_goal=%s,
+                    boundary_tolerance=%s, boundary_strategies=%s,
+                    illustration_url=%s,
+                    npc_name=%s, npc_age=%s, npc_job=%s,
+                    npc_personality=%s, npc_current_state=%s, npc_knowledge=%s,
+                    npc_voice_id=%s, temperature=%s, thinking_level=%s
+                WHERE id=%s
+            """, (
+                data.get('title'), data.get('situation'), data.get('conversation_goal'),
+                data.get('boundary_tolerance', 'low'), boundary_strategies,
+                data.get('illustration_url'),
+                data.get('npc_name'), data.get('npc_age'), data.get('npc_job'),
+                data.get('npc_personality'), data.get('npc_current_state'), npc_knowledge,
+                data.get('npc_voice_id'), data.get('temperature', 0.3), data.get('thinking_level', 'LOW'),
+                scenario_id
+            ))
+            conn.commit()
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        print(f"🚨 시나리오 수정 오류: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 # ============================================================
 # 목표 API
 # ============================================================
@@ -212,6 +262,49 @@ def create_goal():
             new_id = cur.fetchone()[0]
             conn.commit()
             return jsonify({"success": True, "id": new_id})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-admin/goals/<int:goal_id>', methods=['DELETE'])
+@teacher_required
+def delete_goal(goal_id):
+    """목표 삭제"""
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM rp_goals WHERE id = %s", (goal_id,))
+            conn.commit()
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-admin/goals/<int:goal_id>', methods=['PUT'])
+@teacher_required
+def update_goal(goal_id):
+    """목표 수정"""
+    data = request.get_json()
+    if not data: return jsonify({"error": "데이터 없음"}), 400
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE rp_goals SET title=%s, target_expression=%s, target_grammar=%s, target_vocabulary=%s, class_name=%s
+                WHERE id=%s
+            """, (
+                data.get('title'), data.get('target_expression'),
+                data.get('target_grammar'), data.get('target_vocabulary'),
+                data.get('class_name'), goal_id
+            ))
+            conn.commit()
+            return jsonify({"success": True})
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500
@@ -289,6 +382,36 @@ def delete_pre_recording(recording_id):
             cur.execute("DELETE FROM rp_pre_recordings WHERE id = %s", (recording_id,))
             conn.commit()
             return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-admin/pre-recordings/<int:recording_id>', methods=['PUT'])
+@teacher_required
+def update_pre_recording(recording_id):
+    """PRE 녹음 수정"""
+    data = request.get_json()
+    if not data: return jsonify({"error": "데이터 없음"}), 400
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE rp_pre_recordings 
+                SET category=%s, variant=%s, guide_text=%s, transcript=%s, cloudflare_url=%s
+                WHERE id=%s
+            """, (
+                data.get('category'), data.get('variant'),
+                data.get('guide_text'), data.get('transcript'),
+                data.get('cloudflare_url'), recording_id
+            ))
+            conn.commit()
+            return jsonify({"success": True})
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return jsonify({"error": "이미 존재하는 조합입니다 (scenario_id + category + variant)"}), 409
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500

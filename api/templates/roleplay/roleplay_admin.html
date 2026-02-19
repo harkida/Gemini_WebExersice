@@ -6,7 +6,6 @@
     <title>🎭 Roleplay Admin</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -14,240 +13,153 @@
             background: #0f1117;
             color: #e0e0e0;
             min-height: 100vh;
+            font-size: 15px;
         }
 
         /* ── 헤더 ── */
         .header {
             background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 100%);
             border-bottom: 1px solid #2a2d3e;
-            padding: 16px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            padding: 18px 28px;
+            display: flex; align-items: center; justify-content: space-between;
         }
-        .header h1 { font-size: 20px; font-weight: 700; color: #fff; }
+        .header h1 { font-size: 22px; font-weight: 700; color: #fff; }
         .header h1 span { color: #7c6ff7; }
         .header-actions a {
-            color: #888;
-            text-decoration: none;
-            font-size: 13px;
-            padding: 6px 14px;
-            border: 1px solid #333;
-            border-radius: 6px;
-            transition: all 0.2s;
+            color: #888; text-decoration: none; font-size: 14px;
+            padding: 8px 16px; border: 1px solid #333; border-radius: 6px; transition: all 0.2s;
         }
         .header-actions a:hover { color: #fff; border-color: #555; }
 
         /* ── 탭 네비게이션 ── */
         .tab-nav {
-            display: flex;
-            gap: 0;
-            background: #1a1d2e;
-            border-bottom: 1px solid #2a2d3e;
-            padding: 0 24px;
+            display: flex; gap: 0; background: #1a1d2e;
+            border-bottom: 1px solid #2a2d3e; padding: 0 28px;
         }
         .tab-btn {
-            padding: 12px 24px;
-            background: none;
-            border: none;
-            color: #666;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-            font-family: inherit;
+            padding: 14px 28px; background: none; border: none; color: #666;
+            font-size: 15px; font-weight: 500; cursor: pointer;
+            border-bottom: 2px solid transparent; transition: all 0.2s; font-family: inherit;
         }
         .tab-btn:hover { color: #aaa; }
         .tab-btn.active { color: #7c6ff7; border-bottom-color: #7c6ff7; }
 
         /* ── 메인 컨텐츠 ── */
-        .main { padding: 24px; max-width: 1100px; margin: 0 auto; }
-
+        .main { padding: 28px; max-width: 1200px; margin: 0 auto; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
         /* ── 카드 ── */
         .card {
-            background: #1a1d2e;
-            border: 1px solid #2a2d3e;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 16px;
+            background: #1a1d2e; border: 1px solid #2a2d3e;
+            border-radius: 10px; padding: 22px; margin-bottom: 18px;
         }
         .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
         }
-        .card-title { font-size: 16px; font-weight: 700; color: #fff; }
-        .card-id { font-size: 12px; color: #555; font-family: monospace; }
-
+        .card-title { font-size: 18px; font-weight: 700; color: #fff; }
+        .card-id { font-size: 13px; color: #555; font-family: monospace; margin-left: 10px; }
         .card-grid {
-            display: grid;
-            grid-template-columns: 100px 1fr;
-            gap: 6px 12px;
-            font-size: 13px;
+            display: grid; grid-template-columns: 110px 1fr; gap: 8px 14px; font-size: 15px;
         }
         .card-grid .label { color: #666; text-align: right; }
         .card-grid .value { color: #ccc; word-break: break-word; }
 
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-        }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; }
         .badge-low { background: #2d1f1f; color: #ff6b6b; }
         .badge-medium { background: #2d2a1f; color: #ffd43b; }
         .badge-high { background: #1f2d1f; color: #69db7c; }
 
         /* ── 폼 ── */
-        .form-section { margin-bottom: 20px; }
+        .form-section { margin-bottom: 22px; }
         .form-section h3 {
-            font-size: 13px;
-            color: #7c6ff7;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-size: 14px; color: #7c6ff7; margin-bottom: 12px;
+            text-transform: uppercase; letter-spacing: 1px;
         }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
         .form-row.full { grid-template-columns: 1fr; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 13px; color: #888; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select {
+            background: #0f1117; border: 1px solid #2a2d3e; border-radius: 6px;
+            padding: 10px 14px; color: #e0e0e0; font-size: 15px; font-family: inherit; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none; border-color: #7c6ff7;
+        }
+        .form-group textarea { resize: vertical; min-height: 70px; }
 
-        .form-group { display: flex; flex-direction: column; gap: 4px; }
-        .form-group label {
-            font-size: 12px;
-            color: #888;
-            font-weight: 500;
-        }
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            background: #0f1117;
-            border: 1px solid #2a2d3e;
-            border-radius: 6px;
-            padding: 8px 12px;
-            color: #e0e0e0;
-            font-size: 13px;
-            font-family: inherit;
-            transition: border-color 0.2s;
-        }
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #7c6ff7;
-        }
-        .form-group textarea { resize: vertical; min-height: 60px; }
-
-        .checkbox-group {
-            display: flex;
-            gap: 16px;
-            align-items: center;
-        }
+        .checkbox-group { display: flex; gap: 20px; align-items: center; }
         .checkbox-group label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            color: #ccc;
-            cursor: pointer;
+            display: flex; align-items: center; gap: 6px; font-size: 15px; color: #ccc; cursor: pointer;
         }
-        .checkbox-group input[type="checkbox"] {
-            accent-color: #7c6ff7;
-            width: 16px;
-            height: 16px;
-        }
+        .checkbox-group input[type="checkbox"] { accent-color: #7c6ff7; width: 18px; height: 18px; }
 
         /* ── 버튼 ── */
         .btn {
-            padding: 8px 20px;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.2s;
+            padding: 9px 22px; border: none; border-radius: 6px; font-size: 14px;
+            font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.2s;
         }
         .btn-primary { background: #7c6ff7; color: #fff; }
         .btn-primary:hover { background: #6b5ce7; }
         .btn-danger { background: #dc3545; color: #fff; }
         .btn-danger:hover { background: #c82333; }
-        .btn-ghost {
-            background: none;
-            border: 1px solid #333;
-            color: #888;
-        }
+        .btn-ghost { background: none; border: 1px solid #333; color: #888; }
         .btn-ghost:hover { border-color: #555; color: #ccc; }
-
-        .btn-row { display: flex; gap: 8px; margin-top: 16px; }
+        .btn-sm { padding: 5px 12px; font-size: 13px; }
+        .btn-row { display: flex; gap: 8px; margin-top: 18px; }
+        .card-actions { display: flex; gap: 6px; }
 
         /* ── 상태 메시지 ── */
-        .status-msg {
-            padding: 10px 16px;
-            border-radius: 6px;
-            margin-bottom: 16px;
-            font-size: 13px;
-            display: none;
-        }
+        .status-msg { padding: 12px 18px; border-radius: 6px; margin-bottom: 18px; font-size: 14px; display: none; }
         .status-msg.success { display: block; background: #1a2e1a; color: #69db7c; border: 1px solid #2d4a2d; }
         .status-msg.error { display: block; background: #2e1a1a; color: #ff6b6b; border: 1px solid #4a2d2d; }
+        .empty-state { text-align: center; padding: 40px; color: #555; font-size: 15px; }
 
-        /* ── 빈 상태 ── */
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #555;
-            font-size: 14px;
+        /* ── 모달 ── */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;
         }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 12px;
+            padding: 28px; width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto;
+        }
+        .modal h2 { font-size: 20px; color: #fff; margin-bottom: 20px; }
 
-        /* ── PRE 테이블 ── */
-        .pre-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
+        /* ── PRE 아코디언 ── */
+        .accordion-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; background: #1a1d2e; border: 1px solid #2a2d3e;
+            border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: background 0.15s;
         }
-        .pre-table th {
-            text-align: left;
-            padding: 8px 12px;
-            color: #666;
-            font-weight: 500;
-            border-bottom: 1px solid #2a2d3e;
-        }
-        .pre-table td {
-            padding: 8px 12px;
+        .accordion-header:hover { background: #1f2233; }
+        .accordion-header .arrow { font-size: 14px; color: #666; transition: transform 0.2s; }
+        .accordion-header.open .arrow { transform: rotate(90deg); }
+        .accordion-header .cat-name { font-size: 16px; font-weight: 600; color: #fff; }
+        .accordion-header .cat-count { font-size: 13px; color: #666; margin-left: 8px; }
+        .accordion-header .cat-guide { font-size: 13px; color: #555; margin-left: 16px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .accordion-body { display: none; padding: 8px 0 12px 0; }
+        .accordion-body.open { display: block; }
+        .variant-row {
+            display: grid; grid-template-columns: 50px 1fr 100px 80px;
+            gap: 12px; align-items: center; padding: 10px 18px; font-size: 14px;
             border-bottom: 1px solid #1a1d2e;
-            color: #ccc;
         }
-        .pre-table tr:hover td { background: #1f2233; }
-
-        /* ── 토글 펼치기 ── */
-        .expandable { cursor: pointer; }
-        .expandable:hover .card-title { color: #7c6ff7; }
-        .expand-content { display: none; margin-top: 12px; }
-        .expand-content.open { display: block; }
+        .variant-row:hover { background: #1f2233; }
+        .variant-num { color: #666; font-size: 13px; }
+        .variant-transcript { color: #e0e0e0; }
+        .variant-url a { color: #7c6ff7; text-decoration: none; font-size: 13px; }
     </style>
 </head>
 <body>
 
-<!-- ── 헤더 ── -->
 <div class="header">
     <h1>🎭 <span>Roleplay</span> Admin</h1>
-    <div class="header-actions">
-        <a href="/dashboard">← 교사 대시보드</a>
-    </div>
+    <div class="header-actions"><a href="/dashboard">← 교사 대시보드</a></div>
 </div>
 
-<!-- ── 탭 ── -->
 <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('scenarios')">시나리오</button>
     <button class="tab-btn" onclick="switchTab('goals')">목표</button>
@@ -256,311 +168,245 @@
 
 <div class="main">
 
-    <!-- ════════════════════════════════════════ -->
-    <!-- 탭 1: 시나리오 관리 -->
-    <!-- ════════════════════════════════════════ -->
-    <div id="tab-scenarios" class="tab-content active">
+<!-- ═══════════════ 탭 1: 시나리오 ═══════════════ -->
+<div id="tab-scenarios" class="tab-content active">
+    <div id="scenario-status" class="status-msg"></div>
 
-        <div id="scenario-status" class="status-msg"></div>
+    <div class="card" style="border-color: #7c6ff740;">
+        <div class="card-header"><div class="card-title">➕ 새 시나리오 추가</div></div>
 
-        <!-- 시나리오 추가 폼 -->
-        <div class="card" style="border-color: #7c6ff740;">
-            <div class="card-header">
-                <div class="card-title">➕ 새 시나리오 추가</div>
-            </div>
-
-            <div class="form-section">
-                <h3>기본 정보</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>시나리오 제목 *</label>
-                        <input type="text" id="sc-title" placeholder="예: 카페 주문">
-                    </div>
-                    <div class="form-group">
-                        <label>NPC Voice ID</label>
-                        <input type="text" id="sc-voice-id" placeholder="ElevenLabs Voice ID">
-                    </div>
-                </div>
-                <div class="form-row full">
-                    <div class="form-group">
-                        <label>상황 설명</label>
-                        <textarea id="sc-situation" placeholder="학생이 카페에 들어가서 음료를 주문해야 합니다..."></textarea>
-                    </div>
-                </div>
-                <div class="form-row full">
-                    <div class="form-group">
-                        <label>대화 목표 (Boundary 판단 기준)</label>
-                        <textarea id="sc-conv-goal" placeholder="음료를 주문하고 결제한다"></textarea>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h3>NPC 설정</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>NPC 이름</label>
-                        <input type="text" id="sc-npc-name" placeholder="김수진">
-                    </div>
-                    <div class="form-group">
-                        <label>NPC 나이</label>
-                        <input type="number" id="sc-npc-age" placeholder="25">
-                    </div>
-                </div>
-                <div class="form-row full">
-                    <div class="form-group">
-                        <label>NPC 직업</label>
-                        <input type="text" id="sc-npc-job" placeholder="카페 점원">
-                    </div>
-                </div>
-                <div class="form-row full">
-                    <div class="form-group">
-                        <label>NPC 성격</label>
-                        <textarea id="sc-npc-personality" placeholder="밝고 친절한 성격. 손님에게 항상 미소를 짓는다."></textarea>
-                    </div>
-                </div>
-                <div class="form-row full">
-                    <div class="form-group">
-                        <label>NPC 현재 상태</label>
-                        <textarea id="sc-npc-state" placeholder="오전 10시, 매장이 한가한 상태. 카운터 앞에 서서 대기 중."></textarea>
-                    </div>
-                </div>
-                <div class="form-row full">
-                    <div class="form-group">
-                        <label>NPC 도메인 지식 (JSON)</label>
-                        <textarea id="sc-npc-knowledge" rows="3" placeholder='{"메뉴": ["아메리카노", "카페라떼"], "사이즈": ["레귤러", "라지"]}'></textarea>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h3>Boundary 설정</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Tolerance (Game Over 임계값)</label>
-                        <select id="sc-tolerance">
-                            <option value="low">Low (score 6) — 서비스 관계</option>
-                            <option value="medium">Medium (score 9) — 공식적 친밀</option>
-                            <option value="high">High (score 12) — 비공식 친밀</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group" style="margin-top: 8px;">
-                    <label>Boundary DYN 전략</label>
-                    <div class="checkbox-group">
-                        <label><input type="checkbox" id="sc-strat-ask" checked> 되묻기</label>
-                        <label><input type="checkbox" id="sc-strat-intent" checked> 저의확인</label>
-                        <label><input type="checkbox" id="sc-strat-redirect" checked> 목표환기</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="btn-row">
-                <button class="btn btn-primary" onclick="createScenario()">시나리오 저장</button>
-                <button class="btn btn-ghost" onclick="clearScenarioForm()">초기화</button>
-            </div>
-        </div>
-
-        <!-- 시나리오 목록 -->
-        <div id="scenario-list">
-            <div class="empty-state">로딩 중...</div>
-        </div>
-    </div>
-
-    <!-- ════════════════════════════════════════ -->
-    <!-- 탭 2: 목표 관리 -->
-    <!-- ════════════════════════════════════════ -->
-    <div id="tab-goals" class="tab-content">
-
-        <div id="goal-status" class="status-msg"></div>
-
-        <div class="card" style="border-color: #7c6ff740;">
-            <div class="card-header">
-                <div class="card-title">➕ 새 목표 추가</div>
-            </div>
+        <div class="form-section">
+            <h3>기본 정보</h3>
             <div class="form-row">
-                <div class="form-group">
-                    <label>목표 제목 *</label>
-                    <input type="text" id="gl-title" placeholder="카페에서 주문하기">
-                </div>
-                <div class="form-group">
-                    <label>반 (Class)</label>
-                    <select id="gl-class">
-                        <option value="3학년">3학년</option>
-                        <option value="석사1">석사1</option>
-                        <option value="석사2">석사2</option>
+                <div class="form-group"><label>시나리오 제목 *</label><input type="text" id="sc-title" placeholder="예: 카페 주문"></div>
+                <div class="form-group"><label>NPC Voice ID</label><input type="text" id="sc-voice-id" placeholder="ElevenLabs Voice ID"></div>
+            </div>
+            <div class="form-row full"><div class="form-group"><label>상황 설명</label><textarea id="sc-situation" placeholder="플레이어가 카페에 들어가서..."></textarea></div></div>
+            <div class="form-row full"><div class="form-group"><label>대화 목표 (Boundary 판단 기준)</label><textarea id="sc-conv-goal" placeholder="음료를 주문하고 결제한다"></textarea></div></div>
+        </div>
+
+        <div class="form-section">
+            <h3>NPC 설정</h3>
+            <div class="form-row">
+                <div class="form-group"><label>NPC 이름</label><input type="text" id="sc-npc-name" placeholder="김수진"></div>
+                <div class="form-group"><label>NPC 나이</label><input type="number" id="sc-npc-age" placeholder="25"></div>
+            </div>
+            <div class="form-row full"><div class="form-group"><label>NPC 직업</label><input type="text" id="sc-npc-job" placeholder="카페 점원"></div></div>
+            <div class="form-row full"><div class="form-group"><label>NPC 성격</label><textarea id="sc-npc-personality" placeholder="밝고 친절한 성격..."></textarea></div></div>
+            <div class="form-row full"><div class="form-group"><label>NPC 현재 상태</label><textarea id="sc-npc-state" placeholder="오전 10시, 매장이 한가한 상태..."></textarea></div></div>
+            <div class="form-row full"><div class="form-group"><label>NPC 도메인 지식 (JSON)</label><textarea id="sc-npc-knowledge" rows="3" placeholder='{"메뉴": [...], "사이즈": [...]}'></textarea></div></div>
+        </div>
+
+        <div class="form-section">
+            <h3>Boundary 설정</h3>
+            <div class="form-row">
+                <div class="form-group"><label>Tolerance</label>
+                    <select id="sc-tolerance">
+                        <option value="low">Low (score 6) — 서비스 관계</option>
+                        <option value="medium">Medium (score 9) — 공식적 친밀</option>
+                        <option value="high">High (score 12) — 비공식 친밀</option>
                     </select>
                 </div>
             </div>
-            <div class="form-row full">
-                <div class="form-group">
-                    <label>목표 표현</label>
-                    <input type="text" id="gl-expression" placeholder="주세요, 할게요, 있어요?, 얼마예요?">
+            <div class="form-group" style="margin-top:8px;"><label>Boundary DYN 전략</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" id="sc-strat-ask" checked> 되묻기</label>
+                    <label><input type="checkbox" id="sc-strat-intent" checked> 저의확인</label>
+                    <label><input type="checkbox" id="sc-strat-redirect" checked> 목표환기</label>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>목표 문법</label>
-                    <input type="text" id="gl-grammar" placeholder="-아/어 주세요, -(으)ㄹ게요">
-                </div>
-                <div class="form-group">
-                    <label>목표 어휘</label>
-                    <input type="text" id="gl-vocabulary" placeholder="아메리카노, 라떼, 카드, 현금">
-                </div>
-            </div>
-            <div class="btn-row">
-                <button class="btn btn-primary" onclick="createGoal()">목표 저장</button>
             </div>
         </div>
 
-        <div id="goal-list">
-            <div class="empty-state">로딩 중...</div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="createScenario()">시나리오 저장</button>
+            <button class="btn btn-ghost" onclick="clearScenarioForm()">초기화</button>
         </div>
     </div>
 
-    <!-- ════════════════════════════════════════ -->
-    <!-- 탭 3: PRE 녹음 관리 -->
-    <!-- ════════════════════════════════════════ -->
-    <div id="tab-pre" class="tab-content">
+    <div id="scenario-list"><div class="empty-state">로딩 중...</div></div>
+</div>
 
-        <div id="pre-status" class="status-msg"></div>
+<!-- ═══════════════ 탭 2: 목표 ═══════════════ -->
+<div id="tab-goals" class="tab-content">
+    <div id="goal-status" class="status-msg"></div>
 
-        <div class="card" style="border-color: #7c6ff740;">
-            <div class="card-header">
-                <div class="card-title">➕ PRE 녹음 등록</div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>시나리오 선택 *</label>
-                    <select id="pre-scenario-id">
-                        <option value="">-- 먼저 시나리오를 생성하세요 --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>카테고리 *</label>
-                    <input type="text" id="pre-category" placeholder="greeting_cafe, size_ask, boundary_pre 등">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>변형 번호 *</label>
-                    <select id="pre-variant">
-                        <option value="1">변형 1</option>
-                        <option value="2">변형 2</option>
-                        <option value="3">변형 3</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Cloudflare R2 URL</label>
-                    <input type="text" id="pre-url" placeholder="https://pub-xxx.r2.dev/cafe/greeting_1.mp3">
-                </div>
-            </div>
-            <div class="form-row full">
-                <div class="form-group">
-                    <label>가이드 (분석가용, boundary_pre는 비워둬도 됨)</label>
-                    <input type="text" id="pre-guide" placeholder="손님이 막 들어왔을 때, 또는 주문하겠다고 말할 때">
-                </div>
-            </div>
-            <div class="form-row full">
-                <div class="form-group">
-                    <label>대사 텍스트 (transcript) *</label>
-                    <input type="text" id="pre-transcript" placeholder="어서오세요~ 주문 도와드릴게요!">
-                </div>
-            </div>
-            <div class="btn-row">
-                <button class="btn btn-primary" onclick="createPre()">PRE 등록</button>
+    <div class="card" style="border-color: #7c6ff740;">
+        <div class="card-header"><div class="card-title">➕ 새 목표 추가</div></div>
+        <div class="form-row">
+            <div class="form-group"><label>목표 제목 *</label><input type="text" id="gl-title" placeholder="카페에서 주문하기"></div>
+            <div class="form-group"><label>반 (Class)</label>
+                <select id="gl-class"><option value="3학년">3학년</option><option value="석사1">석사1</option><option value="석사2">석사2</option></select>
             </div>
         </div>
-
-        <!-- PRE 목록 (시나리오 선택 시 표시) -->
-        <div id="pre-list">
-            <div class="empty-state">시나리오를 선택하면 해당 PRE 목록이 표시됩니다.</div>
+        <div class="form-row full"><div class="form-group"><label>목표 표현</label><input type="text" id="gl-expression" placeholder="주세요, 할게요, 있어요?"></div></div>
+        <div class="form-row">
+            <div class="form-group"><label>목표 문법</label><input type="text" id="gl-grammar" placeholder="-아/어 주세요"></div>
+            <div class="form-group"><label>목표 어휘</label><input type="text" id="gl-vocabulary" placeholder="아메리카노, 라떼"></div>
         </div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="createGoal()">목표 저장</button></div>
     </div>
 
+    <div id="goal-list"><div class="empty-state">로딩 중...</div></div>
+</div>
+
+<!-- ═══════════════ 탭 3: PRE 녹음 ═══════════════ -->
+<div id="tab-pre" class="tab-content">
+    <div id="pre-status" class="status-msg"></div>
+
+    <div class="card" style="border-color: #7c6ff740;">
+        <div class="card-header"><div class="card-title">➕ PRE 녹음 등록</div></div>
+        <div class="form-row">
+            <div class="form-group"><label>시나리오 선택 *</label><select id="pre-scenario-id"><option value="">-- 먼저 시나리오를 생성하세요 --</option></select></div>
+            <div class="form-group"><label>카테고리 *</label><input type="text" id="pre-category" placeholder="greeting_cafe, boundary_pre 등"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>변형 번호 *</label>
+                <select id="pre-variant"><option value="1">변형 1</option><option value="2">변형 2</option><option value="3">변형 3</option></select>
+            </div>
+            <div class="form-group"><label>Cloudflare R2 URL</label><input type="text" id="pre-url" placeholder="https://pub-xxx.r2.dev/..."></div>
+        </div>
+        <div class="form-row full"><div class="form-group"><label>가이드 (분석가용)</label><input type="text" id="pre-guide" placeholder="손님이 막 들어왔을 때"></div></div>
+        <div class="form-row full"><div class="form-group"><label>대사 텍스트 *</label><input type="text" id="pre-transcript" placeholder="어서오세요~ 주문 도와드릴게요!"></div></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="createPre()">PRE 등록</button></div>
+    </div>
+
+    <div id="pre-list"><div class="empty-state">시나리오를 선택하면 해당 PRE 목록이 표시됩니다.</div></div>
+</div>
+
+</div><!-- /main -->
+
+<!-- ═══════════════ 수정 모달 (공용) ═══════════════ -->
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+        <h2 id="modal-title">수정</h2>
+        <div id="modal-body"></div>
+        <div class="btn-row" style="margin-top:20px;">
+            <button class="btn btn-primary" id="modal-save-btn">저장</button>
+            <button class="btn btn-ghost" onclick="closeModal()">취소</button>
+        </div>
+    </div>
 </div>
 
 <script>
-// ════════════════════════════════════════
-// 탭 전환
-// ════════════════════════════════════════
+// ═══════════════ 유틸리티 ═══════════════
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    
     document.getElementById(`tab-${tab}`).classList.add('active');
     event.target.classList.add('active');
-
     if (tab === 'scenarios') loadScenarios();
     if (tab === 'goals') loadGoals();
     if (tab === 'pre') loadScenarioDropdown();
 }
 
-function showStatus(elementId, message, type) {
-    const el = document.getElementById(elementId);
-    el.textContent = message;
-    el.className = `status-msg ${type}`;
+function showStatus(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg; el.className = `status-msg ${type}`;
     setTimeout(() => { el.className = 'status-msg'; }, 5000);
 }
 
-// ════════════════════════════════════════
-// 시나리오 CRUD
-// ════════════════════════════════════════
+function openModal(title, bodyHtml, onSave) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = bodyHtml;
+    document.getElementById('modal-save-btn').onclick = onSave;
+    document.getElementById('edit-modal').classList.add('open');
+}
+function closeModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+// ═══════════════ 시나리오 ═══════════════
 async function loadScenarios() {
     try {
         const res = await fetch('/api/rp-admin/scenarios');
         const data = await res.json();
-        
-        if (!data.scenarios || data.scenarios.length === 0) {
-            document.getElementById('scenario-list').innerHTML = 
-                '<div class="empty-state">아직 시나리오가 없습니다. 위에서 추가하세요.</div>';
+        if (!data.scenarios?.length) {
+            document.getElementById('scenario-list').innerHTML = '<div class="empty-state">아직 시나리오가 없습니다.</div>';
             return;
         }
-
         let html = '';
         for (const s of data.scenarios) {
-            const toleranceBadge = {
-                low: '<span class="badge badge-low">Low</span>',
-                medium: '<span class="badge badge-medium">Medium</span>',
-                high: '<span class="badge badge-high">High</span>'
-            }[s.boundary_tolerance] || '';
-
-            const strategies = Array.isArray(s.boundary_strategies) 
-                ? s.boundary_strategies.join(', ') 
-                : (s.boundary_strategies || '');
-
+            const tb = {low:'<span class="badge badge-low">Low</span>',medium:'<span class="badge badge-medium">Medium</span>',high:'<span class="badge badge-high">High</span>'}[s.boundary_tolerance]||'';
+            const strats = Array.isArray(s.boundary_strategies) ? s.boundary_strategies.join(', ') : (s.boundary_strategies||'');
             html += `
             <div class="card">
                 <div class="card-header">
-                    <div>
-                        <span class="card-title">${s.title}</span>
-                        <span class="card-id">ID: ${s.id}</span>
+                    <div><span class="card-title">${s.title}</span><span class="card-id">ID: ${s.id}</span></div>
+                    <div class="card-actions">
+                        <button class="btn btn-ghost btn-sm" onclick='editScenario(${JSON.stringify(s).replace(/'/g,"&#39;")})'>수정</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteScenario(${s.id})">삭제</button>
                     </div>
-                    <button class="btn btn-danger" onclick="deleteScenario(${s.id})" style="font-size:11px; padding:4px 10px;">삭제</button>
                 </div>
                 <div class="card-grid">
-                    <span class="label">상황</span>
-                    <span class="value">${s.situation || '-'}</span>
-                    <span class="label">대화 목표</span>
-                    <span class="value">${s.conversation_goal || '-'}</span>
-                    <span class="label">NPC</span>
-                    <span class="value">${s.npc_name || '-'} (${s.npc_age || '?'}세, ${s.npc_job || '-'})</span>
-                    <span class="label">성격</span>
-                    <span class="value">${s.npc_personality || '-'}</span>
-                    <span class="label">현재 상태</span>
-                    <span class="value">${s.npc_current_state || '-'}</span>
-                    <span class="label">Voice ID</span>
-                    <span class="value" style="font-family:monospace; font-size:11px;">${s.npc_voice_id || '-'}</span>
-                    <span class="label">Boundary</span>
-                    <span class="value">${toleranceBadge} — 전략: ${strategies || '-'}</span>
+                    <span class="label">상황</span><span class="value">${s.situation||'-'}</span>
+                    <span class="label">대화 목표</span><span class="value">${s.conversation_goal||'-'}</span>
+                    <span class="label">NPC</span><span class="value">${s.npc_name||'-'} (${s.npc_age||'?'}세, ${s.npc_job||'-'})</span>
+                    <span class="label">성격</span><span class="value">${s.npc_personality||'-'}</span>
+                    <span class="label">현재 상태</span><span class="value">${s.npc_current_state||'-'}</span>
+                    <span class="label">Voice ID</span><span class="value" style="font-family:monospace;font-size:13px;">${s.npc_voice_id||'-'}</span>
+                    <span class="label">Boundary</span><span class="value">${tb} — 전략: ${strats||'-'}</span>
                 </div>
             </div>`;
         }
         document.getElementById('scenario-list').innerHTML = html;
     } catch (e) {
-        document.getElementById('scenario-list').innerHTML = 
-            `<div class="empty-state" style="color:#ff6b6b;">오류: ${e.message}</div>`;
+        document.getElementById('scenario-list').innerHTML = `<div class="empty-state" style="color:#ff6b6b;">오류: ${e.message}</div>`;
     }
+}
+
+function editScenario(s) {
+    const strats = Array.isArray(s.boundary_strategies) ? s.boundary_strategies : JSON.parse(s.boundary_strategies || '[]');
+    const knowledge = typeof s.npc_knowledge === 'object' ? JSON.stringify(s.npc_knowledge, null, 2) : (s.npc_knowledge || '');
+    
+    const html = `
+    <div class="form-row"><div class="form-group"><label>제목</label><input id="ed-sc-title" value="${s.title||''}"></div>
+    <div class="form-group"><label>Voice ID</label><input id="ed-sc-voice" value="${s.npc_voice_id||''}"></div></div>
+    <div class="form-row full"><div class="form-group"><label>상황</label><textarea id="ed-sc-situation">${s.situation||''}</textarea></div></div>
+    <div class="form-row full"><div class="form-group"><label>대화 목표</label><textarea id="ed-sc-goal">${s.conversation_goal||''}</textarea></div></div>
+    <div class="form-row">
+        <div class="form-group"><label>NPC 이름</label><input id="ed-sc-name" value="${s.npc_name||''}"></div>
+        <div class="form-group"><label>나이</label><input type="number" id="ed-sc-age" value="${s.npc_age||''}"></div>
+    </div>
+    <div class="form-row full"><div class="form-group"><label>직업</label><input id="ed-sc-job" value="${s.npc_job||''}"></div></div>
+    <div class="form-row full"><div class="form-group"><label>성격</label><textarea id="ed-sc-personality">${s.npc_personality||''}</textarea></div></div>
+    <div class="form-row full"><div class="form-group"><label>현재 상태</label><textarea id="ed-sc-state">${s.npc_current_state||''}</textarea></div></div>
+    <div class="form-row full"><div class="form-group"><label>도메인 지식 (JSON)</label><textarea id="ed-sc-knowledge" rows="4">${knowledge}</textarea></div></div>
+    <div class="form-row"><div class="form-group"><label>Tolerance</label>
+        <select id="ed-sc-tolerance"><option value="low" ${s.boundary_tolerance==='low'?'selected':''}>Low</option><option value="medium" ${s.boundary_tolerance==='medium'?'selected':''}>Medium</option><option value="high" ${s.boundary_tolerance==='high'?'selected':''}>High</option></select>
+    </div></div>
+    <div class="form-group"><label>전략</label><div class="checkbox-group">
+        <label><input type="checkbox" id="ed-sc-s1" ${strats.includes('되묻기')?'checked':''}> 되묻기</label>
+        <label><input type="checkbox" id="ed-sc-s2" ${strats.includes('저의확인')?'checked':''}> 저의확인</label>
+        <label><input type="checkbox" id="ed-sc-s3" ${strats.includes('목표환기')?'checked':''}> 목표환기</label>
+    </div></div>`;
+
+    openModal(`시나리오 수정 (ID: ${s.id})`, html, async () => {
+        const strategies = [];
+        if (document.getElementById('ed-sc-s1').checked) strategies.push('되묻기');
+        if (document.getElementById('ed-sc-s2').checked) strategies.push('저의확인');
+        if (document.getElementById('ed-sc-s3').checked) strategies.push('목표환기');
+
+        const payload = {
+            title: document.getElementById('ed-sc-title').value.trim(),
+            situation: document.getElementById('ed-sc-situation').value.trim(),
+            conversation_goal: document.getElementById('ed-sc-goal').value.trim(),
+            npc_name: document.getElementById('ed-sc-name').value.trim(),
+            npc_age: parseInt(document.getElementById('ed-sc-age').value) || null,
+            npc_job: document.getElementById('ed-sc-job').value.trim(),
+            npc_personality: document.getElementById('ed-sc-personality').value.trim(),
+            npc_current_state: document.getElementById('ed-sc-state').value.trim(),
+            npc_knowledge: document.getElementById('ed-sc-knowledge').value.trim() || null,
+            npc_voice_id: document.getElementById('ed-sc-voice').value.trim(),
+            boundary_tolerance: document.getElementById('ed-sc-tolerance').value,
+            boundary_strategies: strategies
+        };
+        try {
+            const res = await fetch(`/api/rp-admin/scenarios/${s.id}`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) { closeModal(); showStatus('scenario-status','✅ 수정 완료','success'); loadScenarios(); }
+            else showStatus('scenario-status',`❌ ${data.error}`,'error');
+        } catch(e) { showStatus('scenario-status',`❌ ${e.message}`,'error'); }
+    });
 }
 
 async function createScenario() {
@@ -568,7 +414,6 @@ async function createScenario() {
     if (document.getElementById('sc-strat-ask').checked) strategies.push('되묻기');
     if (document.getElementById('sc-strat-intent').checked) strategies.push('저의확인');
     if (document.getElementById('sc-strat-redirect').checked) strategies.push('목표환기');
-
     const payload = {
         title: document.getElementById('sc-title').value.trim(),
         situation: document.getElementById('sc-situation').value.trim(),
@@ -582,106 +427,80 @@ async function createScenario() {
         boundary_tolerance: document.getElementById('sc-tolerance').value,
         boundary_strategies: strategies
     };
-
-    // NPC Knowledge (JSON)
     const knowledgeStr = document.getElementById('sc-npc-knowledge').value.trim();
-    if (knowledgeStr) {
-        try {
-            payload.npc_knowledge = knowledgeStr; // 문자열로 전달, 백엔드에서 처리
-            JSON.parse(knowledgeStr); // 유효성만 확인
-        } catch {
-            showStatus('scenario-status', '❌ NPC 도메인 지식이 유효한 JSON이 아닙니다.', 'error');
-            return;
-        }
-    }
-
-    if (!payload.title) {
-        showStatus('scenario-status', '❌ 시나리오 제목은 필수입니다.', 'error');
-        return;
-    }
-
+    if (knowledgeStr) { try { JSON.parse(knowledgeStr); payload.npc_knowledge = knowledgeStr; } catch { showStatus('scenario-status','❌ JSON 형식 오류','error'); return; } }
+    if (!payload.title) { showStatus('scenario-status','❌ 제목 필수','error'); return; }
     try {
-        const res = await fetch('/api/rp-admin/scenarios', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const res = await fetch('/api/rp-admin/scenarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
         const data = await res.json();
-        if (data.success) {
-            showStatus('scenario-status', `✅ 시나리오 저장 완료! (ID: ${data.id})`, 'success');
-            clearScenarioForm();
-            loadScenarios();
-        } else {
-            showStatus('scenario-status', `❌ ${data.error}`, 'error');
-        }
-    } catch (e) {
-        showStatus('scenario-status', `❌ 네트워크 오류: ${e.message}`, 'error');
-    }
+        if (data.success) { showStatus('scenario-status',`✅ 저장 완료! (ID: ${data.id})`,'success'); clearScenarioForm(); loadScenarios(); }
+        else showStatus('scenario-status',`❌ ${data.error}`,'error');
+    } catch(e) { showStatus('scenario-status',`❌ ${e.message}`,'error'); }
 }
 
 async function deleteScenario(id) {
-    if (!confirm(`시나리오 ID ${id}를 삭제하시겠습니까?\n연결된 PRE 녹음도 모두 삭제됩니다.`)) return;
+    if (!confirm(`시나리오 ID ${id} 삭제?\n연결된 PRE도 모두 삭제됩니다.`)) return;
     try {
-        const res = await fetch(`/api/rp-admin/scenarios/${id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (data.success) {
-            showStatus('scenario-status', '✅ 삭제 완료', 'success');
-            loadScenarios();
-        }
-    } catch (e) {
-        showStatus('scenario-status', `❌ ${e.message}`, 'error');
-    }
+        const res = await fetch(`/api/rp-admin/scenarios/${id}`, { method:'DELETE' });
+        if ((await res.json()).success) { showStatus('scenario-status','✅ 삭제 완료','success'); loadScenarios(); }
+    } catch(e) { showStatus('scenario-status',`❌ ${e.message}`,'error'); }
 }
 
 function clearScenarioForm() {
-    ['sc-title','sc-situation','sc-conv-goal','sc-npc-name','sc-npc-age',
-     'sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id'
-    ].forEach(id => document.getElementById(id).value = '');
+    ['sc-title','sc-situation','sc-conv-goal','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('sc-tolerance').value = 'low';
-    document.getElementById('sc-strat-ask').checked = true;
-    document.getElementById('sc-strat-intent').checked = true;
-    document.getElementById('sc-strat-redirect').checked = true;
+    ['sc-strat-ask','sc-strat-intent','sc-strat-redirect'].forEach(id => document.getElementById(id).checked = true);
 }
 
-// ════════════════════════════════════════
-// 목표 CRUD
-// ════════════════════════════════════════
+// ═══════════════ 목표 ═══════════════
 async function loadGoals() {
     try {
         const res = await fetch('/api/rp-admin/goals');
         const data = await res.json();
-        
-        if (!data.goals || data.goals.length === 0) {
-            document.getElementById('goal-list').innerHTML = 
-                '<div class="empty-state">아직 목표가 없습니다.</div>';
-            return;
-        }
-
+        if (!data.goals?.length) { document.getElementById('goal-list').innerHTML = '<div class="empty-state">아직 목표가 없습니다.</div>'; return; }
         let html = '';
         for (const g of data.goals) {
             html += `
             <div class="card">
                 <div class="card-header">
-                    <div>
-                        <span class="card-title">${g.title}</span>
-                        <span class="card-id">ID: ${g.id} · ${g.class_name || '-'}</span>
+                    <div><span class="card-title">${g.title}</span><span class="card-id">ID: ${g.id} · ${g.class_name||'-'}</span></div>
+                    <div class="card-actions">
+                        <button class="btn btn-ghost btn-sm" onclick='editGoal(${JSON.stringify(g).replace(/'/g,"&#39;")})'>수정</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteGoal(${g.id})">삭제</button>
                     </div>
                 </div>
                 <div class="card-grid">
-                    <span class="label">표현</span>
-                    <span class="value">${g.target_expression || '-'}</span>
-                    <span class="label">문법</span>
-                    <span class="value">${g.target_grammar || '-'}</span>
-                    <span class="label">어휘</span>
-                    <span class="value">${g.target_vocabulary || '-'}</span>
+                    <span class="label">표현</span><span class="value">${g.target_expression||'-'}</span>
+                    <span class="label">문법</span><span class="value">${g.target_grammar||'-'}</span>
+                    <span class="label">어휘</span><span class="value">${g.target_vocabulary||'-'}</span>
                 </div>
             </div>`;
         }
         document.getElementById('goal-list').innerHTML = html;
-    } catch (e) {
-        document.getElementById('goal-list').innerHTML = 
-            `<div class="empty-state" style="color:#ff6b6b;">오류: ${e.message}</div>`;
-    }
+    } catch(e) { document.getElementById('goal-list').innerHTML = `<div class="empty-state" style="color:#ff6b6b;">${e.message}</div>`; }
+}
+
+function editGoal(g) {
+    const html = `
+    <div class="form-row"><div class="form-group"><label>제목</label><input id="ed-gl-title" value="${g.title||''}"></div>
+    <div class="form-group"><label>반</label><select id="ed-gl-class"><option value="3학년" ${g.class_name==='3학년'?'selected':''}>3학년</option><option value="석사1" ${g.class_name==='석사1'?'selected':''}>석사1</option><option value="석사2" ${g.class_name==='석사2'?'selected':''}>석사2</option></select></div></div>
+    <div class="form-row full"><div class="form-group"><label>표현</label><input id="ed-gl-expr" value="${g.target_expression||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>문법</label><input id="ed-gl-gram" value="${g.target_grammar||''}"></div>
+    <div class="form-group"><label>어휘</label><input id="ed-gl-vocab" value="${g.target_vocabulary||''}"></div></div>`;
+
+    openModal(`목표 수정 (ID: ${g.id})`, html, async () => {
+        const payload = {
+            title: document.getElementById('ed-gl-title').value.trim(),
+            target_expression: document.getElementById('ed-gl-expr').value.trim(),
+            target_grammar: document.getElementById('ed-gl-gram').value.trim(),
+            target_vocabulary: document.getElementById('ed-gl-vocab').value.trim(),
+            class_name: document.getElementById('ed-gl-class').value
+        };
+        try {
+            const res = await fetch(`/api/rp-admin/goals/${g.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+            if ((await res.json()).success) { closeModal(); showStatus('goal-status','✅ 수정 완료','success'); loadGoals(); }
+        } catch(e) { showStatus('goal-status',`❌ ${e.message}`,'error'); }
+    });
 }
 
 async function createGoal() {
@@ -692,99 +511,114 @@ async function createGoal() {
         target_vocabulary: document.getElementById('gl-vocabulary').value.trim(),
         class_name: document.getElementById('gl-class').value
     };
-
-    if (!payload.title) {
-        showStatus('goal-status', '❌ 목표 제목은 필수입니다.', 'error');
-        return;
-    }
-
+    if (!payload.title) { showStatus('goal-status','❌ 제목 필수','error'); return; }
     try {
-        const res = await fetch('/api/rp-admin/goals', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const res = await fetch('/api/rp-admin/goals', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
         const data = await res.json();
-        if (data.success) {
-            showStatus('goal-status', `✅ 목표 저장 완료! (ID: ${data.id})`, 'success');
-            ['gl-title','gl-expression','gl-grammar','gl-vocabulary'].forEach(id => document.getElementById(id).value = '');
-            loadGoals();
-        } else {
-            showStatus('goal-status', `❌ ${data.error}`, 'error');
-        }
-    } catch (e) {
-        showStatus('goal-status', `❌ ${e.message}`, 'error');
-    }
+        if (data.success) { showStatus('goal-status',`✅ 저장 완료! (ID: ${data.id})`,'success'); ['gl-title','gl-expression','gl-grammar','gl-vocabulary'].forEach(id=>document.getElementById(id).value=''); loadGoals(); }
+        else showStatus('goal-status',`❌ ${data.error}`,'error');
+    } catch(e) { showStatus('goal-status',`❌ ${e.message}`,'error'); }
 }
 
-// ════════════════════════════════════════
-// PRE 녹음 CRUD
-// ════════════════════════════════════════
+async function deleteGoal(id) {
+    if (!confirm(`목표 ID ${id} 삭제?`)) return;
+    try {
+        const res = await fetch(`/api/rp-admin/goals/${id}`, { method:'DELETE' });
+        if ((await res.json()).success) { showStatus('goal-status','✅ 삭제 완료','success'); loadGoals(); }
+    } catch(e) { showStatus('goal-status',`❌ ${e.message}`,'error'); }
+}
+
+// ═══════════════ PRE 녹음 (아코디언) ═══════════════
 async function loadScenarioDropdown() {
     try {
         const res = await fetch('/api/rp-admin/scenarios');
         const data = await res.json();
-        const select = document.getElementById('pre-scenario-id');
-        select.innerHTML = '<option value="">-- 시나리오 선택 --</option>';
-        
-        if (data.scenarios) {
-            for (const s of data.scenarios) {
-                select.innerHTML += `<option value="${s.id}">${s.title} (ID: ${s.id})</option>`;
-            }
-        }
-    } catch (e) {
-        console.error('시나리오 드롭다운 로드 실패:', e);
-    }
+        const sel = document.getElementById('pre-scenario-id');
+        sel.innerHTML = '<option value="">-- 시나리오 선택 --</option>';
+        if (data.scenarios) for (const s of data.scenarios) sel.innerHTML += `<option value="${s.id}">${s.title} (ID: ${s.id})</option>`;
+    } catch(e) { console.error(e); }
 }
 
-// 시나리오 선택 시 PRE 목록 로드
 document.addEventListener('DOMContentLoaded', () => {
-    const preSelect = document.getElementById('pre-scenario-id');
-    if (preSelect) {
-        preSelect.addEventListener('change', () => {
-            const scenarioId = preSelect.value;
-            if (scenarioId) loadPreRecordings(scenarioId);
-            else document.getElementById('pre-list').innerHTML = 
-                '<div class="empty-state">시나리오를 선택하면 해당 PRE 목록이 표시됩니다.</div>';
-        });
-    }
+    document.getElementById('pre-scenario-id')?.addEventListener('change', () => {
+        const id = document.getElementById('pre-scenario-id').value;
+        if (id) loadPreRecordings(id); else document.getElementById('pre-list').innerHTML = '<div class="empty-state">시나리오를 선택하세요.</div>';
+    });
 });
 
 async function loadPreRecordings(scenarioId) {
     try {
         const res = await fetch(`/api/rp-admin/pre-recordings/${scenarioId}`);
         const data = await res.json();
-
-        if (!data.recordings || data.recordings.length === 0) {
-            document.getElementById('pre-list').innerHTML = 
-                '<div class="empty-state">이 시나리오에 등록된 PRE가 없습니다.</div>';
+        if (!data.recordings?.length) {
+            document.getElementById('pre-list').innerHTML = '<div class="empty-state">이 시나리오에 등록된 PRE가 없습니다.</div>';
             return;
         }
 
-        let html = '<div class="card"><table class="pre-table"><thead><tr>' +
-            '<th>카테고리</th><th>변형</th><th>대사</th><th>가이드</th><th>R2 URL</th><th></th>' +
-            '</tr></thead><tbody>';
-
+        // 카테고리별 그룹화
+        const groups = {};
         for (const r of data.recordings) {
-            const urlShort = r.cloudflare_url 
-                ? `<a href="${r.cloudflare_url}" target="_blank" style="color:#7c6ff7;">🔗 링크</a>` 
-                : '-';
-            html += `<tr>
-                <td><strong>${r.category}</strong></td>
-                <td>${r.variant}</td>
-                <td>${r.transcript || '-'}</td>
-                <td style="color:#888; font-size:12px;">${r.guide_text || '-'}</td>
-                <td>${urlShort}</td>
-                <td><button class="btn btn-danger" style="font-size:11px; padding:2px 8px;" onclick="deletePre(${r.id})">✕</button></td>
-            </tr>`;
+            if (!groups[r.category]) groups[r.category] = { guide: r.guide_text, items: [] };
+            groups[r.category].items.push(r);
         }
 
-        html += '</tbody></table></div>';
+        let html = '';
+        for (const [cat, group] of Object.entries(groups)) {
+            const count = group.items.length;
+            html += `
+            <div class="accordion-header" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+                <div style="display:flex; align-items:center; flex:1; min-width:0;">
+                    <span class="arrow">▶</span>
+                    <span class="cat-name" style="margin-left:10px;">${cat}</span>
+                    <span class="cat-count">(${count}개)</span>
+                    <span class="cat-guide">${group.guide || ''}</span>
+                </div>
+            </div>
+            <div class="accordion-body">`;
+
+            for (const r of group.items) {
+                const urlLink = r.cloudflare_url ? `<a href="${r.cloudflare_url}" target="_blank">🔗 링크</a>` : '-';
+                html += `
+                <div class="variant-row">
+                    <span class="variant-num">변형 ${r.variant}</span>
+                    <span class="variant-transcript">${r.transcript||'-'}</span>
+                    <span class="variant-url">${urlLink}</span>
+                    <span>
+                        <button class="btn btn-ghost btn-sm" onclick='editPre(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="padding:3px 8px;font-size:12px;">수정</button>
+                        <button class="btn btn-danger btn-sm" onclick="deletePre(${r.id})" style="padding:3px 8px;font-size:12px;">✕</button>
+                    </span>
+                </div>`;
+            }
+            html += '</div>';
+        }
         document.getElementById('pre-list').innerHTML = html;
-    } catch (e) {
-        document.getElementById('pre-list').innerHTML = 
-            `<div class="empty-state" style="color:#ff6b6b;">오류: ${e.message}</div>`;
-    }
+    } catch(e) { document.getElementById('pre-list').innerHTML = `<div class="empty-state" style="color:#ff6b6b;">${e.message}</div>`; }
+}
+
+function editPre(r) {
+    const html = `
+    <div class="form-row"><div class="form-group"><label>카테고리</label><input id="ed-pre-cat" value="${r.category||''}"></div>
+    <div class="form-group"><label>변형</label><select id="ed-pre-var"><option value="1" ${r.variant==1?'selected':''}>1</option><option value="2" ${r.variant==2?'selected':''}>2</option><option value="3" ${r.variant==3?'selected':''}>3</option></select></div></div>
+    <div class="form-row full"><div class="form-group"><label>가이드</label><input id="ed-pre-guide" value="${r.guide_text||''}"></div></div>
+    <div class="form-row full"><div class="form-group"><label>대사</label><input id="ed-pre-transcript" value="${r.transcript||''}"></div></div>
+    <div class="form-row full"><div class="form-group"><label>R2 URL</label><input id="ed-pre-url" value="${r.cloudflare_url||''}"></div></div>`;
+
+    openModal(`PRE 수정 (ID: ${r.id})`, html, async () => {
+        const payload = {
+            category: document.getElementById('ed-pre-cat').value.trim(),
+            variant: parseInt(document.getElementById('ed-pre-var').value),
+            guide_text: document.getElementById('ed-pre-guide').value.trim() || null,
+            transcript: document.getElementById('ed-pre-transcript').value.trim(),
+            cloudflare_url: document.getElementById('ed-pre-url').value.trim() || null
+        };
+        try {
+            const res = await fetch(`/api/rp-admin/pre-recordings/${r.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+            if ((await res.json()).success) {
+                closeModal(); showStatus('pre-status','✅ 수정 완료','success');
+                loadPreRecordings(document.getElementById('pre-scenario-id').value);
+            }
+        } catch(e) { showStatus('pre-status',`❌ ${e.message}`,'error'); }
+    });
 }
 
 async function createPre() {
@@ -796,52 +630,25 @@ async function createPre() {
         transcript: document.getElementById('pre-transcript').value.trim(),
         cloudflare_url: document.getElementById('pre-url').value.trim() || null
     };
-
-    if (!payload.scenario_id || !payload.category || !payload.transcript) {
-        showStatus('pre-status', '❌ 시나리오, 카테고리, 대사는 필수입니다.', 'error');
-        return;
-    }
-
+    if (!payload.scenario_id || !payload.category || !payload.transcript) { showStatus('pre-status','❌ 시나리오, 카테고리, 대사 필수','error'); return; }
     try {
-        const res = await fetch('/api/rp-admin/pre-recordings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const res = await fetch('/api/rp-admin/pre-recordings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
         const data = await res.json();
-        if (data.success) {
-            showStatus('pre-status', `✅ PRE 등록 완료! (ID: ${data.id})`, 'success');
-            document.getElementById('pre-transcript').value = '';
-            document.getElementById('pre-url').value = '';
-            loadPreRecordings(payload.scenario_id);
-        } else {
-            showStatus('pre-status', `❌ ${data.error}`, 'error');
-        }
-    } catch (e) {
-        showStatus('pre-status', `❌ ${e.message}`, 'error');
-    }
+        if (data.success) { showStatus('pre-status',`✅ 등록 완료! (ID: ${data.id})`,'success'); document.getElementById('pre-transcript').value=''; document.getElementById('pre-url').value=''; loadPreRecordings(payload.scenario_id); }
+        else showStatus('pre-status',`❌ ${data.error}`,'error');
+    } catch(e) { showStatus('pre-status',`❌ ${e.message}`,'error'); }
 }
 
 async function deletePre(id) {
-    if (!confirm('이 PRE 녹음을 삭제하시겠습니까?')) return;
+    if (!confirm('PRE 삭제?')) return;
     try {
-        const res = await fetch(`/api/rp-admin/pre-recordings/${id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (data.success) {
-            showStatus('pre-status', '✅ 삭제 완료', 'success');
-            const scenarioId = document.getElementById('pre-scenario-id').value;
-            if (scenarioId) loadPreRecordings(scenarioId);
-        }
-    } catch (e) {
-        showStatus('pre-status', `❌ ${e.message}`, 'error');
-    }
+        const res = await fetch(`/api/rp-admin/pre-recordings/${id}`, { method:'DELETE' });
+        if ((await res.json()).success) { showStatus('pre-status','✅ 삭제','success'); loadPreRecordings(document.getElementById('pre-scenario-id').value); }
+    } catch(e) { showStatus('pre-status',`❌ ${e.message}`,'error'); }
 }
 
-// ════════════════════════════════════════
-// 초기 로드
-// ════════════════════════════════════════
+// ═══════════════ 초기 로드 ═══════════════
 loadScenarios();
 </script>
-
 </body>
 </html>
