@@ -750,3 +750,32 @@ def student_my_status():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+@app.route('/api/rp-student/leave-team', methods=['POST'])
+@student_required
+def student_leave_team():
+    """학생: 팀 퇴장"""
+    data = request.get_json()
+    session_id = data.get('session_id')
+    user_id = session.get('user_id')
+
+    if not session_id:
+        return jsonify({"error": "session_id 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM rp_session_members
+                WHERE user_id = %s AND team_id IN (
+                    SELECT id FROM rp_session_teams WHERE session_id = %s
+                )
+            """, (user_id, session_id))
+            conn.commit()
+            return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()

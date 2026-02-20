@@ -138,17 +138,20 @@
                 <span class="pulse"></span> In attesa dell'inizio...
             </div>
             <div class="members" id="my-members"></div>
+            <div class="btn-row" style="margin-top:24px;">
+                <button class="btn btn-ghost" onclick="leaveTeam()">🚪 Esci dal team</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-// URL에서 class_name 추출
 const urlParams = new URLSearchParams(window.location.search);
 const className = urlParams.get('class_name');
 
 let selectedSessionId = null;
 let pollingInterval = null;
+let waitingTimeout = null;
 
 function showStatus(msg, type) {
     const el = document.getElementById('lobby-status');
@@ -156,6 +159,36 @@ function showStatus(msg, type) {
     setTimeout(() => { el.className = 'status-msg'; }, 5000);
 }
 
+// ═══════════ 폴링 제어 ═══════════
+function startPolling() {
+    stopPolling();
+    checkMyStatus(); // 즉시 1회
+    pollingInterval = setInterval(checkMyStatus, 3000);
+    // 5분 대기 타임아웃: 세션이 시작되지 않으면 자동 퇴장
+    waitingTimeout = setTimeout(() => {
+        leaveTeam(true); // silent = true
+    }, 5 * 60 * 1000);
+}
+
+function stopPolling() {
+    if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+    if (waitingTimeout) { clearTimeout(waitingTimeout); waitingTimeout = null; }
+}
+
+// 탭 안 보이면 폴링 중지, 돌아오면 재개
+document.addEventListener('visibilitychange', () => {
+    if (!selectedSessionId || !document.getElementById('sec-waiting').classList.contains('active')) return;
+    if (document.hidden) {
+        stopPolling();
+    } else {
+        startPolling();
+    }
+});
+
+// 페이지 떠날 때 정리
+window.addEventListener('beforeunload', stopPolling);
+
+// ═══════════ 단계 전환 ═══════════
 function goToStep(step) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.step').forEach(s => { s.classList.remove('active'); s.classList.remove('done'); });
@@ -163,8 +196,8 @@ function goToStep(step) {
     for (let i = 1; i < step; i++) document.getElementById(`step-${i}`).classList.add('done');
     document.getElementById(`step-${step}`).classList.add('active');
 
-    if (step === 1) document.getElementById('sec-sessions').classList.add('active');
-    if (step === 2) document.getElementById('sec-teams').classList.add('active');
+    if (step === 1) { document.getElementById('sec-sessions').classList.add('active'); stopPolling(); }
+    if (step === 2) { document.getElementById('sec-teams').classList.add('active'); stopPolling(); }
     if (step === 3) document.getElementById('sec-waiting').classList.add('active');
 }
 
@@ -210,7 +243,6 @@ async function loadSessions() {
 // ═══════════ 2단계: 팀 선택 ═══════════
 async function selectSession(sessionId) {
     selectedSessionId = sessionId;
-
     try {
         const res = await fetch(`/api/rp-student/sessions?class_name=${encodeURIComponent(className)}`);
         const data = await res.json();
@@ -249,12 +281,29 @@ async function joinTeam(teamId) {
     } catch (e) { showStatus(`Errore: ${e.message}`, 'error'); }
 }
 
-// ═══════════ 3단계: 대기 (폴링) ═══════════
-function startPolling() {
-    checkMyStatus(); // 즉시 1회
-    pollingInterval = setInterval(checkMyStatus, 3000);
+// ═══════════ 팀 퇴장 ═══════════
+async function leaveTeam(silent = false) {
+    stopPolling();
+    if (!selectedSessionId) { goToStep(1); return; }
+    try {
+        await fetch('/api/rp-student/leave-team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: selectedSessionId })
+        });
+    } catch (e) { console.error('퇴장 오류:', e); }
+
+    selectedSessionId = null;
+    if (silent) {
+        window.location.href = '/student-dashboard';
+    } else {
+        goToStep(1);
+        loadSessions();
+        showStatus('Team lasciato.', 'success');
+    }
 }
 
+// ═══════════ 3단계: 상태 확인 (폴링) ═══════════
 async function checkMyStatus() {
     if (!selectedSessionId) return;
     try {
@@ -263,7 +312,6 @@ async function checkMyStatus() {
 
         if (data.my_team) {
             document.getElementById('my-team-name').textContent = `Team ${data.my_team.team_code}`;
-
             let membersHtml = '';
             for (const name of (data.members || [])) {
                 membersHtml += `<span class="member">👤 ${name}</span>`;
@@ -272,12 +320,13 @@ async function checkMyStatus() {
         }
 
         if (data.session_status === 'active') {
+            stopPolling();
             document.getElementById('waiting-text').innerHTML =
                 '<span class="pulse green"></span> La sessione è iniziata! Preparati...';
-            // TODO: 여기서 대화 화면으로 이동
+            // TODO: 대화 화면으로 이동
             // window.location.href = `/roleplay-play?session_id=${selectedSessionId}`;
         } else if (data.session_status === 'completed') {
-            clearInterval(pollingInterval);
+            stopPolling();
             document.getElementById('waiting-text').innerHTML =
                 '⏹ La sessione è terminata.';
         }

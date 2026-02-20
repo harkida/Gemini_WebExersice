@@ -119,9 +119,9 @@
                 <label>반 (Class) *</label>
                 <select id="ss-class">
                     <option value="">-- 선택 --</option>
-                    <option value="siena-3">3학년 (Triennale 3)</option>
-                    <option value="siena-master-1">석사1 (Magistrale 1)</option>
-                    <option value="siena-master-2">석사2 (Magistrale 2)</option>
+                    <option value="3학년">3학년</option>
+                    <option value="석사1">석사1</option>
+                    <option value="석사2">석사2</option>
                 </select>
             </div>
             <div class="form-group">
@@ -317,11 +317,35 @@ async function deleteSession(id) {
     } catch (e) { showStatus(`❌ ${e.message}`, 'error'); }
 }
 
-// ═══════════ 초기 로드 ═══════════
+// ═══════════ 초기 로드 + 조건부 폴링 ═══════════
+let sessionPolling = null;
+
+function startSessionPolling() {
+    stopSessionPolling();
+    sessionPolling = setInterval(loadSessions, 3000);
+}
+function stopSessionPolling() {
+    if (sessionPolling) { clearInterval(sessionPolling); sessionPolling = null; }
+}
+
+// 탭이 보이지 않으면 폴링 중지, 돌아오면 재개
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopSessionPolling();
+    } else {
+        loadSessions();
+        startSessionPolling();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     loadFormData();
     loadSessions();
+    startSessionPolling();
 });
+
+// 페이지 떠날 때 정리
+window.addEventListener('beforeunload', stopSessionPolling);
 </script>
 </body>
 </html>
