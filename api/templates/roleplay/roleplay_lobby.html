@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎭 Roleplay Lobby</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans KR', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; font-size: 15px; }
+
+        .header {
+            background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 100%);
+            border-bottom: 1px solid #2a2d3e; padding: 18px 28px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 22px; font-weight: 700; color: #fff; }
+        .header h1 span { color: #7c6ff7; }
+        .back-btn {
+            color: #888; text-decoration: none; font-size: 14px;
+            padding: 8px 16px; border: 1px solid #333; border-radius: 6px;
+        }
+        .back-btn:hover { color: #fff; border-color: #555; }
+
+        .main { padding: 28px; max-width: 800px; margin: 0 auto; }
+
+        /* ── 단계 표시 ── */
+        .steps { display: flex; gap: 0; margin-bottom: 28px; }
+        .step {
+            flex: 1; padding: 12px 16px; text-align: center; font-size: 14px; font-weight: 500;
+            background: #1a1d2e; border: 1px solid #2a2d3e; color: #555;
+        }
+        .step:first-child { border-radius: 8px 0 0 8px; }
+        .step:last-child { border-radius: 0 8px 8px 0; }
+        .step.active { background: #7c6ff720; color: #7c6ff7; border-color: #7c6ff7; }
+        .step.done { background: #1f2d1f; color: #69db7c; border-color: #2d4a2d; }
+
+        /* ── 섹션 ── */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* ── 세션 카드 ── */
+        .session-card {
+            background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 10px;
+            padding: 20px; margin-bottom: 14px; cursor: pointer; transition: all 0.2s;
+        }
+        .session-card:hover { border-color: #7c6ff7; background: #1f2233; }
+        .session-card.selected { border-color: #7c6ff7; background: #7c6ff710; }
+        .session-title { font-size: 17px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+        .session-info { font-size: 14px; color: #888; margin-bottom: 4px; }
+        .session-info span { color: #ccc; }
+        .session-scenarios { font-size: 14px; color: #666; margin-top: 8px; }
+        .session-scenarios b { color: #7c6ff7; }
+
+        .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .status-waiting { background: #2d2a1f; color: #ffd43b; }
+        .status-active { background: #1f2d1f; color: #69db7c; }
+
+        /* ── 팀 그리드 ── */
+        .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+        .team-card {
+            background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 10px;
+            padding: 18px; text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+        .team-card:hover { border-color: #7c6ff7; }
+        .team-card.full { opacity: 0.4; cursor: not-allowed; }
+        .team-card .code { font-size: 28px; font-weight: 700; color: #7c6ff7; }
+        .team-card .count { font-size: 14px; color: #888; margin-top: 6px; }
+        .team-card .count .num { color: #fff; font-weight: 600; }
+
+        /* ── 대기 화면 ── */
+        .waiting-box {
+            text-align: center; padding: 40px; background: #1a1d2e;
+            border: 1px solid #2a2d3e; border-radius: 12px;
+        }
+        .waiting-box .team-name { font-size: 48px; font-weight: 700; color: #7c6ff7; margin-bottom: 12px; }
+        .waiting-box .status-text { font-size: 18px; color: #888; margin-bottom: 20px; }
+        .waiting-box .members { font-size: 15px; color: #ccc; }
+        .waiting-box .members .member { display: inline-block; padding: 4px 12px; margin: 4px; background: #0f1117; border-radius: 20px; }
+
+        .pulse {
+            display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+            background: #ffd43b; margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+        .pulse.green { background: #69db7c; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* ── 버튼 ── */
+        .btn { padding: 10px 24px; border: none; border-radius: 6px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+        .btn-primary { background: #7c6ff7; color: #fff; }
+        .btn-primary:hover { background: #6b5ce7; }
+        .btn-ghost { background: none; border: 1px solid #333; color: #888; }
+        .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+
+        .status-msg { padding: 12px 18px; border-radius: 6px; margin-bottom: 18px; font-size: 14px; display: none; }
+        .status-msg.success { display: block; background: #1a2e1a; color: #69db7c; border: 1px solid #2d4a2d; }
+        .status-msg.error { display: block; background: #2e1a1a; color: #ff6b6b; border: 1px solid #4a2d2d; }
+        .empty-state { text-align: center; padding: 40px; color: #555; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🎭 <span>Roleplay</span> Lobby</h1>
+    <a href="/student-dashboard" class="back-btn">← Dashboard</a>
+</div>
+
+<div class="main">
+    <div id="lobby-status" class="status-msg"></div>
+
+    <!-- 단계 표시 -->
+    <div class="steps">
+        <div class="step active" id="step-1">① Sessione</div>
+        <div class="step" id="step-2">② Team</div>
+        <div class="step" id="step-3">③ Attesa</div>
+    </div>
+
+    <!-- ═══════════ 1단계: 세션 선택 ═══════════ -->
+    <div class="section active" id="sec-sessions">
+        <div id="session-list"><div class="empty-state">Caricamento...</div></div>
+    </div>
+
+    <!-- ═══════════ 2단계: 팀 선택 ═══════════ -->
+    <div class="section" id="sec-teams">
+        <h3 style="color:#fff; margin-bottom:16px; font-size:17px;">Scegli il tuo team:</h3>
+        <div class="team-grid" id="team-list"></div>
+        <div class="btn-row">
+            <button class="btn btn-ghost" onclick="goToStep(1)">← Indietro</button>
+        </div>
+    </div>
+
+    <!-- ═══════════ 3단계: 대기 ═══════════ -->
+    <div class="section" id="sec-waiting">
+        <div class="waiting-box">
+            <div class="team-name" id="my-team-name">-</div>
+            <div class="status-text" id="waiting-text">
+                <span class="pulse"></span> In attesa dell'inizio...
+            </div>
+            <div class="members" id="my-members"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// URL에서 class_name 추출
+const urlParams = new URLSearchParams(window.location.search);
+const className = urlParams.get('class_name');
+
+let selectedSessionId = null;
+let pollingInterval = null;
+
+function showStatus(msg, type) {
+    const el = document.getElementById('lobby-status');
+    el.textContent = msg; el.className = `status-msg ${type}`;
+    setTimeout(() => { el.className = 'status-msg'; }, 5000);
+}
+
+function goToStep(step) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.step').forEach(s => { s.classList.remove('active'); s.classList.remove('done'); });
+
+    for (let i = 1; i < step; i++) document.getElementById(`step-${i}`).classList.add('done');
+    document.getElementById(`step-${step}`).classList.add('active');
+
+    if (step === 1) document.getElementById('sec-sessions').classList.add('active');
+    if (step === 2) document.getElementById('sec-teams').classList.add('active');
+    if (step === 3) document.getElementById('sec-waiting').classList.add('active');
+}
+
+// ═══════════ 1단계: 세션 목록 ═══════════
+async function loadSessions() {
+    if (!className) {
+        document.getElementById('session-list').innerHTML = '<div class="empty-state">Classe non specificata. Torna alla dashboard.</div>';
+        return;
+    }
+    try {
+        const res = await fetch(`/api/rp-student/sessions?class_name=${encodeURIComponent(className)}`);
+        const data = await res.json();
+
+        if (!data.sessions?.length) {
+            document.getElementById('session-list').innerHTML =
+                '<div class="empty-state">Nessuna sessione disponibile per la tua classe.<br>Attendi che il professore ne crei una.</div>';
+            return;
+        }
+
+        let html = '';
+        for (const s of data.sessions) {
+            const statusCls = s.status === 'active' ? 'status-active' : 'status-waiting';
+            const statusTxt = s.status === 'active' ? '🟢 In corso' : '⏳ In attesa';
+            const scenarios = s.scenarios?.join(', ') || '-';
+
+            html += `
+            <div class="session-card" onclick="selectSession(${s.id})">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="session-title">Sessione #${s.id}</span>
+                    <span class="status-badge ${statusCls}">${statusTxt}</span>
+                </div>
+                <div class="session-info">Obiettivo: <span>${s.goal_title || '-'}</span></div>
+                <div class="session-scenarios">Scenario: <b>${scenarios}</b></div>
+                <div class="session-info" style="margin-top:6px;">Team: <span>${s.team_count} team disponibili</span></div>
+            </div>`;
+        }
+        document.getElementById('session-list').innerHTML = html;
+    } catch (e) {
+        document.getElementById('session-list').innerHTML = `<div class="empty-state" style="color:#ff6b6b;">${e.message}</div>`;
+    }
+}
+
+// ═══════════ 2단계: 팀 선택 ═══════════
+async function selectSession(sessionId) {
+    selectedSessionId = sessionId;
+
+    try {
+        const res = await fetch(`/api/rp-student/sessions?class_name=${encodeURIComponent(className)}`);
+        const data = await res.json();
+        const sess = data.sessions?.find(s => s.id === sessionId);
+        if (!sess) return;
+
+        let html = '';
+        for (const t of sess.teams) {
+            const isFull = t.member_count >= 5;
+            html += `
+            <div class="team-card ${isFull ? 'full' : ''}" onclick="${isFull ? '' : `joinTeam(${t.id})`}">
+                <div class="code">${t.team_code}</div>
+                <div class="count"><span class="num">${t.member_count}</span>/5</div>
+            </div>`;
+        }
+        document.getElementById('team-list').innerHTML = html;
+        goToStep(2);
+    } catch (e) { showStatus(`Errore: ${e.message}`, 'error'); }
+}
+
+// ═══════════ 팀 합류 ═══════════
+async function joinTeam(teamId) {
+    try {
+        const res = await fetch('/api/rp-student/join-team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team_id: teamId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            goToStep(3);
+            startPolling();
+        } else {
+            showStatus(`❌ ${data.error}`, 'error');
+        }
+    } catch (e) { showStatus(`Errore: ${e.message}`, 'error'); }
+}
+
+// ═══════════ 3단계: 대기 (폴링) ═══════════
+function startPolling() {
+    checkMyStatus(); // 즉시 1회
+    pollingInterval = setInterval(checkMyStatus, 3000);
+}
+
+async function checkMyStatus() {
+    if (!selectedSessionId) return;
+    try {
+        const res = await fetch(`/api/rp-student/my-status?session_id=${selectedSessionId}`);
+        const data = await res.json();
+
+        if (data.my_team) {
+            document.getElementById('my-team-name').textContent = `Team ${data.my_team.team_code}`;
+
+            let membersHtml = '';
+            for (const name of (data.members || [])) {
+                membersHtml += `<span class="member">👤 ${name}</span>`;
+            }
+            document.getElementById('my-members').innerHTML = membersHtml;
+        }
+
+        if (data.session_status === 'active') {
+            document.getElementById('waiting-text').innerHTML =
+                '<span class="pulse green"></span> La sessione è iniziata! Preparati...';
+            // TODO: 여기서 대화 화면으로 이동
+            // window.location.href = `/roleplay-play?session_id=${selectedSessionId}`;
+        } else if (data.session_status === 'completed') {
+            clearInterval(pollingInterval);
+            document.getElementById('waiting-text').innerHTML =
+                '⏹ La sessione è terminata.';
+        }
+    } catch (e) { console.error('폴링 오류:', e); }
+}
+
+// ═══════════ 초기 ═══════════
+document.addEventListener('DOMContentLoaded', loadSessions);
+</script>
+</body>
+</html>

@@ -575,3 +575,178 @@ def delete_session(session_id):
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+# ============================================================
+# 학생용 — 로비 페이지 & API
+# ============================================================
+
+def student_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"error": "로그인 필요"}), 401
+        return f(*args, **kwargs)
+    return wrapper
+
+@app.route('/roleplay-lobby')
+def roleplay_lobby_page():
+    if 'user_id' not in session:
+        return redirect('/login')
+    return render_template('roleplay/roleplay_lobby.html')
+
+@app.route('/api/rp-student/sessions', methods=['GET'])
+@student_required
+def student_get_sessions():
+    """학생: 자기 반의 활성 세션 목록 조회"""
+    class_name = request.args.get('class_name')
+    if not class_name:
+        return jsonify({"error": "class_name 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # waiting 또는 active 세션만
+            cur.execute("""
+                SELECT s.id, s.class_name, s.status, s.goal_id, s.team_count,
+                       s.created_at, g.title as goal_title
+                FROM rp_sessions s
+                LEFT JOIN rp_goals g ON s.goal_id = g.id
+                WHERE s.class_name = %s AND s.status IN ('waiting', 'active')
+                ORDER BY s.created_at DESC
+            """, (class_name,))
+            sessions = cur.fetchall()
+
+            for sess in sessions:
+                # 시나리오 목록
+                cur.execute("""
+                    SELECT sc.title FROM rp_session_scenarios ss
+                    JOIN rp_scenarios sc ON ss.scenario_id = sc.id
+                    WHERE ss.session_id = %s ORDER BY ss.order_num
+                """, (sess['id'],))
+                sess['scenarios'] = [r['title'] for r in cur.fetchall()]
+
+                # 팀 목록 + 인원수
+                cur.execute("""
+                    SELECT t.id, t.team_code, COUNT(m.id) as member_count
+                    FROM rp_session_teams t
+                    LEFT JOIN rp_session_members m ON m.team_id = t.id
+                    WHERE t.session_id = %s
+                    GROUP BY t.id, t.team_code
+                    ORDER BY t.team_code
+                """, (sess['id'],))
+                sess['teams'] = cur.fetchall()
+
+            return jsonify({"sessions": sessions})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-student/join-team', methods=['POST'])
+@student_required
+def student_join_team():
+    """학생: 팀에 합류"""
+    data = request.get_json()
+    team_id = data.get('team_id')
+    user_id = session.get('user_id')
+
+    if not team_id:
+        return jsonify({"error": "team_id 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # 팀이 속한 세션이 유효한지 확인
+            cur.execute("""
+                SELECT t.id, t.session_id, s.status
+                FROM rp_session_teams t
+                JOIN rp_sessions s ON t.session_id = s.id
+                WHERE t.id = %s
+            """, (team_id,))
+            team_info = cur.fetchone()
+            if not team_info:
+                return jsonify({"error": "존재하지 않는 팀"}), 404
+            if team_info['status'] == 'completed':
+                return jsonify({"error": "이미 종료된 세션입니다"}), 400
+
+            # 이미 이 세션의 다른 팀에 들어있는지 확인
+            cur.execute("""
+                SELECT m.id, t.team_code FROM rp_session_members m
+                JOIN rp_session_teams t ON m.team_id = t.id
+                WHERE t.session_id = %s AND m.user_id = %s
+            """, (team_info['session_id'], user_id))
+            existing = cur.fetchone()
+            if existing:
+                return jsonify({"error": f"이미 팀 {existing['team_code']}에 합류했습니다"}), 409
+
+            # 팀 인원 제한 (5명)
+            cur.execute("SELECT COUNT(*) as cnt FROM rp_session_members WHERE team_id = %s", (team_id,))
+            count = cur.fetchone()['cnt']
+            if count >= 5:
+                return jsonify({"error": "팀이 가득 찼습니다 (최대 5명)"}), 400
+
+            # 합류
+            cur.execute("""
+                INSERT INTO rp_session_members (team_id, user_id)
+                VALUES (%s, %s)
+            """, (team_id, user_id))
+            conn.commit()
+            return jsonify({"success": True, "session_id": team_info['session_id']})
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return jsonify({"error": "이미 이 팀에 합류했습니다"}), 409
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/rp-student/my-status', methods=['GET'])
+@student_required
+def student_my_status():
+    """학생: 특정 세션에서 내 팀 상태 확인 (폴링용)"""
+    session_id = request.args.get('session_id')
+    user_id = session.get('user_id')
+    if not session_id:
+        return jsonify({"error": "session_id 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # 세션 상태
+            cur.execute("SELECT status FROM rp_sessions WHERE id = %s", (session_id,))
+            sess = cur.fetchone()
+            if not sess:
+                return jsonify({"error": "세션 없음"}), 404
+
+            # 내 팀 정보
+            cur.execute("""
+                SELECT t.team_code, t.id as team_id
+                FROM rp_session_members m
+                JOIN rp_session_teams t ON m.team_id = t.id
+                WHERE t.session_id = %s AND m.user_id = %s
+            """, (session_id, user_id))
+            my_team = cur.fetchone()
+
+            # 내 팀 멤버 목록
+            members = []
+            if my_team:
+                cur.execute("""
+                    SELECT u.full_name FROM rp_session_members m
+                    JOIN users u ON m.user_id = u.id
+                    WHERE m.team_id = %s
+                """, (my_team['team_id'],))
+                members = [r['full_name'] for r in cur.fetchall()]
+
+            return jsonify({
+                "session_status": sess['status'],
+                "my_team": my_team,
+                "members": members
+            })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()

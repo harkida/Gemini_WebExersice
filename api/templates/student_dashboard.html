@@ -346,6 +346,7 @@
                 <option value="translation">Traduzione (번역)</option>
                 <option value="comprehension">Comprensione (이해력)</option>
                 <option value="speaking">Parlato (말하기)</option>
+                <option value="roleplay">🎭 Roleplay (롤플레이)</option>
             </select>
 
             <button class="start-quiz-btn" onclick="startQuiz()">🚀 Inizia (시작하기)</button>
@@ -569,6 +570,11 @@
         if (!className || !quizType) {
             alert('Seleziona sia la classe che il tipo di quiz!');
             return;
+        }
+
+        if (quizType === 'roleplay') {
+        window.location.href = `/roleplay-lobby?class_name=${encodeURIComponent(className)}`;
+        return;
         }
 
         const res = await fetch('/api/start-quiz', {

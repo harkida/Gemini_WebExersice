@@ -23,6 +23,10 @@
       "dest": "api/roleplay_admin.py"
     },
     {
+      "src": "/roleplay-lobby",
+      "dest": "api/roleplay_admin.py"
+    },
+    {
       "src": "/api/rp-admin/(.*)",
       "dest": "api/roleplay_admin.py"
     },
