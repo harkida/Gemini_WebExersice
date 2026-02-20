@@ -487,7 +487,7 @@ async function loadGoals() {
 function editGoal(g) {
     const html = `
     <div class="form-row"><div class="form-group"><label>제목</label><input id="ed-gl-title" value="${g.title||''}"></div>
-    <div class="form-group"><label>반</label><select id="ed-gl-class"><option value="3학년" ${g.class_name==='3학년'?'selected':''}>3학년</option><option value="석사1" ${g.class_name==='석사1'?'selected':''}>석사1</option><option value="석사2" ${g.class_name==='석사2'?'selected':''}>석사2</option></select></div></div>
+    <div class="form-group"><label>반</label><select id="ed-gl-class"><option value="siena-3" ${g.class_name==='siena-3'?'selected':''}>3학년 (Triennale 3)</option><option value="siena-master-1" ${g.class_name==='siena-master-1'?'selected':''}>석사1 (Magistrale 1)</option><option value="siena-master-2" ${g.class_name==='siena-master-2'?'selected':''}>석사2 (Magistrale 2)</option></select></div></div>
     <div class="form-row full"><div class="form-group"><label>표현</label><input id="ed-gl-expr" value="${g.target_expression||''}"></div></div>
     <div class="form-row"><div class="form-group"><label>문법</label><input id="ed-gl-gram" value="${g.target_grammar||''}"></div>
     <div class="form-group"><label>어휘</label><input id="ed-gl-vocab" value="${g.target_vocabulary||''}"></div></div>`;
