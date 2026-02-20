@@ -31,6 +31,10 @@
       "dest": "api/roleplay_admin.py"
     },
     {
+  "src": "/api/rp-student/(.*)",
+  "dest": "api/roleplay_admin.py"
+    },
+    {
       "src": "/roleplay-test",
       "dest": "api/roleplay_test.py"
     },
