@@ -377,7 +377,7 @@ async function loadSessionInfo() {
             currentScenarioId = sc.scenario_id;
             turnsRemaining = data.max_turns - sc.current_turn;
             updateTurnCounter(sc.current_turn, data.max_turns);
-            await loadScenarioDetail(sc.scenario_id);
+            applyScenarioDetail(sc);
 
             // 이미 진행 중인 대화가 있으면 기록 로드
             if (sc.current_turn > 0) {
@@ -391,18 +391,11 @@ async function loadSessionInfo() {
 }
 
 // ═══════════ 시나리오 상세 로드 (NPC 이름, 상황 표시) ═══════════
-async function loadScenarioDetail(scenarioId) {
-    try {
-        const res = await fetch(`/api/rp-play/session-info?session_id=${sessionId}`);
-        const data = await res.json();
-        const sc = data.scenarios?.find(s => s.scenario_id === scenarioId);
-        if (sc) {
-            currentScenario = sc;
-            document.getElementById('npcName').textContent = sc.npc_name || 'NPC';
-            document.getElementById('situationText').textContent = sc.title || '';
-        }
-    } catch (e) {
-        console.error('시나리오 로드 실패:', e);
+function applyScenarioDetail(sc) {
+    if (sc) {
+        currentScenario = sc;
+        document.getElementById('npcName').textContent = sc.npc_name || 'NPC';
+        document.getElementById('situationText').textContent = sc.title || '';
     }
 }
 

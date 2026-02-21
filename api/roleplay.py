@@ -639,7 +639,7 @@ def send_text():
 
     data = request.get_json(silent=True) or {}
     session_id = data.get('session_id')
-    scenario_id = data.get('scenario_id')
+    scenario_id = int(data.get('scenario_id', 0))
     student_input = data.get('student_input', '').strip()
 
     if not all([session_id, scenario_id, student_input]):
@@ -746,7 +746,7 @@ def send_audio():
         return jsonify({"error": "Gemini 미설정"}), 500
 
     session_id = request.form.get('session_id')
-    scenario_id = request.form.get('scenario_id')
+    scenario_id = int(request.form.get('scenario_id', 0))
     audio_file = request.files.get('audio_file')
     mime_type = request.form.get('mime_type', 'audio/mp4')
 
@@ -869,7 +869,7 @@ def get_history():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT turn_number, speaker, message_text, actor_line,
-                       analyst_json, created_at
+                       analyst_json, created_at::text as created_at
                 FROM rp_conversation_logs
                 WHERE team_id = %s AND scenario_id = %s
                 ORDER BY turn_number ASC, id ASC
