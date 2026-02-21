@@ -322,9 +322,10 @@ async function checkMyStatus() {
         if (data.session_status === 'active') {
             stopPolling();
             document.getElementById('waiting-text').innerHTML =
-                '<span class="pulse green"></span> La sessione è iniziata! Preparati...';
-            // TODO: 대화 화면으로 이동
-            // window.location.href = `/roleplay-play?session_id=${selectedSessionId}`;
+                '<span class="pulse green"></span> La sessione è iniziata! Reindirizzamento...';
+            setTimeout(() => {
+                window.location.href = `/roleplay-play?session_id=${selectedSessionId}&class_name=${encodeURIComponent(className)}`;
+            }, 1000);
         } else if (data.session_status === 'completed') {
             stopPolling();
             document.getElementById('waiting-text').innerHTML =
