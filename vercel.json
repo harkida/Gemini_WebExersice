@@ -55,10 +55,6 @@
       "dest": "api/roleplay_test.py"
     },
     {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    },
-    {
       "src": "/roleplay-play",
       "dest": "api/roleplay.py"
     },
@@ -66,5 +62,9 @@
       "src": "/api/rp-play/(.*)",
       "dest": "api/roleplay.py"
     },
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
   ]
 }
