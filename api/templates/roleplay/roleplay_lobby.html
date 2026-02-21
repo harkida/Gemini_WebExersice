@@ -297,8 +297,9 @@ async function leaveTeam(silent = false) {
     if (silent) {
         window.location.href = '/student-dashboard';
     } else {
+        goToStep(1);
+        loadSessions();
         showStatus('Team lasciato.', 'success');
-        await selectSession(selectedSessionId);
     }
 }
 
