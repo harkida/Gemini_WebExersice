@@ -11,6 +11,10 @@
     {
       "src": "api/roleplay_admin.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "api/roleplay.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
@@ -31,8 +35,8 @@
       "dest": "api/roleplay_admin.py"
     },
     {
-  "src": "/api/rp-student/(.*)",
-  "dest": "api/roleplay_admin.py"
+      "src": "/api/rp-student/(.*)",
+      "dest": "api/roleplay_admin.py"
     },
     {
       "src": "/roleplay-test",
@@ -53,6 +57,14 @@
     {
       "src": "/(.*)",
       "dest": "api/index.py"
-    }
+    },
+    {
+      "src": "/roleplay-play",
+      "dest": "api/roleplay.py"
+    },
+    {
+      "src": "/api/rp-play/(.*)",
+      "dest": "api/roleplay.py"
+    },
   ]
 }
