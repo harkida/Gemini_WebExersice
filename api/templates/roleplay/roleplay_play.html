@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎭 Roleplay — Conversazione</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1b1e;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── 헤더 ── */
+        .header {
+            background: #2b2d31;
+            padding: 12px 20px;
+            border-bottom: 1px solid #3a3c41;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-left h1 { font-size: 1.1em; color: #f0a500; }
+        .header-left .team-badge {
+            background: #f0a50020;
+            color: #f0a500;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .turn-counter {
+            background: #7289da20;
+            color: #7289da;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .btn-exit {
+            background: none;
+            border: 1px solid #555;
+            color: #999;
+            padding: 5px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .btn-exit:hover { border-color: #999; color: #fff; }
+
+        /* ── 시나리오 바 ── */
+        .scenario-bar {
+            background: #2b2d31;
+            padding: 10px 20px;
+            border-bottom: 1px solid #3a3c41;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 0.85em;
+        }
+        .scenario-bar .npc-name { color: #f0a500; font-weight: 700; }
+        .scenario-bar .situation { color: #999; }
+
+        /* ── 채팅 영역 ── */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .msg {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.5;
+            font-size: 0.95em;
+            position: relative;
+        }
+        .msg.player {
+            align-self: flex-end;
+            background: #7289da;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .msg.npc {
+            align-self: flex-start;
+            background: #2b2d31;
+            border: 1px solid #3a3c41;
+            border-bottom-left-radius: 4px;
+        }
+        .msg.system {
+            align-self: center;
+            background: #f0a50015;
+            border: 1px solid #f0a50030;
+            color: #f0a500;
+            font-size: 0.85em;
+            max-width: 90%;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .msg .label {
+            font-size: 0.7em;
+            font-weight: 600;
+            margin-bottom: 4px;
+            opacity: 0.7;
+        }
+        .msg .meta {
+            font-size: 0.7em;
+            opacity: 0.5;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        /* NPC 오디오 버튼 */
+        .npc-audio-btn {
+            display: inline-block;
+            background: #f0a50030;
+            border: none;
+            color: #f0a500;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-top: 6px;
+        }
+        .npc-audio-btn:hover { background: #f0a50050; }
+
+        /* NPC 텍스트 토글 */
+        .npc-text-hidden {
+            display: none;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9em;
+            color: #ccc;
+        }
+        .npc-text-hidden.visible { display: block; }
+
+        /* ── 로딩 ── */
+        .loading-bar {
+            display: none;
+            padding: 12px 20px;
+            background: #2b2d31;
+            border-top: 1px solid #3a3c41;
+            text-align: center;
+            color: #f0a500;
+            font-size: 0.9em;
+        }
+        .loading-bar.active { display: block; }
+        .spinner {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid #f0a50040;
+            border-top-color: #f0a500;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── 입력 영역 ── */
+        .input-area {
+            background: #2b2d31;
+            padding: 14px 20px;
+            border-top: 1px solid #3a3c41;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .input-area input {
+            flex: 1;
+            background: #1a1b1e;
+            border: 1px solid #3a3c41;
+            color: #e0e0e0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-family: inherit;
+        }
+        .input-area input:focus { outline: none; border-color: #7289da; }
+
+        .btn-record {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.95em;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        .btn-record:hover { background: #c0392b; }
+        .btn-record.recording {
+            background: #27ae60;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        .btn-send {
+            background: #7289da;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.95em;
+            white-space: nowrap;
+        }
+        .btn-send:hover { background: #5b6eae; }
+        .btn-send:disabled { background: #555; cursor: not-allowed; }
+
+        .btn-listen {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+        }
+        .btn-listen:hover { background: #2980b9; }
+
+        /* ── 시나리오 완료 오버레이 ── */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .overlay.active { display: flex; }
+        .overlay-box {
+            background: #2b2d31;
+            border: 1px solid #f0a50040;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+        }
+        .overlay-box h2 { color: #f0a500; margin-bottom: 12px; }
+        .overlay-box p { color: #999; margin-bottom: 24px; }
+        .overlay-box .btn-primary {
+            background: #f0a500;
+            color: #000;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .overlay-box .btn-primary:hover { background: #d99400; }
+    </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+    <div class="header-left">
+        <h1>🎭 Roleplay</h1>
+        <span class="team-badge" id="teamBadge">Team -</span>
+    </div>
+    <div class="header-right">
+        <span class="turn-counter" id="turnCounter">Turno: 0/8</span>
+        <button class="btn-exit" onclick="exitPlay()">← Esci</button>
+    </div>
+</div>
+
+<!-- 시나리오 바 -->
+<div class="scenario-bar">
+    <span>🗣️ <span class="npc-name" id="npcName">-</span></span>
+    <span class="situation" id="situationText">Caricamento...</span>
+</div>
+
+<!-- 채팅 -->
+<div class="chat-area" id="chatArea">
+    <div class="msg system">
+        💡 La sessione è iniziata! Parla in coreano con l'NPC.<br>
+        <small>Premi il pulsante 🎤 per registrare, oppure scrivi in basso.</small>
+    </div>
+</div>
+
+<!-- 로딩 -->
+<div class="loading-bar" id="loadingBar">
+    <span class="spinner"></span> L'NPC sta pensando...
+</div>
+
+<!-- 입력 -->
+<div class="input-area">
+    <button class="btn-record" id="btnRecord" onclick="toggleRecording()">🎤 Registra</button>
+    <button class="btn-listen" id="btnListen" onclick="playRecording()" style="display:none;">🔊</button>
+    <button class="btn-send" id="btnSendAudio" onclick="sendAudio()" style="display:none;">📤 Invia audio</button>
+    <input type="text" id="textInput" placeholder="Scrivi in coreano (debug)..." />
+    <button class="btn-send" id="btnSendText" onclick="sendText()">Invia</button>
+</div>
+
+<!-- 시나리오 완료 오버레이 -->
+<div class="overlay" id="completeOverlay">
+    <div class="overlay-box">
+        <h2>🎉 Conversazione completata!</h2>
+        <p id="completeMsg">Hai usato tutti i turni disponibili.</p>
+        <button class="btn-primary" onclick="exitPlay()">Torna alla lobby</button>
+    </div>
+</div>
+
+<script>
+// ═══════════ 상태 ═══════════
+const urlParams = new URLSearchParams(window.location.search);
+const sessionId = urlParams.get('session_id');
+let teamId = null;
+let currentScenarioId = null;
+let currentScenario = null;
+let turnsRemaining = 8;
+let isProcessing = false;
+
+// ═══════════ 녹음 ═══════════
+let mediaRecorder = null;
+let audioChunks = [];
+let recordedBlob = null;
+let recordedMimeType = 'audio/mp4';
+
+// ═══════════ NPC 오디오 저장소 ═══════════
+const audioStore = {};
+let audioCounter = 0;
+
+// ═══════════ 초기화 ═══════════
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!sessionId) {
+        alert('Errore: session_id mancante.');
+        window.location.href = '/student-dashboard';
+        return;
+    }
+    await loadSessionInfo();
+});
+
+// Enter로 텍스트 전송
+document.getElementById('textInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendText();
+    }
+});
+
+// ═══════════ 세션 정보 로드 ═══════════
+async function loadSessionInfo() {
+    try {
+        const res = await fetch(`/api/rp-play/session-info?session_id=${sessionId}`);
+        const data = await res.json();
+
+        if (data.error) {
+            alert(`Errore: ${data.error}`);
+            window.location.href = '/roleplay-lobby';
+            return;
+        }
+
+        teamId = data.team_id;
+        document.getElementById('teamBadge').textContent = `Team ${data.team_code}`;
+
+        // 첫 번째 시나리오 로드
+        if (data.scenarios && data.scenarios.length > 0) {
+            const sc = data.scenarios[0];
+            currentScenarioId = sc.scenario_id;
+            turnsRemaining = data.max_turns - sc.current_turn;
+            updateTurnCounter(sc.current_turn, data.max_turns);
+            await loadScenarioDetail(sc.scenario_id);
+
+            // 이미 진행 중인 대화가 있으면 기록 로드
+            if (sc.current_turn > 0) {
+                await loadHistory();
+            }
+        }
+    } catch (e) {
+        console.error('세션 로드 실패:', e);
+        alert('Errore nel caricamento della sessione.');
+    }
+}
+
+// ═══════════ 시나리오 상세 로드 (NPC 이름, 상황 표시) ═══════════
+async function loadScenarioDetail(scenarioId) {
+    try {
+        const res = await fetch(`/api/rp-play/session-info?session_id=${sessionId}`);
+        const data = await res.json();
+        const sc = data.scenarios?.find(s => s.scenario_id === scenarioId);
+        if (sc) {
+            currentScenario = sc;
+            document.getElementById('npcName').textContent = sc.npc_name || 'NPC';
+            document.getElementById('situationText').textContent = sc.title || '';
+        }
+    } catch (e) {
+        console.error('시나리오 로드 실패:', e);
+    }
+}
+
+// ═══════════ 기존 대화 기록 로드 ═══════════
+async function loadHistory() {
+    try {
+        const res = await fetch(
+            `/api/rp-play/history?session_id=${sessionId}&scenario_id=${currentScenarioId}`
+        );
+        const data = await res.json();
+        if (!data.logs) return;
+
+        for (const log of data.logs) {
+            if (log.speaker === 'player') {
+                addMessage('player', log.message_text || '(음성)');
+            } else if (log.speaker === 'npc') {
+                const npcText = log.actor_line || log.message_text || '';
+                addMessage('npc', cleanNpcText(npcText));
+            }
+        }
+
+        turnsRemaining = data.turns_remaining;
+        updateTurnCounter(data.current_turn, 8);
+    } catch (e) {
+        console.error('기록 로드 실패:', e);
+    }
+}
+
+// ═══════════ 턴 카운터 업데이트 ═══════════
+function updateTurnCounter(current, max) {
+    document.getElementById('turnCounter').textContent = `Turno: ${current}/${max}`;
+}
+
+// ═══════════ 텍스트 전송 ═══════════
+async function sendText() {
+    const input = document.getElementById('textInput');
+    const text = input.value.trim();
+    if (!text || isProcessing) return;
+
+    input.value = '';
+    await processPlayerInput({ type: 'text', text });
+}
+
+// ═══════════ 녹음 컨트롤 ═══════════
+async function toggleRecording() {
+    const btn = document.getElementById('btnRecord');
+
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        // 녹음 중지
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            recordedMimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+            recordedMimeType = 'audio/webm';
+        } else {
+            recordedMimeType = '';
+        }
+
+        const options = recordedMimeType ? { mimeType: recordedMimeType } : {};
+        mediaRecorder = new MediaRecorder(stream, options);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            recordedBlob = new Blob(audioChunks, { type: recordedMimeType || 'audio/mp4' });
+            btn.textContent = '🎤 Registra';
+            btn.classList.remove('recording');
+            document.getElementById('btnListen').style.display = 'inline-block';
+            document.getElementById('btnSendAudio').style.display = 'inline-block';
+        };
+
+        mediaRecorder.start();
+        btn.textContent = '⏹ Stop';
+        btn.classList.add('recording');
+        document.getElementById('btnListen').style.display = 'none';
+        document.getElementById('btnSendAudio').style.display = 'none';
+        recordedBlob = null;
+    } catch (e) {
+        alert('Errore microfono: ' + e.message);
+    }
+}
+
+function playRecording() {
+    if (!recordedBlob) return;
+    const url = URL.createObjectURL(recordedBlob);
+    new Audio(url).play();
+}
+
+async function sendAudio() {
+    if (!recordedBlob || isProcessing) return;
+
+    // 녹음 버튼 리셋
+    document.getElementById('btnListen').style.display = 'none';
+    document.getElementById('btnSendAudio').style.display = 'none';
+
+    await processPlayerInput({ type: 'audio', blob: recordedBlob, mimeType: recordedMimeType });
+    recordedBlob = null;
+}
+
+// ═══════════ 핵심: 플레이어 입력 처리 ═══════════
+async function processPlayerInput(input) {
+    if (isProcessing) return;
+    isProcessing = true;
+    setInputEnabled(false);
+    showLoading(true);
+
+    try {
+        let res;
+
+        if (input.type === 'text') {
+            addMessage('player', input.text);
+
+            res = await fetch('/api/rp-play/send-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    scenario_id: currentScenarioId,
+                    student_input: input.text
+                })
+            });
+        } else {
+            addMessage('player', '🎤 (Audio inviato)');
+
+            const ext = input.mimeType.includes('webm') ? 'webm' : 'mp4';
+            const formData = new FormData();
+            formData.append('session_id', sessionId);
+            formData.append('scenario_id', currentScenarioId);
+            formData.append('audio_file', input.blob, `recording.${ext}`);
+            formData.append('mime_type', input.mimeType);
+
+            res = await fetch('/api/rp-play/send-audio', {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        const data = await res.json();
+
+        if (data.error) {
+            if (data.turn_limit_reached) {
+                showComplete();
+            } else {
+                addMessage('system', `⚠️ ${data.error}`);
+            }
+            return;
+        }
+
+        // 음성 입력이면 인식된 텍스트 표시
+        if (input.type === 'audio' && data.transcribed_text) {
+            // 마지막 player 메시지 업데이트
+            const msgs = document.querySelectorAll('.msg.player');
+            const lastMsg = msgs[msgs.length - 1];
+            if (lastMsg) {
+                lastMsg.innerHTML = `<div class="label">Tu</div>🎤 "${data.transcribed_text}"<div class="meta">Turno ${data.turn_number}</div>`;
+            }
+        }
+
+        // NPC 응답 처리
+        const analyst = data.analyst_response;
+
+        if (analyst?.route === 'PRE') {
+            // PRE: 사전녹음 오디오 재생
+            const transcript = data.pre_transcript || `[${analyst.category}]`;
+            const audioUrl = data.pre_audio_url;
+            addNpcMessage(transcript, audioUrl, null, data.turn_number);
+
+        } else if (analyst?.route === 'DYN') {
+            // DYN: 연기자 대사 + TTS
+            const line = data.actor_line || '...';
+            const ttsB64 = data.tts_audio_base64;
+            addNpcMessage(line, null, ttsB64, data.turn_number);
+        }
+
+        // 턴 업데이트
+        turnsRemaining = data.turns_remaining;
+        updateTurnCounter(data.turn_number, 8);
+
+        // 턴 소진 확인
+        if (turnsRemaining <= 0) {
+            showComplete();
+        }
+
+    } catch (e) {
+        console.error('전송 실패:', e);
+        addMessage('system', `⚠️ Errore: ${e.message}`);
+    } finally {
+        isProcessing = false;
+        setInputEnabled(true);
+        showLoading(false);
+    }
+}
+
+// ═══════════ 메시지 추가 ═══════════
+function addMessage(role, text, label) {
+    const area = document.getElementById('chatArea');
+    const msg = document.createElement('div');
+    msg.className = `msg ${role}`;
+
+    if (role === 'player') {
+        msg.innerHTML = `<div class="label">Tu</div>${escapeHtml(text)}`;
+    } else if (role === 'system') {
+        msg.innerHTML = text;
+    } else {
+        msg.textContent = text;
+    }
+
+    area.appendChild(msg);
+    area.scrollTop = area.scrollHeight;
+}
+
+function addNpcMessage(text, audioUrl, ttsBase64, turnNumber) {
+    const area = document.getElementById('chatArea');
+    const msg = document.createElement('div');
+    msg.className = 'msg npc';
+
+    const cleanText = cleanNpcText(text);
+    const msgId = `npc-${++audioCounter}`;
+
+    let audioHtml = '';
+    if (audioUrl) {
+        audioStore[msgId] = { url: audioUrl };
+        audioHtml = `<button class="npc-audio-btn" onclick="playNpcAudio('${msgId}')">▶ Ascolta</button>`;
+    } else if (ttsBase64) {
+        const dataUrl = `data:audio/mp3;base64,${ttsBase64}`;
+        audioStore[msgId] = { url: dataUrl };
+        audioHtml = `<button class="npc-audio-btn" onclick="playNpcAudio('${msgId}')">▶ Ascolta</button>`;
+    }
+
+    // 텍스트 토글 (audio tags 제거된 텍스트)
+    const textToggleId = `${msgId}-text`;
+
+    msg.innerHTML = `
+        <div class="label">${document.getElementById('npcName').textContent}</div>
+        ${audioHtml}
+        <button class="npc-audio-btn" onclick="toggleNpcText('${textToggleId}')" style="margin-left:4px;">📝 Testo</button>
+        <div class="npc-text-hidden" id="${textToggleId}">${escapeHtml(cleanText)}</div>
+        <div class="meta">Turno ${turnNumber || ''}</div>
+    `;
+
+    area.appendChild(msg);
+    area.scrollTop = area.scrollHeight;
+
+    // 자동 재생
+    if (audioStore[msgId]) {
+        setTimeout(() => playNpcAudio(msgId), 300);
+    }
+}
+
+// ═══════════ NPC 오디오 재생 ═══════════
+function playNpcAudio(msgId) {
+    const store = audioStore[msgId];
+    if (!store) return;
+
+    // 재생 중이면 정지
+    if (store.audio && !store.audio.paused) {
+        store.audio.pause();
+        store.audio.currentTime = 0;
+        return;
+    }
+
+    const audio = new Audio(store.url);
+    store.audio = audio;
+    audio.play().catch(e => console.warn('오토플레이 실패:', e));
+}
+
+function toggleNpcText(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('visible');
+}
+
+// ═══════════ 유틸리티 ═══════════
+function cleanNpcText(text) {
+    // [laughing], [warmly] 등 audio tags 제거
+    return text.replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function setInputEnabled(enabled) {
+    document.getElementById('btnRecord').disabled = !enabled;
+    document.getElementById('btnSendText').disabled = !enabled;
+    document.getElementById('textInput').disabled = !enabled;
+}
+
+function showLoading(show) {
+    document.getElementById('loadingBar').classList.toggle('active', show);
+}
+
+function showComplete() {
+    document.getElementById('completeOverlay').classList.add('active');
+    setInputEnabled(false);
+}
+
+function exitPlay() {
+    window.location.href = `/roleplay-lobby?class_name=${urlParams.get('class_name') || ''}`;
+}
+</script>
+</body>
+</html>
