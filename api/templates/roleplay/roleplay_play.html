@@ -265,6 +265,32 @@
             font-size: 1em;
         }
         .overlay-box .btn-primary:hover { background: #d99400; }
+
+        /* ── typing indicator ── */
+        .typing-bubble {
+            align-self: flex-start;
+            background: #2b2d31;
+            border: 1px solid #3a3c41;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            padding: 14px 20px;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .typing-bubble .dot {
+            width: 8px;
+            height: 8px;
+            background: #f0a500;
+            border-radius: 50%;
+            animation: typingDot 1.4s infinite;
+        }
+        .typing-bubble .dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-bubble .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingDot {
+            0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+            30% { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -293,11 +319,6 @@
         💡 La sessione è iniziata! Parla in coreano con l'NPC.<br>
         <small>Premi il pulsante 🎤 per registrare, oppure scrivi in basso.</small>
     </div>
-</div>
-
-<!-- 로딩 -->
-<div class="loading-bar" id="loadingBar">
-    <span class="spinner"></span> L'NPC sta pensando...
 </div>
 
 <!-- 입력 -->
@@ -353,6 +374,14 @@ document.getElementById('textInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendText();
+    }
+});
+
+window.addEventListener('beforeunload', () => {
+    if (sessionId) {
+        navigator.sendBeacon('/api/rp-student/leave-team',
+            new Blob([JSON.stringify({ session_id: sessionId })],
+            { type: 'application/json' }));
     }
 });
 
@@ -586,7 +615,7 @@ async function processPlayerInput(input) {
 
         // 턴 소진 확인
         if (turnsRemaining <= 0) {
-            showComplete();
+            showComplete(() => showComplete(), 15000);
         }
 
     } catch (e) {
@@ -696,7 +725,19 @@ function setInputEnabled(enabled) {
 }
 
 function showLoading(show) {
-    document.getElementById('loadingBar').classList.toggle('active', show);
+    const area = document.getElementById('chatArea');
+    const existing = document.getElementById('typingBubble');
+
+    if (show && !existing) {
+        const bubble = document.createElement('div');
+        bubble.className = 'typing-bubble';
+        bubble.id = 'typingBubble';
+        bubble.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+        area.appendChild(bubble);
+        area.scrollTop = area.scrollHeight;
+    } else if (!show && existing) {
+        existing.remove();
+    }
 }
 
 function showComplete() {
@@ -704,7 +745,15 @@ function showComplete() {
     setInputEnabled(false);
 }
 
-function exitPlay() {
+async function exitPlay() {
+    // 팀에서 자동 탈퇴
+    try {
+        await fetch('/api/rp-student/leave-team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+    } catch (e) { console.error('퇴장 오류:', e); }
     window.location.href = `/roleplay-lobby?class_name=${urlParams.get('class_name') || ''}`;
 }
 </script>
