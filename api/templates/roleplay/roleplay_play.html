@@ -539,14 +539,14 @@ async function processPlayerInput(input) {
     if (isProcessing) return;
     isProcessing = true;
     setInputEnabled(false);
-    showLoading(true);
+    
 
     try {
         let res;
 
         if (input.type === 'text') {
             addMessage('player', input.text);
-
+            showLoading(true);
             res = await fetch('/api/rp-play/send-text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -558,6 +558,7 @@ async function processPlayerInput(input) {
             });
         } else {
             addMessage('player', '🎤 (Audio inviato)');
+            showLoading(true);
 
             const ext = input.mimeType.includes('webm') ? 'webm' : 'mp4';
             const formData = new FormData();
