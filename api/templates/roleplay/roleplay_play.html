@@ -291,6 +291,24 @@
             0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
             30% { opacity: 1; transform: scale(1); }
         }
+
+        /* ── 모바일 반응형 ── */
+        @media (max-width: 480px) {
+            .header { padding: 8px 12px; }
+            .header-left h1 { font-size: 0.9em; }
+            .header-left .team-badge { font-size: 0.7em; padding: 2px 8px; }
+            .header-right { gap: 6px; }
+            .turn-counter { font-size: 0.7em; padding: 3px 8px; }
+            .btn-exit { font-size: 0.7em; padding: 4px 10px; }
+            .scenario-bar { padding: 8px 12px; font-size: 0.8em; }
+            .msg { max-width: 85%; font-size: 0.9em; }
+            .input-area { padding: 10px 12px; gap: 6px; }
+            .btn-record { padding: 8px 12px; font-size: 0.85em; }
+            .btn-send { padding: 8px 12px; font-size: 0.85em; }
+            .input-area input { padding: 8px 10px; font-size: 0.85em; }
+        }
+
+
     </style>
 </head>
 <body>
@@ -330,15 +348,6 @@
     <button class="btn-send" id="btnSendText" onclick="sendText()">Invia</button>
 </div>
 
-<!-- 시나리오 완료 오버레이 -->
-<div class="overlay" id="completeOverlay">
-    <div class="overlay-box">
-        <h2>🎉 Conversazione completata!</h2>
-        <p id="completeMsg">Hai usato tutti i turni disponibili.</p>
-        <button class="btn-primary" onclick="exitPlay()">Torna alla lobby</button>
-    </div>
-</div>
-
 <script>
 // ═══════════ 상태 ═══════════
 const urlParams = new URLSearchParams(window.location.search);
@@ -358,6 +367,10 @@ let recordedMimeType = 'audio/mp4';
 // ═══════════ NPC 오디오 저장소 ═══════════
 const audioStore = {};
 let audioCounter = 0;
+
+// ★ 추가: 동기화 폴링
+let syncInterval = null;
+let lastKnownTurn = 0;
 
 // ═══════════ 초기화 ═══════════
 document.addEventListener('DOMContentLoaded', async () => {
@@ -384,6 +397,69 @@ window.addEventListener('beforeunload', () => {
             { type: 'application/json' }));
     }
 });
+
+// ═══════════ 팀 동기화 폴링 ═══════════
+function startSyncPolling() {
+    stopSyncPolling();
+    syncInterval = setInterval(syncFromServer, 5000);
+}
+
+function stopSyncPolling() {
+    if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
+}
+
+// 탭 비활성 시 폴링 중지, 활성 시 재개
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopSyncPolling();
+    } else if (!isProcessing && turnsRemaining > 0) {
+        startSyncPolling();
+    }
+});
+
+async function syncFromServer() {
+    if (!currentScenarioId || isProcessing) return;
+
+    try {
+        const res = await fetch(
+            `/api/rp-play/history?session_id=${sessionId}&scenario_id=${currentScenarioId}`
+        );
+        const data = await res.json();
+        if (!data.logs) return;
+
+        const serverTurn = data.current_turn;
+
+        // 새 메시지가 있으면 화면 갱신
+        if (serverTurn > lastKnownTurn) {
+            // 채팅 영역 초기 메시지 제외하고 클리어 후 재구축
+            const area = document.getElementById('chatArea');
+            const systemMsg = area.querySelector('.msg.system');
+            area.innerHTML = '';
+            if (systemMsg) area.appendChild(systemMsg);
+
+            for (const log of data.logs) {
+                if (log.speaker === 'player') {
+                    addMessage('player', log.message_text || '🎤 (Audio)');
+                } else if (log.speaker === 'npc') {
+                    const npcText = log.actor_line || log.message_text || '';
+                    addNpcMessage(npcText, null, null, log.turn_number);
+                }
+            }
+
+            lastKnownTurn = serverTurn;
+            turnsRemaining = data.turns_remaining;
+            updateTurnCounter(serverTurn, 8);
+
+            // 서버에서 턴 소진 확인
+            if (turnsRemaining <= 0) {
+                setTimeout(() => showComplete(), 15000);
+                stopSyncPolling();
+            }
+        }
+    } catch (e) {
+        console.error('동기화 실패:', e);
+    }
+}
 
 // ═══════════ 세션 정보 로드 ═══════════
 async function loadSessionInfo() {
@@ -413,6 +489,10 @@ async function loadSessionInfo() {
                 await loadHistory();
             }
         }
+
+        // ★ 추가
+        startSyncPolling();
+
     } catch (e) {
         console.error('세션 로드 실패:', e);
         alert('Errore nel caricamento della sessione.');
@@ -448,6 +528,7 @@ async function loadHistory() {
 
         turnsRemaining = data.turns_remaining;
         updateTurnCounter(data.current_turn, 8);
+        lastKnownTurn = data.current_turn;  // ★ 추가
     } catch (e) {
         console.error('기록 로드 실패:', e);
     }
@@ -540,7 +621,6 @@ async function processPlayerInput(input) {
     isProcessing = true;
     setInputEnabled(false);
     
-
     try {
         let res;
 
@@ -613,6 +693,7 @@ async function processPlayerInput(input) {
         // 턴 업데이트
         turnsRemaining = data.turns_remaining;
         updateTurnCounter(data.turn_number, 8);
+        lastKnownTurn = data.turn_number;  // ★ 추가
 
         // 턴 소진 확인
         if (turnsRemaining <= 0) {
@@ -742,8 +823,9 @@ function showLoading(show) {
 }
 
 function showComplete() {
-    document.getElementById('completeOverlay').classList.add('active');
     setInputEnabled(false);
+    stopSyncPolling();
+    addMessage('system', '🎉 Conversazione completata! Hai usato tutti i turni disponibili.<br>Non è possibile continuare la conversazione.');
 }
 
 async function exitPlay() {
