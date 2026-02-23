@@ -126,8 +126,6 @@ def create_scenario():
                 data.get('title'),
                 data.get('situation'),
                 data.get('conversation_goal'),
-                data.get('boundary_tolerance', 'low'),
-                boundary_strategies,
                 data.get('illustration_url'),
                 data.get('npc_name'),
                 data.get('npc_age'),
@@ -185,10 +183,6 @@ def update_scenario(scenario_id):
                 try: json.loads(npc_knowledge)
                 except: npc_knowledge = None
 
-            boundary_strategies = data.get('boundary_strategies', '["되묻기","저의확인","목표환기"]')
-            if isinstance(boundary_strategies, list):
-                boundary_strategies = json.dumps(boundary_strategies, ensure_ascii=False)
-
             cur.execute("""
                 UPDATE rp_scenarios SET
                     title=%s, situation=%s, conversation_goal=%s,
@@ -199,7 +193,6 @@ def update_scenario(scenario_id):
                 WHERE id=%s
             """, (
                 data.get('title'), data.get('situation'), data.get('conversation_goal'),
-                data.get('boundary_tolerance', 'low'), boundary_strategies,
                 data.get('illustration_url'),
                 data.get('npc_name'), data.get('npc_age'), data.get('npc_job'),
                 data.get('npc_personality'), data.get('npc_current_state'), npc_knowledge,

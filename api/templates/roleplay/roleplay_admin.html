@@ -390,10 +390,6 @@ function editScenario(s) {
     </div>`;
 
     openModal(`시나리오 수정 (ID: ${s.id})`, html, async () => {
-        const strategies = [];
-        if (document.getElementById('ed-sc-s1').checked) strategies.push('되묻기');
-        if (document.getElementById('ed-sc-s2').checked) strategies.push('저의확인');
-        if (document.getElementById('ed-sc-s3').checked) strategies.push('목표환기');
 
         const payload = {
             title: document.getElementById('ed-sc-title').value.trim(),
@@ -433,8 +429,6 @@ async function createScenario() {
         npc_voice_id: document.getElementById('sc-voice-id').value.trim(),
         temperature: parseFloat(document.getElementById('sc-temperature').value),
         thinking_level: document.getElementById('sc-thinking').value,
-        boundary_tolerance: document.getElementById('sc-tolerance').value,
-        boundary_strategies: strategies
     };
     const knowledgeStr = document.getElementById('sc-npc-knowledge').value.trim();
     if (knowledgeStr) { try { JSON.parse(knowledgeStr); payload.npc_knowledge = knowledgeStr; } catch { showStatus('scenario-status','❌ JSON 형식 오류','error'); return; } }
