@@ -164,30 +164,23 @@ def load_conversation_history(team_id, scenario_id, conn):
             history.append({"role": "npc", "text": row['actor_line'] or row['message_text'] or ''})
     return history
 
-def get_current_turn(team_id, scenario_id, conn):
-    """현재 턴 번호 조회 (player 턴 기준)"""
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT COUNT(*) FROM rp_conversation_logs
-            WHERE team_id = %s AND scenario_id = %s AND speaker = 'player'
-        """, (team_id, scenario_id))
-        return cur.fetchone()[0]
-
+# 변경 후
 def save_turn(conn, team_id, scenario_id, turn_number, speaker, 
               message_text=None, player_user_id=None, audio_url=None,
-              analyst_json=None, actor_line=None):
-    """대화 턴 저장"""
+              analyst_json=None, actor_line=None,
+              tts_audio_base64=None, pre_audio_url=None):
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO rp_conversation_logs 
             (team_id, scenario_id, turn_number, speaker, player_user_id,
-             message_text, audio_url, analyst_json, actor_line)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             message_text, audio_url, analyst_json, actor_line,
+             tts_audio_base64, pre_audio_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             team_id, scenario_id, turn_number, speaker, player_user_id,
             message_text, audio_url,
             json.dumps(analyst_json, ensure_ascii=False) if analyst_json else None,
-            actor_line
+            actor_line, tts_audio_base64, pre_audio_url
         ))
     conn.commit()
 
@@ -712,7 +705,8 @@ def send_text():
 
             # NPC 턴 저장
             save_turn(conn, team_id, scenario_id, new_turn, 'npc',
-                      actor_line=actor_line)
+                      actor_line=actor_line,
+                      tts_audio_base64=tts_audio_b64)
 
         return jsonify({
             "success": True,
@@ -806,7 +800,8 @@ def send_audio():
                 scenario_id, parsed.get("category", ""), conn)
             save_turn(conn, team_id, scenario_id, new_turn, 'npc',
                       message_text=f"[PRE:{parsed.get('category','')}]",
-                      actor_line=pre_transcript)
+                      actor_line=pre_transcript,
+                      pre_audio_url=pre_audio_url)
 
         elif parsed.get("route") == "DYN":
             student_text = transcribed_text or "(인식 실패)"
@@ -818,7 +813,8 @@ def send_audio():
                 tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
 
             save_turn(conn, team_id, scenario_id, new_turn, 'npc',
-                      actor_line=actor_line)
+                      actor_line=actor_line,
+                      tts_audio_base64=tts_audio_b64)
 
         return jsonify({
             "success": True,
@@ -869,7 +865,8 @@ def get_history():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT turn_number, speaker, message_text, actor_line,
-                       analyst_json, created_at::text as created_at
+                       analyst_json, created_at::text as created_at,
+                       tts_audio_base64, pre_audio_url
                 FROM rp_conversation_logs
                 WHERE team_id = %s AND scenario_id = %s
                 ORDER BY turn_number ASC, id ASC

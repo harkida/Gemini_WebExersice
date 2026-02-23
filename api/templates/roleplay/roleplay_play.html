@@ -429,20 +429,19 @@ async function syncFromServer() {
 
         const serverTurn = data.current_turn;
 
-        // 새 메시지가 있으면 화면 갱신
         if (serverTurn > lastKnownTurn) {
-            // 채팅 영역 초기 메시지 제외하고 클리어 후 재구축
-            const area = document.getElementById('chatArea');
-            const systemMsg = area.querySelector('.msg.system');
-            area.innerHTML = '';
-            if (systemMsg) area.appendChild(systemMsg);
-
             for (const log of data.logs) {
-                if (log.speaker === 'player') {
-                    addMessage('player', log.message_text || '🎤 (Audio)');
-                } else if (log.speaker === 'npc') {
-                    const npcText = log.actor_line || log.message_text || '';
-                    addNpcMessage(npcText, null, null, log.turn_number);
+                // lastKnownTurn 이후의 메시지만 추가
+                if (log.turn_number > lastKnownTurn) {
+                    if (log.speaker === 'player') {
+                        const text = log.message_text || '';
+                        addMessage('player', text ? `🎤 "${text}"` : '🎤 (Audio)');
+                    } else if (log.speaker === 'npc') {
+                        const npcText = log.actor_line || log.message_text || '';
+                        const audioUrl = log.pre_audio_url || null;
+                        const ttsB64 = log.tts_audio_base64 || null;
+                        addNpcMessage(npcText, audioUrl, ttsB64, log.turn_number);
+                    }
                 }
             }
 
@@ -450,9 +449,8 @@ async function syncFromServer() {
             turnsRemaining = data.turns_remaining;
             updateTurnCounter(serverTurn, 8);
 
-            // 서버에서 턴 소진 확인
             if (turnsRemaining <= 0) {
-                setTimeout(() => showComplete(), 15000);
+                showComplete();
                 stopSyncPolling();
             }
         }
@@ -519,10 +517,13 @@ async function loadHistory() {
 
         for (const log of data.logs) {
             if (log.speaker === 'player') {
-                addMessage('player', log.message_text || '(음성)');
+                const text = log.message_text || '';
+                addMessage('player', text ? `🎤 "${text}"` : '🎤 (Audio)');
             } else if (log.speaker === 'npc') {
                 const npcText = log.actor_line || log.message_text || '';
-                addMessage('npc', cleanNpcText(npcText));
+                const audioUrl = log.pre_audio_url || null;
+                const ttsB64 = log.tts_audio_base64 || null;
+                addNpcMessage(npcText, audioUrl, ttsB64, log.turn_number);
             }
         }
 
@@ -585,6 +586,8 @@ async function toggleRecording() {
             btn.classList.remove('recording');
             document.getElementById('btnListen').style.display = 'inline-block';
             document.getElementById('btnSendAudio').style.display = 'inline-block';
+            document.getElementById('textInput').style.display = 'none';
+            document.getElementById('btnSendText').style.display = 'none';
         };
 
         mediaRecorder.start();
@@ -610,6 +613,8 @@ async function sendAudio() {
     // 녹음 버튼 리셋
     document.getElementById('btnListen').style.display = 'none';
     document.getElementById('btnSendAudio').style.display = 'none';
+    document.getElementById('textInput').style.display = '';
+    document.getElementById('btnSendText').style.display = '';
 
     await processPlayerInput({ type: 'audio', blob: recordedBlob, mimeType: recordedMimeType });
     recordedBlob = null;
@@ -825,6 +830,8 @@ function showLoading(show) {
 function showComplete() {
     setInputEnabled(false);
     stopSyncPolling();
+    document.getElementById('btnListen').style.display = 'none';
+    document.getElementById('btnSendAudio').style.display = 'none';
     addMessage('system', '🎉 Conversazione completata! Hai usato tutti i turni disponibili.<br>Non è possibile continuare la conversazione.');
 }
 
