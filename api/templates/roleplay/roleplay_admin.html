@@ -198,21 +198,23 @@
         </div>
 
         <div class="form-section">
-            <h3>Boundary 설정</h3>
+            <h3>AI 설정</h3>
             <div class="form-row">
-                <div class="form-group"><label>Tolerance</label>
-                    <select id="sc-tolerance">
-                        <option value="low">Low (score 6) — 서비스 관계</option>
-                        <option value="medium">Medium (score 9) — 공식적 친밀</option>
-                        <option value="high">High (score 12) — 비공식 친밀</option>
+                <div class="form-group"><label>Temperature (창의성)</label>
+                    <select id="sc-temperature">
+                        <option value="0.2">0.2 — 매우 보수적</option>
+                        <option value="0.3" selected>0.3 — 보수적 (카페, 접수)</option>
+                        <option value="0.5">0.5 — 중간 (선생님, 상사)</option>
+                        <option value="0.7">0.7 — 유연 (친구, 토론)</option>
+                        <option value="0.9">0.9 — 매우 유연</option>
                     </select>
                 </div>
-            </div>
-            <div class="form-group" style="margin-top:8px;"><label>Boundary DYN 전략</label>
-                <div class="checkbox-group">
-                    <label><input type="checkbox" id="sc-strat-ask" checked> 되묻기</label>
-                    <label><input type="checkbox" id="sc-strat-intent" checked> 저의확인</label>
-                    <label><input type="checkbox" id="sc-strat-redirect" checked> 목표환기</label>
+                <div class="form-group"><label>Thinking Level (사고 깊이)</label>
+                    <select id="sc-thinking">
+                        <option value="LOW" selected>LOW — 빠름 (단순 시나리오)</option>
+                        <option value="MEDIUM">MEDIUM — 균형</option>
+                        <option value="HIGH">HIGH — 깊음 (복잡한 시나리오)</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -353,7 +355,6 @@ async function loadScenarios() {
 }
 
 function editScenario(s) {
-    const strats = Array.isArray(s.boundary_strategies) ? s.boundary_strategies : JSON.parse(s.boundary_strategies || '[]');
     const knowledge = typeof s.npc_knowledge === 'object' ? JSON.stringify(s.npc_knowledge, null, 2) : (s.npc_knowledge || '');
     
     const html = `
@@ -369,14 +370,24 @@ function editScenario(s) {
     <div class="form-row full"><div class="form-group"><label>성격</label><textarea id="ed-sc-personality">${s.npc_personality||''}</textarea></div></div>
     <div class="form-row full"><div class="form-group"><label>현재 상태</label><textarea id="ed-sc-state">${s.npc_current_state||''}</textarea></div></div>
     <div class="form-row full"><div class="form-group"><label>도메인 지식 (JSON)</label><textarea id="ed-sc-knowledge" rows="4">${knowledge}</textarea></div></div>
-    <div class="form-row"><div class="form-group"><label>Tolerance</label>
-        <select id="ed-sc-tolerance"><option value="low" ${s.boundary_tolerance==='low'?'selected':''}>Low</option><option value="medium" ${s.boundary_tolerance==='medium'?'selected':''}>Medium</option><option value="high" ${s.boundary_tolerance==='high'?'selected':''}>High</option></select>
-    </div></div>
-    <div class="form-group"><label>전략</label><div class="checkbox-group">
-        <label><input type="checkbox" id="ed-sc-s1" ${strats.includes('되묻기')?'checked':''}> 되묻기</label>
-        <label><input type="checkbox" id="ed-sc-s2" ${strats.includes('저의확인')?'checked':''}> 저의확인</label>
-        <label><input type="checkbox" id="ed-sc-s3" ${strats.includes('목표환기')?'checked':''}> 목표환기</label>
-    </div></div>`;
+    <div class="form-row">
+        <div class="form-group"><label>Temperature</label>
+            <select id="ed-sc-temperature">
+                <option value="0.2" ${s.temperature==0.2?'selected':''}>0.2</option>
+                <option value="0.3" ${s.temperature==0.3||!s.temperature?'selected':''}>0.3</option>
+                <option value="0.5" ${s.temperature==0.5?'selected':''}>0.5</option>
+                <option value="0.7" ${s.temperature==0.7?'selected':''}>0.7</option>
+                <option value="0.9" ${s.temperature==0.9?'selected':''}>0.9</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Thinking Level</label>
+            <select id="ed-sc-thinking">
+                <option value="LOW" ${s.thinking_level==='LOW'||!s.thinking_level?'selected':''}>LOW</option>
+                <option value="MEDIUM" ${s.thinking_level==='MEDIUM'?'selected':''}>MEDIUM</option>
+                <option value="HIGH" ${s.thinking_level==='HIGH'?'selected':''}>HIGH</option>
+            </select>
+        </div>
+    </div>`;
 
     openModal(`시나리오 수정 (ID: ${s.id})`, html, async () => {
         const strategies = [];
@@ -395,8 +406,8 @@ function editScenario(s) {
             npc_current_state: document.getElementById('ed-sc-state').value.trim(),
             npc_knowledge: document.getElementById('ed-sc-knowledge').value.trim() || null,
             npc_voice_id: document.getElementById('ed-sc-voice').value.trim(),
-            boundary_tolerance: document.getElementById('ed-sc-tolerance').value,
-            boundary_strategies: strategies
+            temperature: parseFloat(document.getElementById('ed-sc-temperature').value),
+            thinking_level: document.getElementById('ed-sc-thinking').value            
         };
         try {
             const res = await fetch(`/api/rp-admin/scenarios/${s.id}`, {
@@ -410,10 +421,6 @@ function editScenario(s) {
 }
 
 async function createScenario() {
-    const strategies = [];
-    if (document.getElementById('sc-strat-ask').checked) strategies.push('되묻기');
-    if (document.getElementById('sc-strat-intent').checked) strategies.push('저의확인');
-    if (document.getElementById('sc-strat-redirect').checked) strategies.push('목표환기');
     const payload = {
         title: document.getElementById('sc-title').value.trim(),
         situation: document.getElementById('sc-situation').value.trim(),
@@ -424,6 +431,8 @@ async function createScenario() {
         npc_personality: document.getElementById('sc-npc-personality').value.trim(),
         npc_current_state: document.getElementById('sc-npc-state').value.trim(),
         npc_voice_id: document.getElementById('sc-voice-id').value.trim(),
+        temperature: parseFloat(document.getElementById('sc-temperature').value),
+        thinking_level: document.getElementById('sc-thinking').value,
         boundary_tolerance: document.getElementById('sc-tolerance').value,
         boundary_strategies: strategies
     };
@@ -448,8 +457,8 @@ async function deleteScenario(id) {
 
 function clearScenarioForm() {
     ['sc-title','sc-situation','sc-conv-goal','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('sc-tolerance').value = 'low';
-    ['sc-strat-ask','sc-strat-intent','sc-strat-redirect'].forEach(id => document.getElementById(id).checked = true);
+    document.getElementById('sc-temperature').value = '0.3';
+    document.getElementById('sc-thinking').value = 'LOW';
 }
 
 // ═══════════════ 목표 ═══════════════
