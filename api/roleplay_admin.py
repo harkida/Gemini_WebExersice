@@ -112,15 +112,9 @@ def create_scenario():
                 except:
                     npc_knowledge = None
 
-            # boundary_strategies를 JSON 문자열로 변환
-            boundary_strategies = data.get('boundary_strategies', '["되묻기","저의확인","목표환기"]')
-            if isinstance(boundary_strategies, list):
-                boundary_strategies = json.dumps(boundary_strategies, ensure_ascii=False)
-
             cur.execute("""
                 INSERT INTO rp_scenarios (
                     title, situation, conversation_goal,
-                    boundary_tolerance, boundary_strategies,
                     illustration_url,
                     npc_name, npc_age, npc_job,
                     npc_personality, npc_current_state, npc_knowledge,
@@ -198,7 +192,6 @@ def update_scenario(scenario_id):
             cur.execute("""
                 UPDATE rp_scenarios SET
                     title=%s, situation=%s, conversation_goal=%s,
-                    boundary_tolerance=%s, boundary_strategies=%s,
                     illustration_url=%s,
                     npc_name=%s, npc_age=%s, npc_job=%s,
                     npc_personality=%s, npc_current_state=%s, npc_knowledge=%s,
