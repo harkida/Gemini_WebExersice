@@ -120,7 +120,7 @@ def create_scenario():
                     npc_personality, npc_current_state, npc_knowledge,
                     npc_voice_id, temperature, thinking_level
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 ) RETURNING id
             """, (
                 data.get('title'),
