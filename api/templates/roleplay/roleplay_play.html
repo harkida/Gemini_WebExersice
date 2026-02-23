@@ -371,6 +371,7 @@ let audioCounter = 0;
 // ★ 추가: 동기화 폴링
 let syncInterval = null;
 let lastKnownTurn = 0;
+let lastKnownLogCount = 0;
 
 // ═══════════ 초기화 ═══════════
 document.addEventListener('DOMContentLoaded', async () => {
@@ -401,7 +402,7 @@ window.addEventListener('beforeunload', () => {
 // ═══════════ 팀 동기화 폴링 ═══════════
 function startSyncPolling() {
     stopSyncPolling();
-    syncInterval = setInterval(syncFromServer, 5000);
+    syncInterval = setInterval(syncFromServer, 3000);
 }
 
 function stopSyncPolling() {
@@ -427,27 +428,26 @@ async function syncFromServer() {
         const data = await res.json();
         if (!data.logs) return;
 
-        const serverTurn = data.current_turn;
-
-        if (serverTurn > lastKnownTurn) {
-            for (const log of data.logs) {
-                // lastKnownTurn 이후의 메시지만 추가
-                if (log.turn_number > lastKnownTurn) {
-                    if (log.speaker === 'player') {
-                        const text = log.message_text || '';
-                        addMessage('player', text ? `🎤 "${text}"` : '🎤 (Audio)');
-                    } else if (log.speaker === 'npc') {
-                        const npcText = log.actor_line || log.message_text || '';
-                        const audioUrl = log.pre_audio_url || null;
-                        const ttsB64 = log.tts_audio_base64 || null;
-                        addNpcMessage(npcText, audioUrl, ttsB64, log.turn_number);
-                    }
+        // 로그 개수로 새 메시지 판단
+        if (data.logs.length > lastKnownLogCount) {
+            // 새로 추가된 로그만 처리
+            const newLogs = data.logs.slice(lastKnownLogCount);
+            for (const log of newLogs) {
+                if (log.speaker === 'player') {
+                    const text = log.message_text || '';
+                    addMessage('player', text ? `🎤 "${text}"` : '🎤 (Audio)');
+                } else if (log.speaker === 'npc') {
+                    const npcText = log.actor_line || log.message_text || '';
+                    const audioUrl = log.pre_audio_url || null;
+                    const ttsB64 = log.tts_audio_base64 || null;
+                    addNpcMessage(npcText, audioUrl, ttsB64, log.turn_number);
                 }
             }
 
-            lastKnownTurn = serverTurn;
+            lastKnownLogCount = data.logs.length;
+            lastKnownTurn = data.current_turn;
             turnsRemaining = data.turns_remaining;
-            updateTurnCounter(serverTurn, 8);
+            updateTurnCounter(data.current_turn, 8);
 
             if (turnsRemaining <= 0) {
                 showComplete();
@@ -530,6 +530,7 @@ async function loadHistory() {
         turnsRemaining = data.turns_remaining;
         updateTurnCounter(data.current_turn, 8);
         lastKnownTurn = data.current_turn;  // ★ 추가
+        lastKnownLogCount = data.logs.length;
     } catch (e) {
         console.error('기록 로드 실패:', e);
     }
@@ -699,6 +700,7 @@ async function processPlayerInput(input) {
         turnsRemaining = data.turns_remaining;
         updateTurnCounter(data.turn_number, 8);
         lastKnownTurn = data.turn_number;  // ★ 추가
+        lastKnownLogCount += 2;  // ★ 추가 (player + npc)
 
         // 턴 소진 확인
         if (turnsRemaining <= 0) {
@@ -765,12 +767,6 @@ function addNpcMessage(text, audioUrl, ttsBase64, turnNumber) {
     area.appendChild(msg);
     area.scrollTop = area.scrollHeight;
 
-    // 자동 재생
-    if (audioStore[msgId]) {
-        setTimeout(() => playNpcAudio(msgId), 300);
-    }
-}
-
 // ═══════════ NPC 오디오 재생 ═══════════
 function playNpcAudio(msgId) {
     const store = audioStore[msgId];
@@ -828,10 +824,8 @@ function showLoading(show) {
 }
 
 function showComplete() {
-    setInputEnabled(false);
     stopSyncPolling();
-    document.getElementById('btnListen').style.display = 'none';
-    document.getElementById('btnSendAudio').style.display = 'none';
+    document.querySelector('.input-area').style.display = 'none';
     addMessage('system', '🎉 Conversazione completata! Hai usato tutti i turni disponibili.<br>Non è possibile continuare la conversazione.');
 }
 
