@@ -164,7 +164,15 @@ def load_conversation_history(team_id, scenario_id, conn):
             history.append({"role": "npc", "text": row['actor_line'] or row['message_text'] or ''})
     return history
 
-# 변경 후
+def get_current_turn(team_id, scenario_id, conn):
+    """현재 턴 번호 조회 (player 턴 기준)"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*) FROM rp_conversation_logs
+            WHERE team_id = %s AND scenario_id = %s AND speaker = 'player'
+        """, (team_id, scenario_id))
+        return cur.fetchone()[0]
+
 def save_turn(conn, team_id, scenario_id, turn_number, speaker, 
               message_text=None, player_user_id=None, audio_url=None,
               analyst_json=None, actor_line=None,
