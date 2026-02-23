@@ -702,7 +702,7 @@ async function processPlayerInput(input) {
 
         // 턴 소진 확인
         if (turnsRemaining <= 0) {
-            setTimeout(() => showComplete(), 30000);
+            showComplete();
         }
 
     } catch (e) {

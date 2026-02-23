@@ -691,7 +691,7 @@ def send_text():
             # PRE도 NPC 턴으로 저장
             save_turn(conn, team_id, scenario_id, new_turn, 'npc',
                       message_text=f"[PRE:{parsed.get('category','')}]",
-                      actor_line=pre_transcript)
+                      actor_line=pre_transcript, pre_audio_url=pre_audio_url)
 
         elif parsed.get("route") == "DYN":
             # DYN: 연기자 → TTS
