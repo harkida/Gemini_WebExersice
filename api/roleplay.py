@@ -440,7 +440,7 @@ def run_analyst(scenario, conversation_history, student_input):
         model="gemini-3-flash-preview",
         contents=prompt,
         config=types.GenerateContentConfig(
-            temperature=scenario.get('temperature', 0.3),
+            temperature=0.3,
             max_output_tokens=2048,
             response_mime_type="application/json",
             thinking_config=types.ThinkingConfig(
@@ -478,7 +478,7 @@ def run_analyst_audio(scenario, conversation_history, audio_bytes, mime_type):
             prompt_text
         ],
         config=types.GenerateContentConfig(
-            temperature=scenario.get('temperature', 0.3),
+            temperature=0.3,
             max_output_tokens=2048,
             response_mime_type="application/json",
             thinking_config=types.ThinkingConfig(
@@ -512,10 +512,10 @@ def run_actor(scenario, conversation_history, analyst_json, student_input):
         model="gemini-3-flash-preview",
         contents=actor_prompt,
         config=types.GenerateContentConfig(
-            temperature=0.6,
+            temperature=scenario.get('temperature', 0.5),
             max_output_tokens=1024,
             thinking_config=types.ThinkingConfig(
-                thinking_level=types.ThinkingLevel.LOW
+                thinking_level=getattr(types.ThinkingLevel, scenario.get('thinking_level', 'LOW'), types.ThinkingLevel.LOW)
             )
         )
     )
