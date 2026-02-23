@@ -450,8 +450,11 @@ async function syncFromServer() {
             updateTurnCounter(data.current_turn, 8);
 
             if (turnsRemaining <= 0) {
-                showComplete();
-                stopSyncPolling();
+                const lastLog = data.logs[data.logs.length - 1];
+                if (lastLog && lastLog.speaker === 'npc') {
+                    showComplete();
+                    stopSyncPolling();
+                }
             }
         }
     } catch (e) {
