@@ -146,6 +146,7 @@
             <button id="btn-translation" class="active" onclick="switchView('translation')">번역 퀴즈 결과</button>
             <button id="btn-comprehension" onclick="switchView('comprehension')">이해력 퀴즈 결과</button>
             <button id="btn-speaking" onclick="switchView('speaking')">말하기 퀴즈 결과</button>
+            <button id="btn-roleplay" onclick="switchView('roleplay')">🎭 롤플레이 결과</button>
             <button id="clear-btn" onclick="clearCurrentView()">화면 지우기</button>
             <button onclick="location.href='/roleplay-admin'" style="background-color: #5b4bb5;">🎭 롤플레이 관리</button>
             <button onclick="location.href='/roleplay-session'" style="background-color: #b58b00;">📋 세션 관리</button>
@@ -157,6 +158,7 @@
     <div id="translation-view" class="view-container active"></div>
     <div id="comprehension-view" class="view-container"></div>
     <div id="speaking-view" class="view-container"></div>
+    <div id="roleplay-view" class="view-container"></div>
 
     <script>
         let currentView = 'translation';
@@ -175,6 +177,11 @@
             document.querySelectorAll('.view-container').forEach(container => container.classList.remove('active'));
             document.getElementById(`${viewType}-view`).classList.add('active');
             
+            if (viewType === 'roleplay') {
+                loadRoleplayEvaluations();
+                return;
+            }
+
             let currentPage = 1;
             if (viewType === 'translation') currentPage = currentTranslationPage;
             else if (viewType === 'comprehension') currentPage = currentComprehensionPage;
@@ -614,6 +621,130 @@
             } catch (e) {
                 console.error(e);
                 alert('서버 통신 오류');
+            }
+        }
+
+        // ═══════════ 롤플레이 평가 결과 ═══════════
+        async function loadRoleplayEvaluations() {
+            const container = document.getElementById('roleplay-view');
+            container.innerHTML = '<p class="empty-message">데이터를 불러오는 중...</p>';
+
+            try {
+                const res = await fetch('/api/rp-admin/evaluations');
+                const data = await res.json();
+
+                if (!data.evaluations?.length) {
+                    container.innerHTML = '<p class="empty-message">아직 롤플레이 평가 결과가 없습니다.</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                for (const ev of data.evaluations) {
+                    const card = document.createElement('div');
+                    card.className = 'submission-card';
+                    card.style.opacity = '1';
+                    card.style.transform = 'none';
+
+                    const fb = ev.feedback_json || {};
+                    const createdAt = ev.created_at ? new Date(ev.created_at).toLocaleString('ko-KR') : '';
+
+                    // 점수 색상
+                    const score = parseFloat(ev.score) || 0;
+                    let scoreColor = '#cc0000';
+                    if (score >= 8.5) scoreColor = '#00cc9f';
+                    else if (score >= 7.0) scoreColor = '#00cc29';
+                    else if (score >= 5.5) scoreColor = '#cccc00';
+                    else if (score >= 4.0) scoreColor = '#cc6400';
+
+                    // 세부 피드백
+                    const goal = fb.goal_contribution || {};
+                    const vocab = fb.vocabulary || {};
+                    const grammar = fb.grammar || {};
+                    const natural = fb.naturalness || {};
+
+                    const usedExpr = vocab.used_expressions?.length
+                        ? vocab.used_expressions.map(e => `<span style="background:#2d4a2d; color:#69db7c; padding:2px 8px; border-radius:4px; font-size:0.85rem; margin:2px;">${e}</span>`).join(' ')
+                        : '<span style="color:#666;">없음</span>';
+
+                    const missedExpr = vocab.missed_opportunities?.length
+                        ? vocab.missed_opportunities.map(e => `<span style="background:#4a2d2d; color:#ff6b6b; padding:2px 8px; border-radius:4px; font-size:0.85rem; margin:2px;">${e}</span>`).join(' ')
+                        : '<span style="color:#666;">없음</span>';
+
+                    const grammarErrors = grammar.errors?.length
+                        ? grammar.errors.map(e => `<div style="color:#ffa500; font-size:0.9rem; margin:2px 0;">⚠️ ${e}</div>`).join('')
+                        : '<span style="color:#666;">없음</span>';
+
+                    card.innerHTML = `
+                        <div style="padding:1.5rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                                <div>
+                                    <span style="font-size:1.3rem; font-weight:bold; color:#fff;">Team ${ev.team_code}</span>
+                                    <span style="font-size:0.9rem; color:#888; margin-left:10px;">${ev.scenario_title}</span>
+                                    <span style="font-size:0.85rem; color:#666; margin-left:10px;">${createdAt}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:2rem; font-weight:bold; color:${scoreColor};">${ev.score}</span>
+                                    <span style="font-size:0.9rem; color:#888;">/10</span>
+                                </div>
+                            </div>
+
+                            <div style="font-size:0.9rem; color:#999; margin-bottom:12px;">
+                                👥 ${ev.team_members} · 반: ${ev.class_name}
+                            </div>
+
+                            <!-- 세부 점수 -->
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+                                <div style="background:#1a1a2e; padding:10px; border-radius:6px;">
+                                    <div style="color:#888; font-size:0.8rem;">🎯 목표 달성</div>
+                                    <div style="color:#fff; font-weight:bold;">${goal.score || 0}/3.0</div>
+                                    <div style="color:#aaa; font-size:0.85rem; margin-top:4px;">${goal.detail || ''}</div>
+                                </div>
+                                <div style="background:#1a1a2e; padding:10px; border-radius:6px;">
+                                    <div style="color:#888; font-size:0.8rem;">📝 어휘/표현</div>
+                                    <div style="color:#fff; font-weight:bold;">${vocab.score || 0}/3.0</div>
+                                    <div style="color:#aaa; font-size:0.85rem; margin-top:4px;">${vocab.detail || ''}</div>
+                                </div>
+                                <div style="background:#1a1a2e; padding:10px; border-radius:6px;">
+                                    <div style="color:#888; font-size:0.8rem;">✏️ 문법</div>
+                                    <div style="color:#fff; font-weight:bold;">${grammar.score || 0}/2.0</div>
+                                    <div style="color:#aaa; font-size:0.85rem; margin-top:4px;">${grammar.detail || ''}</div>
+                                </div>
+                                <div style="background:#1a1a2e; padding:10px; border-radius:6px;">
+                                    <div style="color:#888; font-size:0.8rem;">💬 자연스러움</div>
+                                    <div style="color:#fff; font-weight:bold;">${natural.score || 0}/2.0</div>
+                                    <div style="color:#aaa; font-size:0.85rem; margin-top:4px;">${natural.detail || ''}</div>
+                                </div>
+                            </div>
+
+                            <!-- 사용/미사용 표현 -->
+                            <div style="margin-bottom:10px;">
+                                <div style="color:#69db7c; font-size:0.85rem; font-weight:bold; margin-bottom:4px;">✅ 사용한 표현</div>
+                                <div style="display:flex; flex-wrap:wrap; gap:4px;">${usedExpr}</div>
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <div style="color:#ff6b6b; font-size:0.85rem; font-weight:bold; margin-bottom:4px;">❌ 놓친 표현</div>
+                                <div style="display:flex; flex-wrap:wrap; gap:4px;">${missedExpr}</div>
+                            </div>
+
+                            <!-- 문법 오류 -->
+                            <div style="margin-bottom:14px;">
+                                <div style="color:#ffa500; font-size:0.85rem; font-weight:bold; margin-bottom:4px;">⚠️ 문법 오류</div>
+                                ${grammarErrors}
+                            </div>
+
+                            <!-- 종합 평가 -->
+                            <div style="background:#1a2e1a; border:1px solid #2d4a2d; padding:12px; border-radius:6px; margin-bottom:10px;">
+                                <div style="color:#69db7c; font-size:0.85rem; font-weight:bold; margin-bottom:4px;">📋 종합 평가</div>
+                                <div style="color:#ccc; font-size:0.9rem; line-height:1.5;">${fb.summary_for_teacher || '(없음)'}</div>
+                            </div>
+
+                            ${fb.boundary_violations ? `<div style="color:#ff6b6b; font-size:0.85rem;">⚠️ Boundary 위반: ${fb.boundary_violations}회</div>` : ''}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                }
+            } catch (e) {
+                container.innerHTML = `<p class="empty-message" style="color:#ff6b6b;">오류: ${e.message}</p>`;
             }
         }
     </script>
