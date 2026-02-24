@@ -372,6 +372,7 @@ let audioCounter = 0;
 let syncInterval = null;
 let lastKnownTurn = 0;
 let lastKnownLogCount = 0;
+let allScenarios = [];
 
 // ═══════════ 초기화 ═══════════
 document.addEventListener('DOMContentLoaded', async () => {
@@ -454,6 +455,13 @@ async function syncFromServer() {
                 return;
             }
 
+            // Goal Achievement 동기화 체크
+            const goalLog = newLogs.find(log => log.speaker === 'npc' && log.message_text === '[GOAL_ACHIEVED]');
+            if (goalLog) {
+                showGoalAchieved();
+                return;
+            }
+
             lastKnownLogCount = data.logs.length;
             lastKnownTurn = data.current_turn;
             turnsRemaining = data.turns_remaining;
@@ -488,8 +496,9 @@ async function loadSessionInfo() {
         document.getElementById('teamBadge').textContent = `Team ${data.team_code}`;
 
         // 첫 번째 시나리오 로드
-        if (data.scenarios && data.scenarios.length > 0) {
-            const sc = data.scenarios[0];
+        allScenarios = data.scenarios || [];
+        if (allScenarios.length > 0) {
+            const sc = allScenarios[0];
             currentScenarioId = sc.scenario_id;
             turnsRemaining = data.max_turns - sc.current_turn;
             updateTurnCounter(sc.current_turn, data.max_turns);
@@ -544,6 +553,14 @@ async function loadHistory() {
         updateTurnCounter(data.current_turn, 8);
         lastKnownTurn = data.current_turn;  // ★ 추가
         lastKnownLogCount = data.logs.length;
+
+        // 이미 목적 달성된 시나리오인지 확인
+        const goalLog = data.logs.find(log => log.speaker === 'npc' && log.message_text === '[GOAL_ACHIEVED]');
+        if (goalLog) {
+            showGoalAchieved();
+            return;
+        }
+
     } catch (e) {
         console.error('기록 로드 실패:', e);
     }
@@ -724,6 +741,12 @@ async function processPlayerInput(input) {
             return;
         }        
 
+        // Goal Achievement 처리
+        if (data.goal_achieved) {
+            showGoalAchieved();
+            return;
+        }
+
         // 턴 소진 확인
         if (turnsRemaining <= 0) {
             showComplete();
@@ -844,6 +867,67 @@ function showLoading(show) {
     } else if (!show && existing) {
         existing.remove();
     }
+}
+
+// ═══════════ 목적 달성 처리 ═══════════
+function showGoalAchieved() {
+    stopSyncPolling();
+    document.querySelector('.input-area').style.display = 'none';
+
+    addMessage('system', '🎯 Obiettivo raggiunto! Hai completato questo scenario.');
+
+    const currentIdx = allScenarios.findIndex(s => s.scenario_id == currentScenarioId);
+    const nextScenario = allScenarios[currentIdx + 1];
+
+    const btnArea = document.createElement('div');
+    btnArea.style.cssText = 'text-align:center; padding:16px;';
+
+    if (nextScenario) {
+        btnArea.innerHTML = `
+            <button onclick="switchToNextScenario(${nextScenario.scenario_id})" 
+                    style="background:#7c6ff7; color:#fff; border:none; padding:12px 28px; 
+                           border-radius:8px; font-size:1em; font-weight:600; cursor:pointer;">
+                ▶ Scenario successivo: ${nextScenario.title || nextScenario.npc_name || 'Prossimo'}
+            </button>`;
+    } else {
+        btnArea.innerHTML = `
+            <div style="color:#69db7c; font-weight:600; font-size:1.05em;">
+                🏆 Tutti gli scenari completati! Ottimo lavoro!
+            </div>
+            <button onclick="window.location.href='/roleplay-lobby'" 
+                    style="background:#444; color:#ccc; border:none; padding:10px 24px; 
+                           border-radius:8px; font-size:0.9em; cursor:pointer; margin-top:12px;">
+                ← Torna alla lobby
+            </button>`;
+    }
+
+    document.getElementById('chatArea').appendChild(btnArea);
+    document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
+}
+
+// ═══════════ 다음 시나리오 전환 ═══════════
+async function switchToNextScenario(nextId) {
+    document.getElementById('chatArea').innerHTML = '';
+    document.querySelector('.input-area').style.display = '';
+
+    currentScenarioId = nextId;
+    lastKnownLogCount = 0;
+    lastKnownTurn = 0;
+
+    const sc = allScenarios.find(s => s.scenario_id == nextId);
+    if (sc) {
+        applyScenarioDetail(sc);
+        turnsRemaining = 8 - (sc.current_turn || 0);
+        updateTurnCounter(sc.current_turn || 0, 8);
+    }
+
+    await loadHistory();
+
+    if (lastKnownLogCount === 0) {
+        addMessage('system', `💡 Nuovo scenario iniziato! Parla con ${sc?.npc_name || 'NPC'}.`);
+    }
+
+    startSyncPolling();
 }
 
 function showComplete() {

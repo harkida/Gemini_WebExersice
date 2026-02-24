@@ -754,8 +754,6 @@ def handle_npc_response(conn, scenario, conversation_history,
         voice_id = scenario.get('voice_id')
         if actor_line:
             tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
-        save_turn(conn, team_id, scenario_id, new_turn, 'npc',
-                  actor_line=actor_line, tts_audio_base64=tts_audio_b64)
         
         # [GOAL_ACHIEVED] 마커 저장
         npc_message_text = "[GOAL_ACHIEVED]" if parsed.get('goal_achieved', False) in (True, 'true') else None
