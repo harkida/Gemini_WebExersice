@@ -13,6 +13,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/roleplay_eval.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "api/roleplay.py",
       "use": "@vercel/python"
     }
@@ -33,6 +37,18 @@
     {
       "src": "/api/rp-admin/(.*)",
       "dest": "api/roleplay_admin.py"
+    },
+    {
+      "src": "/api/rp/evaluate",
+      "dest": "api/roleplay_eval.py"
+    },
+    {
+      "src": "/api/rp-student/eval-(.*)",
+      "dest": "api/roleplay_eval.py"
+    },
+    {
+      "src": "/api/rp-admin/evaluations",
+      "dest": "api/roleplay_eval.py"
     },
     {
       "src": "/api/rp-student/(.*)",

@@ -653,7 +653,9 @@ function filterHistory(type, event) {
         }
 
         // 3. 기존 카드 표시/숨김
-        document.getElementById('roleplay-history').style.display = 'none';
+
+        const rpContainer = document.getElementById('roleplay-history');
+        if (rpContainer) rpContainer.style.display = 'none';
         const allCards = document.querySelectorAll('.record-card');
         allCards.forEach(card => {
             if (type === 'all') {
