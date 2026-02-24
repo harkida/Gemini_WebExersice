@@ -35,6 +35,10 @@
       "dest": "api/roleplay_admin.py"
     },
     {
+      "src": "/api/rp-admin/evaluations",
+      "dest": "api/roleplay_eval.py"
+    },
+    {
       "src": "/api/rp-admin/(.*)",
       "dest": "api/roleplay_admin.py"
     },
@@ -44,10 +48,6 @@
     },
     {
       "src": "/api/rp-student/eval-(.*)",
-      "dest": "api/roleplay_eval.py"
-    },
-    {
-      "src": "/api/rp-admin/evaluations",
       "dest": "api/roleplay_eval.py"
     },
     {
