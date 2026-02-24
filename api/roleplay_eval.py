@@ -169,7 +169,7 @@ ROLEPLAY_EVALUATION_PROMPT = """
 # ============================================================
 # API 1: 자동 채점 (프론트엔드에서 goal_achieved 시 호출)
 # ============================================================
-@app.route('/api/rp/evaluate', methods=['POST'])
+@app.route('/api/rp/evaluate', methods=['GET', 'POST'])
 def evaluate_roleplay():
     """롤플레이 자동 채점"""
     if not gemini_client:
