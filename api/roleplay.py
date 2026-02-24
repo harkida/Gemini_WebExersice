@@ -381,10 +381,10 @@ boundary = 1: NPC가 당황하거나 불편해하거나 이해할 수 없는 말
 {{"route":"PRE","category":"카테고리명","transcribed_text":"인식된 텍스트", "boundary":0}}
 
 형식2 - DYN 부분 이해:
-{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","transcribed_text":"인식된 텍스트"}}
+{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","transcribed_text":"인식된 텍스트", "boundary":0또는1}}
 
 형식3 - DYN 완전 이해:
-{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트"}}
+{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트", "boundary":0또는1}}
 
 형식4 - 음성 인식 실패:
 {{"route":"PRE","category":"not_understood","transcribed_text":"","boundary":1}}
