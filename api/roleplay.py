@@ -598,9 +598,25 @@ def run_tts(text, voice_id=None):
 # ============================================================
 # PRE 오디오 URL 조회
 # ============================================================
-def get_pre_audio_url(scenario_id, category, conn):
-    """PRE 카테고리의 랜덤 변형 오디오 URL 반환"""
+def get_pre_audio_url(scenario_id, category, conn, team_id=None):
+    """PRE 카테고리의 랜덤 변형 오디오 URL 반환 (사용한 URL 제외)"""
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        # 미사용 URL 우선
+        if team_id:
+            cur.execute("""
+                SELECT cloudflare_url, transcript FROM rp_pre_recordings
+                WHERE scenario_id = %s AND category = %s AND cloudflare_url IS NOT NULL
+                AND cloudflare_url NOT IN (
+                    SELECT pre_audio_url FROM rp_conversation_logs
+                    WHERE team_id = %s AND scenario_id = %s AND pre_audio_url IS NOT NULL
+                )
+                ORDER BY RANDOM() LIMIT 1
+            """, (scenario_id, category, team_id, scenario_id))
+            row = cur.fetchone()
+            if row:
+                return row['cloudflare_url'], row['transcript']
+
+        # 폴백: 전부 소진 시 반복 허용
         cur.execute("""
             SELECT cloudflare_url, transcript FROM rp_pre_recordings
             WHERE scenario_id = %s AND category = %s AND cloudflare_url IS NOT NULL
@@ -621,7 +637,6 @@ def get_pre_audio_url(scenario_id, category, conn):
             return None, row['transcript']
 
     return None, None
-
 # ============================================================
 # violations 계산
 # ============================================================
@@ -645,9 +660,24 @@ def get_total_violations(team_id, scenario_id, conn):
             total += 1
     return total
 
-def get_boundary_pre(conn):
-    """공통 Boundary PRE 풀에서 랜덤 1개 반환"""
+def get_boundary_pre(conn, team_id=None, scenario_id=None):
+    """공통 Boundary PRE 풀에서 랜덤 1개 반환 (사용한 URL 제외)"""
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        if team_id and scenario_id:
+            cur.execute("""
+                SELECT cloudflare_url, transcript FROM rp_pre_recordings
+                WHERE category = 'boundary_pre' AND cloudflare_url IS NOT NULL
+                AND cloudflare_url NOT IN (
+                    SELECT pre_audio_url FROM rp_conversation_logs
+                    WHERE team_id = %s AND scenario_id = %s AND pre_audio_url IS NOT NULL
+                )
+                ORDER BY RANDOM() LIMIT 1
+            """, (team_id, scenario_id))
+            row = cur.fetchone()
+            if row:
+                return row['cloudflare_url'], row['transcript']
+
+        # 폴백: 전부 소진 시 반복 허용
         cur.execute("""
             SELECT cloudflare_url, transcript FROM rp_pre_recordings
             WHERE category = 'boundary_pre'
@@ -657,7 +687,7 @@ def get_boundary_pre(conn):
         if row:
             return row['cloudflare_url'], row['transcript']
         return None, "네?"
-
+    
 def handle_npc_response(conn, scenario, conversation_history,
                         parsed, student_input, team_id, scenario_id, new_turn):
     """분석가 결과 → boundary 체크 → NPC 응답 결정 (공통 로직)"""
@@ -718,10 +748,10 @@ def handle_npc_response(conn, scenario, conversation_history,
         else:
             # Boundary PRE — "네?" "뭐요?" 즉각 반환
             pre_audio_url, pre_transcript = get_pre_audio_url(
-                scenario_id, "boundary_pre", conn)
+                scenario_id, "boundary_pre", conn, team_id)
 
             if not pre_audio_url:
-                pre_audio_url, pre_transcript = get_boundary_pre(conn)
+                pre_audio_url, pre_transcript = get_boundary_pre(conn, team_id, scenario_id)
 
             save_turn(conn, team_id, scenario_id, new_turn, 'npc',
                       message_text="[BOUNDARY_PRE]",
@@ -765,7 +795,7 @@ def handle_npc_response(conn, scenario, conversation_history,
 
     if parsed.get("route") == "PRE":
         pre_audio_url, pre_transcript = get_pre_audio_url(
-            scenario_id, parsed.get("category", ""), conn)
+            scenario_id, parsed.get("category", ""), conn, team_id)
         save_turn(conn, team_id, scenario_id, new_turn, 'npc',
                   message_text=f"[PRE:{parsed.get('category','')}]",
                   actor_line=pre_transcript, pre_audio_url=pre_audio_url)
