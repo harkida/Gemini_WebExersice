@@ -502,7 +502,7 @@ def run_analyst(scenario, conversation_history, student_input):
             max_output_tokens=2048,
             response_mime_type="application/json",
             thinking_config=types.ThinkingConfig(
-                thinking_level=types.ThinkingLevel.LOW
+                thinking_level=getattr(types.ThinkingLevel, scenario.get('thinking_level', 'LOW'), types.ThinkingLevel.LOW)
             )
         )
     )
@@ -540,7 +540,7 @@ def run_analyst_audio(scenario, conversation_history, audio_bytes, mime_type):
             max_output_tokens=2048,
             response_mime_type="application/json",
             thinking_config=types.ThinkingConfig(
-                thinking_level=types.ThinkingLevel.LOW
+                thinking_level=getattr(types.ThinkingLevel, scenario.get('thinking_level', 'LOW'), types.ThinkingLevel.LOW)
             )
         )
     )
@@ -571,9 +571,9 @@ def run_actor(scenario, conversation_history, analyst_json, student_input):
         contents=actor_prompt,
         config=types.GenerateContentConfig(
             temperature=scenario.get('temperature', 0.5),
-            max_output_tokens=1024,
+            max_output_tokens=2048,
             thinking_config=types.ThinkingConfig(
-                thinking_level=getattr(types.ThinkingLevel, scenario.get('thinking_level', 'LOW'), types.ThinkingLevel.LOW)
+                thinking_level=types.ThinkingLevel.LOW
             )
         )
     )
