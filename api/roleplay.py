@@ -665,7 +665,7 @@ def handle_npc_response(conn, scenario, conversation_history,
     boundary = parsed.get('boundary', 0)
 
     if boundary == 1:
-        total_violations = get_total_violations(team_id, scenario_id, conn) + 1
+        total_violations = get_total_violations(team_id, scenario_id, conn)
 
         if total_violations >= 4:
             # Exit DYN — 종료 대사
@@ -684,7 +684,7 @@ def handle_npc_response(conn, scenario, conversation_history,
             is_exit = True
 
 
-        elif total_violations >= 2:
+        elif total_violations >= 3:
             # Boundary DYN — 맥락 참조 대사
             parsed['direction'] = f"boundary DYN: 학생이 {total_violations}회 이탈. 되묻기/저의확인/목표환기 중 상황에 맞게. 불쾌한 감정으로."
             parsed['main_emotion'] = '불쾌'
