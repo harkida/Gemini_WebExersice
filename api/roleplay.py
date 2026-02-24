@@ -237,6 +237,11 @@ def build_analyst_prompt(scenario, conversation_history, student_input):
 ## 현재 상황
 {scenario['situation']}
 
+## NPC 도메인 지식 (PRE 판단 시 반드시 참고)
+{json.dumps(scenario['npc'].get('knowledge', {}), ensure_ascii=False, indent=2) if scenario['npc'].get('knowledge') else '(없음)'}
+※ 도메인 지식과 PRE 카테고리가 충돌하면 PRE를 사용하지 마라. DYN으로 처리하라.
+예: 메뉴에 "온도":["아이스"]만 있는 음료를 주문했으면, cold_or_hot PRE를 사용하지 말고 다음 단계로 넘어가라.
+
 ## 대화 목표
 {scenario.get('conversation_goal', '')}
 
@@ -342,6 +347,11 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 
 ## 현재 상황
 {scenario['situation']}
+
+## NPC 도메인 지식 (PRE 판단 시 반드시 참고)
+{json.dumps(scenario['npc'].get('knowledge', {}), ensure_ascii=False, indent=2) if scenario['npc'].get('knowledge') else '(없음)'}
+※ 도메인 지식과 PRE 카테고리가 충돌하면 PRE를 사용하지 마라. DYN으로 처리하라.
+예: 메뉴에 "온도":["아이스"]만 있는 음료를 주문했으면, cold_or_hot PRE를 사용하지 말고 다음 단계로 넘어가라.
 
 ## 대화 목표
 {scenario.get('conversation_goal', '')}
