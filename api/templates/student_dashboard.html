@@ -323,6 +323,15 @@
             </div>
         </div>
 
+            <div class="stat-box">
+                <div class="stat-title">🎭 Roleplay (롤플레이)</div>
+                <div class="stat-score" id="score-roleplay">--</div>
+                <p style="font-size: 0.9rem; color: #b9bbbe; margin-top: 5px;">
+                    <span id="count-roleplay">0</span> sessioni (세션)
+                </p>
+            </div>
+        </div>
+
         <div style="text-align: center; margin-top: 20px;">
             <button class="action-btn" onclick="openModal()">✏️ Modifica Profilo (내 정보 수정)</button>
         </div>
@@ -358,7 +367,8 @@
         <div class="sub-tabs">
             <button class="sub-tab-btn" onclick="filterHistory('comprehension')">Comprensione (이해력)</button>
             <button class="sub-tab-btn" onclick="filterHistory('speaking')">Parlato (말하기)</button>
-        </div>        
+            <button class="sub-tab-btn" onclick="filterHistory('roleplay')">🎭 Roleplay</button>
+        </div>    
         
         <div id="history-list">
             <p style="text-align: center; color: #777; margin-top: 50px;">Caricamento...</p>
@@ -439,6 +449,18 @@
                 el.style.color = data.speak_stats.color;
                 document.getElementById('count-speak').textContent = data.speak_stats.count;
             }
+
+            // 롤플레이 점수 로드
+            try {
+                const rpRes = await fetch('/api/rp-student/eval-stats');
+                const rpData = await rpRes.json();
+                if (rpData.avg !== undefined) {
+                    const el = document.getElementById('score-roleplay');
+                    el.textContent = rpData.avg;
+                    el.style.color = rpData.color;
+                    document.getElementById('count-roleplay').textContent = rpData.count;
+                }
+            } catch (e) { console.error('롤플레이 통계 로드 실패:', e); }
 
             currentUserInfo = data.user_info; // 저장해둠
 
@@ -637,17 +659,22 @@
         }
     }
 
-    // ▼▼▼ [추가] 기록 탭 필터링 함수 (여기에 넣으시면 됩니다) ▼▼▼
-    function filterHistory(type) {
+function filterHistory(type, event) {
         // 1. 버튼 스타일 업데이트
         const buttons = document.querySelectorAll('.sub-tab-btn');
         buttons.forEach(btn => btn.classList.remove('active'));
-        // 클릭된 버튼(event.target)에 active 클래스 추가
         if (event && event.target) {
             event.target.classList.add('active');
         }
 
-        // 2. 카드 표시/숨김 처리
+        // 2. 롤플레이는 별도 API 로드
+        if (type === 'roleplay') {
+            loadRoleplayHistory();
+            return;
+        }
+
+        // 3. 기존 카드 표시/숨김
+        document.getElementById('roleplay-history').style.display = 'none';
         const allCards = document.querySelectorAll('.record-card');
         allCards.forEach(card => {
             if (type === 'all') {
@@ -659,7 +686,50 @@
             }
         });
     }
-    // ▲▲▲ [추가 끝] ▲▲▲
+
+    async function loadRoleplayHistory() {
+        // 기존 카드 전부 숨김
+        document.querySelectorAll('.record-card').forEach(c => c.style.display = 'none');
+
+        let container = document.getElementById('roleplay-history');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'roleplay-history';
+            document.getElementById('history-list').appendChild(container);
+        }
+        container.style.display = 'block';
+        container.innerHTML = '<p style="text-align:center; color:#777;">Caricamento...</p>';
+
+        try {
+            const res = await fetch('/api/rp-student/eval-history');
+            const data = await res.json();
+
+            if (!data.evaluations?.length) {
+                container.innerHTML = '<p style="text-align:center; color:#777; margin-top:30px;">Nessun risultato di roleplay. (아직 롤플레이 기록이 없습니다)</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            for (const ev of data.evaluations) {
+                const card = document.createElement('div');
+                card.className = 'record-card type-roleplay';
+                card.innerHTML = `
+                    <div class="header-row">
+                        <div class="header-left">
+                            <div class="score-circle" style="border-color: ${ev.rating_color};">${ev.score}</div>
+                            <div>
+                                <div class="quiz-title">🎭 ${ev.scenario_title}</div>
+                                <div class="date-info">${ev.created_at} · Team ${ev.team_code}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        } catch (e) {
+            container.innerHTML = '<p style="text-align:center; color:#ff6b6b;">Errore nel caricamento.</p>';
+        }
+    }
 </script>
 
 </body>

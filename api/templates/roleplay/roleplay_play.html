@@ -453,6 +453,7 @@ async function syncFromServer() {
             const goalLog = newLogs.find(log => log.speaker === 'npc' && log.message_text === '[GOAL_ACHIEVED]');
             if (goalLog) {
                 lastKnownLogCount = data.logs.length;
+                fetch(`/api/rp/evaluate?team_id=${teamId}&scenario_id=${currentScenarioId}`, { method: 'POST' });
                 showGoalAchieved();
                 return;
             }
@@ -728,6 +729,8 @@ async function processPlayerInput(input) {
 
         // Goal Achievement 처리
         if (data.goal_achieved) {
+            // 자동 채점 요청 (응답 안 기다림)
+            fetch(`/api/rp/evaluate?team_id=${teamId}&scenario_id=${scenarioId}`, { method: 'POST' });
             showGoalAchieved();
             return;
         }
