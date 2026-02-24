@@ -900,8 +900,14 @@ def send_text():
         # 4. 대화 기록 로드
         conversation_history = load_conversation_history(team_id, scenario_id, conn)
 
-        # 5. 분석가 호출
-        parsed, analyst_latency, prompt = run_analyst(scenario, conversation_history, student_input)
+        # 5. 한글 체크 → 외국어면 분석가 스킵
+        import re
+        if not re.search('[가-힣]', student_input):
+            parsed = {"route": "PRE", "category": "not_understood", "boundary": 1, "goal_achieved": False}
+            analyst_latency = 0
+            prompt = None
+        else:
+            parsed, analyst_latency, prompt = run_analyst(scenario, conversation_history, student_input)
 
         # 6. 플레이어 턴 저장
         new_turn = current_turn + 1
