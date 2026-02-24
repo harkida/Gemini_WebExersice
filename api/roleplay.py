@@ -283,16 +283,28 @@ boundary = 1: NPC가 당황하거나 불편해하거나 이해할 수 없는 말
 - 외국어만 사용하는 경우 → 반드시 boundary=1
 - 한국어에 흡수된 외래어 (아메리카노, 컴퓨터 등) → boundary=0
 
+## 목적 달성 판단 (매 턴 반드시 포함)
+대화 목표: "{scenario.get('conversation_goal', '')}"
+이 대화 기록 전체를 보고, 학생이 대화 목표를 실질적으로 달성했는지 판단하라.
+goal_achieved = true: 학생이 목표를 달성한 대화가 이번 턴에서 완성됨
+goal_achieved = false: 아직 목표 미달성
+주의: 목표에 근접했더라도 핵심 행위가 완료되지 않았으면 false.
+예: "카페에서 음료 주문"이 목표라면, 실제로 음료를 말해야 true. "안녕하세요"만으로는 false.
+
+
+
+
+
 ## 출력 형식 (3가지 중 하나):
 
 형식1 - PRE:
-{{"route":"PRE","category":"카테고리명","boundary":0}}
+{{"route":"PRE","category":"카테고리명","boundary":0, "goal_achieved":false}}
 
 형식2 - DYN 부분 이해:
-{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","boundary":0또는1}}
+{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","boundary":0또는1, "goal_achieved":false}}
 
 형식3 - DYN 완전 이해:
-{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","boundary":0또는1}}
+{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","boundary":0또는1, "goal_achieved":false}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
     
@@ -387,7 +399,7 @@ boundary = 1: NPC가 당황하거나 불편해하거나 이해할 수 없는 말
 {{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트", "boundary":0또는1}}
 
 형식4 - 음성 인식 실패:
-{{"route":"PRE","category":"not_understood","transcribed_text":"","boundary":1}}
+{{"route":"PRE","category":"not_understood","transcribed_text":"","boundary":1,"goal_achieved":false}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 
@@ -715,6 +727,20 @@ def handle_npc_response(conn, scenario, conversation_history,
         elif aftereffect:
             parsed['direction'] = aftereffect
 
+    # ── Goal Achievement 체크 ──
+    goal_achieved = parsed.get('goal_achieved', False)
+    if goal_achieved is True or goal_achieved == 'true':
+        # direction에 마무리 인사 지시 추가
+        farewell_direction = "대화 목표가 달성되었다. 자연스러운 마무리 인사를 하라. NPC 성격에 맞게 따뜻하게 마무리."
+        if parsed.get('direction'):
+            parsed['direction'] = farewell_direction + " " + parsed['direction']
+        else:
+            parsed['direction'] = farewell_direction
+        # PRE인 경우에도 DYN으로 전환 (마무리 대사가 필요하므로)
+        parsed['route'] = 'DYN'
+        if not parsed.get('audio_tags'):
+            parsed['audio_tags'] = '[warmly]'
+
     if parsed.get("route") == "PRE":
         pre_audio_url, pre_transcript = get_pre_audio_url(
             scenario_id, parsed.get("category", ""), conn)
@@ -730,12 +756,19 @@ def handle_npc_response(conn, scenario, conversation_history,
             tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
         save_turn(conn, team_id, scenario_id, new_turn, 'npc',
                   actor_line=actor_line, tts_audio_base64=tts_audio_b64)
+        
+        # [GOAL_ACHIEVED] 마커 저장
+        npc_message_text = "[GOAL_ACHIEVED]" if parsed.get('goal_achieved', False) in (True, 'true') else None
+        save_turn(conn, team_id, scenario_id, new_turn, 'npc',
+                  message_text=npc_message_text,
+                  actor_line=actor_line, tts_audio_base64=tts_audio_b64)
 
     return {
         "actor_line": actor_line, "actor_latency": actor_latency,
         "tts_audio_b64": tts_audio_b64, "tts_latency": tts_latency,
         "pre_audio_url": pre_audio_url, "pre_transcript": pre_transcript,
-        "is_exit": False, "npc_name": npc_name
+        "is_exit": False, "npc_name": npc_name,
+        "goal_achieved": parsed.get('goal_achieved', False) in (True, 'true')        
     }
 
 # ============================================================
@@ -874,7 +907,8 @@ def send_text():
             "pre_transcript": result["pre_transcript"],
             "is_exit": result["is_exit"],
             "npc_name": result["npc_name"],
-            "turns_remaining": 8 - new_turn
+            "turns_remaining": 8 - new_turn,
+            "goal_achieved": result.get("goal_achieved", False)
         })
 
     except Exception as e:
@@ -962,7 +996,8 @@ def send_audio():
             "pre_transcript": result["pre_transcript"],
             "is_exit": result["is_exit"],
             "npc_name": result["npc_name"],
-            "turns_remaining": 8 - new_turn
+            "turns_remaining": 8 - new_turn,
+            "goal_achieved": result.get("goal_achieved", False)
         })
 
     except Exception as e:
