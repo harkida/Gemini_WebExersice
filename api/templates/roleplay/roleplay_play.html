@@ -10,7 +10,7 @@
             font-family: 'Segoe UI', sans-serif;
             background: #1a1b1e;
             color: #e0e0e0;
-            height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
         }
@@ -453,6 +453,7 @@ async function syncFromServer() {
                 addMessage('system', `🚪 ${npcName} ha lasciato la conversazione.`);
                 stopSyncPolling();
                 document.querySelector('.input-area').style.display = 'none';
+                showExitOptions();
                 return;
             }
 
@@ -729,8 +730,9 @@ async function processPlayerInput(input) {
             addMessage('system', `🚪 ${npcName} ha lasciato la conversazione.`);
             stopSyncPolling();
             document.querySelector('.input-area').style.display = 'none';
+            showExitOptions();
             return;
-        }        
+        }    
 
         // Goal Achievement 처리
         if (data.goal_achieved) {
@@ -858,6 +860,34 @@ function showLoading(show) {
     } else if (!show && existing) {
         existing.remove();
     }
+}
+
+// ═══════════ Exit 후 옵션 ═══════════
+function showExitOptions() {
+    const currentIdx = allScenarios.findIndex(s => s.scenario_id == currentScenarioId);
+    const nextScenario = allScenarios[currentIdx + 1];
+
+    const btnArea = document.createElement('div');
+    btnArea.style.cssText = 'text-align:center; padding:16px;';
+
+    if (nextScenario) {
+        btnArea.innerHTML = `
+            <button onclick="switchToNextScenario(${nextScenario.scenario_id})" 
+                    style="background:#7c6ff7; color:#fff; border:none; padding:12px 28px; 
+                           border-radius:8px; font-size:1em; font-weight:600; cursor:pointer;">
+                ▶ Scenario successivo: ${nextScenario.title || nextScenario.npc_name || 'Prossimo'}
+            </button>`;
+    } else {
+        btnArea.innerHTML = `
+            <button onclick="window.location.href='/roleplay-lobby'" 
+                    style="background:#444; color:#ccc; border:none; padding:10px 24px; 
+                           border-radius:8px; font-size:0.9em; cursor:pointer;">
+                ← Torna alla lobby
+            </button>`;
+    }
+
+    document.getElementById('chatArea').appendChild(btnArea);
+    document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
 }
 
 // ═══════════ 목적 달성 처리 ═══════════

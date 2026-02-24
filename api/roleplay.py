@@ -330,12 +330,7 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 ## 🎤 중요: 음성 입력 (이 규칙은 절대적이다)
 첨부된 오디오 파일은 학생이 직접 말한 음성이다.
 1. 먼저 음성을 듣고 한국어인지 판별하라.
-2. 한국어가 아닌 경우 (영어, 이탈리아어, 기타 외국어):
-   - 반드시 형식4(음성 인식 실패)로 처리하라.
-   - transcribed_text에는 들린 외국어를 그대로 적어라. 예: "Come ti chiami?"
-   - ⚠️ 절대로 외국어를 한국어로 번역하지 마라. "카드로 결제할게요" 같은 번역 금지.
-   - ⚠️ 절대로 외국어 내용을 이해한 것처럼 분석하지 마라.
-   - boundary는 반드시 1이다.
+2. 한국어가 아닌 경우 (영어, 이탈리아어, 기타 외국어): 형식4(음성 인식 실패)로 처리하라. 절대로 한국어로 추측하지 마라.
 3. 한국어인 경우: 텍스트로 변환하여 "transcribed_text"에 포함하라.
 4. 그 텍스트를 기반으로 아래 분석을 수행하라.
 ※ 학생은 한국어 학습자이므로 발음이 부정확할 수 있다. 관대하게 인식하되, 한국어가 전혀 들리지 않으면 추측하지 마라.
@@ -412,8 +407,8 @@ goal_achieved = false: 아직 목표 미달성
 형식3 - DYN 완전 이해:
 {{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트", "boundary":0또는1, "goal_achieved":false}}
 
-형식4 - 음성 인식 실패 (한국어가 아닌 경우에도 들린 내용을 적을 것):
-{{"route":"PRE","category":"not_understood","transcribed_text":"들린 외국어 내용","boundary":1,"goal_achieved":false}}
+형식4 - 음성 인식 실패:
+{{"route":"PRE","category":"not_understood","transcribed_text":"","boundary":1,"goal_achieved":false}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 
