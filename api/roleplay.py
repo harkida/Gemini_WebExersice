@@ -660,10 +660,11 @@ def handle_npc_response(conn, scenario, conversation_history,
             voice_id = scenario.get('voice_id')
             if actor_line:
                 tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
-
             save_turn(conn, team_id, scenario_id, new_turn, 'npc',
+                      message_text="[EXIT]",
                       actor_line=actor_line, tts_audio_base64=tts_audio_b64)
             is_exit = True
+
 
         elif total_violations >= 2:
             # Boundary DYN — 맥락 참조 대사

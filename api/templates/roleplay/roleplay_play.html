@@ -444,6 +444,16 @@ async function syncFromServer() {
                 }
             }
 
+            // Exit DYN 동기화 체크
+            const exitLog = newLogs.find(log => log.speaker === 'npc' && log.message_text === '[EXIT]');
+            if (exitLog) {
+                const npcName = document.getElementById('npcName').textContent;
+                addMessage('system', `🚪 ${npcName} ha lasciato la conversazione.`);
+                stopSyncPolling();
+                document.querySelector('.input-area').style.display = 'none';
+                return;
+            }
+
             lastKnownLogCount = data.logs.length;
             lastKnownTurn = data.current_turn;
             turnsRemaining = data.turns_remaining;
