@@ -448,6 +448,7 @@ async function syncFromServer() {
             // Exit DYN 동기화 체크
             const exitLog = newLogs.find(log => log.speaker === 'npc' && log.message_text === '[EXIT]');
             if (exitLog) {
+                lastKnownLogCount = data.logs.length;
                 const npcName = document.getElementById('npcName').textContent;
                 addMessage('system', `🚪 ${npcName} ha lasciato la conversazione.`);
                 stopSyncPolling();
@@ -458,6 +459,7 @@ async function syncFromServer() {
             // Goal Achievement 동기화 체크
             const goalLog = newLogs.find(log => log.speaker === 'npc' && log.message_text === '[GOAL_ACHIEVED]');
             if (goalLog) {
+                lastKnownLogCount = data.logs.length;
                 showGoalAchieved();
                 return;
             }
@@ -710,21 +712,11 @@ async function processPlayerInput(input) {
             }
         }
 
-        // NPC 응답 처리
-        const analyst = data.analyst_response;
-
-        if (analyst?.route === 'PRE') {
-            // PRE: 사전녹음 오디오 재생
-            const transcript = data.pre_transcript || `[${analyst.category}]`;
-            const audioUrl = data.pre_audio_url;
-            addNpcMessage(transcript, audioUrl, null, data.turn_number);
-
-        } else if (analyst?.route === 'DYN') {
-            // DYN: 연기자 대사 + TTS
-            const line = data.actor_line || '...';
-            const ttsB64 = data.tts_audio_base64;
-            addNpcMessage(line, null, ttsB64, data.turn_number);
-        }
+        // NPC 응답 처리 (PRE/DYN/Boundary 공통)
+        const npcLine = data.actor_line || data.pre_transcript || '...';
+        const audioUrl = data.pre_audio_url || null;
+        const ttsB64 = data.tts_audio_base64 || null;
+        addNpcMessage(npcLine, audioUrl, ttsB64, data.turn_number);
 
         // 턴 업데이트
         turnsRemaining = data.turns_remaining;

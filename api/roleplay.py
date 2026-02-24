@@ -406,8 +406,8 @@ goal_achieved = false: 아직 목표 미달성
 형식3 - DYN 완전 이해:
 {{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트", "boundary":0또는1, "goal_achieved":false}}
 
-형식4 - 음성 인식 실패:
-{{"route":"PRE","category":"not_understood","transcribed_text":"","boundary":1,"goal_achieved":false}}
+형식4 - 음성 인식 실패 (한국어가 아닌 경우에도 들린 내용을 적을 것):
+{{"route":"PRE","category":"not_understood","transcribed_text":"들린 외국어 내용","boundary":1,"goal_achieved":false}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 
