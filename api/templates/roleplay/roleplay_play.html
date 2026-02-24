@@ -392,14 +392,6 @@ document.getElementById('textInput').addEventListener('keydown', (e) => {
     }
 });
 
-window.addEventListener('beforeunload', () => {
-    if (sessionId) {
-        navigator.sendBeacon('/api/rp-student/leave-team',
-            new Blob([JSON.stringify({ session_id: sessionId })],
-            { type: 'application/json' }));
-    }
-});
-
 // ═══════════ 팀 동기화 폴링 ═══════════
 function startSyncPolling() {
     stopSyncPolling();
