@@ -78,9 +78,6 @@ def get_scenarios():
                 if s.get('npc_knowledge') and isinstance(s['npc_knowledge'], str):
                     try: s['npc_knowledge'] = json.loads(s['npc_knowledge'])
                     except: pass
-                if s.get('boundary_strategies') and isinstance(s['boundary_strategies'], str):
-                    try: s['boundary_strategies'] = json.loads(s['boundary_strategies'])
-                    except: pass
             return jsonify({"scenarios": scenarios})
     except Exception as e:
         print(f"🚨 시나리오 조회 오류: {e}")
