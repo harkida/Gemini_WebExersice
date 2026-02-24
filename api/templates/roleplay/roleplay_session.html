@@ -95,6 +95,47 @@
         .status-msg.success { display: block; background: #1a2e1a; color: #69db7c; border: 1px solid #2d4a2d; }
         .status-msg.error { display: block; background: #2e1a1a; color: #ff6b6b; border: 1px solid #4a2d2d; }
         .empty-state { text-align: center; padding: 40px; color: #555; font-size: 15px; }
+
+        /* ── 관찰 모달 ── */
+        .observe-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .observe-overlay.open { display: flex; }
+        .observe-modal {
+            background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 12px;
+            width: 90%; max-width: 600px; height: 80vh; display: flex; flex-direction: column;
+        }
+        .observe-header {
+            padding: 16px 20px; border-bottom: 1px solid #2a2d3e;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .observe-header h3 { margin: 0; color: #f0a500; font-size: 16px; }
+        .observe-header .close-btn {
+            background: none; border: 1px solid #555; color: #999; padding: 4px 12px;
+            border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .observe-header .close-btn:hover { color: #fff; border-color: #999; }
+        .observe-members { padding: 8px 20px; font-size: 13px; color: #888; border-bottom: 1px solid #2a2d3e; }
+        .observe-scenario-tabs {
+            padding: 8px 20px; display: flex; gap: 8px; border-bottom: 1px solid #2a2d3e;
+        }
+        .observe-scenario-tabs button {
+            background: #0f1117; border: 1px solid #2a2d3e; color: #888; padding: 4px 12px;
+            border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .observe-scenario-tabs button.active { border-color: #f0a500; color: #f0a500; }
+        .observe-chat {
+            flex: 1; overflow-y: auto; padding: 16px 20px; display: flex;
+            flex-direction: column; gap: 10px;
+        }
+        .ob-msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+        .ob-msg.player { align-self: flex-end; background: #7289da; color: #fff; border-bottom-right-radius: 4px; }
+        .ob-msg.npc { align-self: flex-start; background: #2b2d31; border: 1px solid #3a3c41; color: #e0e0e0; border-bottom-left-radius: 4px; }
+        .ob-msg.system { align-self: center; background: #f0a50015; color: #f0a500; font-size: 13px; border-radius: 8px; }
+        .ob-msg .ob-label { font-size: 11px; color: #999; margin-bottom: 3px; }
+        .ob-msg .ob-meta { font-size: 11px; color: #666; margin-top: 4px; text-align: right; }
+        .observe-status { padding: 10px 20px; border-top: 1px solid #2a2d3e; font-size: 13px; color: #666; text-align: center; }
     </style>
 </head>
 <body>
@@ -258,12 +299,11 @@ async function loadSessions() {
                 teamHtml = '<div class="team-grid">';
                 for (const t of s.teams) {
                     teamHtml += `
-                        <div class="team-badge">
+                        <div class="team-badge" style="cursor:pointer;" onclick="openObserve(${s.id}, ${t.id}, '${t.team_code}')">
                             <div class="code">${t.team_code}</div>
                             <div class="count">${t.member_count}명</div>
                         </div>`;
                 }
-                teamHtml += '</div>';
             }
 
             html += `
@@ -347,5 +387,139 @@ document.addEventListener('DOMContentLoaded', () => {
 // 페이지 떠날 때 정리
 window.addEventListener('beforeunload', stopSessionPolling);
 </script>
+
+<!-- ═══════════ 관찰 모달 ═══════════ -->
+<div class="observe-overlay" id="observeOverlay" onclick="if(event.target===this)closeObserve()">
+    <div class="observe-modal">
+        <div class="observe-header">
+            <h3 id="observeTitle">팀 관찰</h3>
+            <button class="close-btn" onclick="closeObserve()">✕ 닫기</button>
+        </div>
+        <div class="observe-members" id="observeMembers">멤버: 로딩중...</div>
+        <div class="observe-scenario-tabs" id="observeScenarios"></div>
+        <div class="observe-chat" id="observeChat"></div>
+        <div class="observe-status" id="observeStatus">실시간 관찰 중...</div>
+    </div>
+</div>
+
+<script>
+let observeInterval = null;
+let observeTeamId = null;
+let observeSessionId = null;
+let observeScenarioId = null;
+let observeLogCount = 0;
+
+async function openObserve(sessionId, teamId, teamCode) {
+    observeSessionId = sessionId;
+    observeTeamId = teamId;
+    observeLogCount = 0;
+
+    document.getElementById('observeTitle').textContent = `🔍 Team ${teamCode} 관찰`;
+    document.getElementById('observeChat').innerHTML = '';
+    document.getElementById('observeOverlay').classList.add('open');
+
+    try {
+        const res = await fetch(`/api/rp-admin/team-scenarios?session_id=${sessionId}&team_id=${teamId}`);
+        const data = await res.json();
+
+        if (data.members?.length) {
+            document.getElementById('observeMembers').textContent =
+                '멤버: ' + data.members.map(m => m.full_name || m.user_id).join(', ');
+        } else {
+            document.getElementById('observeMembers').textContent = '멤버: (아직 없음)';
+        }
+
+        const tabArea = document.getElementById('observeScenarios');
+        if (data.scenarios?.length) {
+            tabArea.innerHTML = data.scenarios.map((sc, i) =>
+                `<button onclick="switchObserveScenario(${sc.scenario_id})" 
+                         id="ob-sc-${sc.scenario_id}" 
+                         class="${i === 0 ? 'active' : ''}">
+                    ${sc.title || sc.npc_name}
+                </button>`
+            ).join('');
+            observeScenarioId = data.scenarios[0].scenario_id;
+        }
+    } catch (e) {
+        console.error('관찰 로드 실패:', e);
+    }
+
+    await loadObserveHistory();
+    observeInterval = setInterval(loadObserveHistory, 3000);
+}
+
+function closeObserve() {
+    document.getElementById('observeOverlay').classList.remove('open');
+    if (observeInterval) { clearInterval(observeInterval); observeInterval = null; }
+    observeTeamId = null;
+    observeScenarioId = null;
+    observeLogCount = 0;
+}
+
+function switchObserveScenario(scenarioId) {
+    observeScenarioId = scenarioId;
+    observeLogCount = 0;
+    document.getElementById('observeChat').innerHTML = '';
+    document.querySelectorAll('.observe-scenario-tabs button').forEach(b => b.classList.remove('active'));
+    document.getElementById(`ob-sc-${scenarioId}`)?.classList.add('active');
+    loadObserveHistory();
+}
+
+async function loadObserveHistory() {
+    if (!observeTeamId || !observeScenarioId) return;
+
+    try {
+        const res = await fetch(
+            `/api/rp-admin/team-history?team_id=${observeTeamId}&scenario_id=${observeScenarioId}`
+        );
+        const data = await res.json();
+        if (!data.logs) return;
+
+        if (data.logs.length > observeLogCount) {
+            const newLogs = data.logs.slice(observeLogCount);
+            const chat = document.getElementById('observeChat');
+
+            for (const log of newLogs) {
+                const msg = document.createElement('div');
+
+                if (log.speaker === 'player') {
+                    const text = log.message_text || '🎤 (Audio)';
+                    const who = log.player_user_id || '';
+                    msg.className = 'ob-msg player';
+                    msg.innerHTML = `<div class="ob-label">${who}</div>${escapeObserve(text)}<div class="ob-meta">T${log.turn_number}</div>`;
+                } else if (log.speaker === 'npc') {
+                    const text = log.actor_line || log.message_text || '';
+                    if (text === '[EXIT]' || text === '[GOAL_ACHIEVED]' || text === '[BOUNDARY_PRE]') {
+                        msg.className = 'ob-msg system';
+                        const label = {'[EXIT]':'🚪 NPC 퇴장','[GOAL_ACHIEVED]':'🎯 목적 달성','[BOUNDARY_PRE]':'⚠️ Boundary PRE'}[text] || text;
+                        msg.textContent = label;
+                    } else {
+                        msg.className = 'ob-msg npc';
+                        msg.innerHTML = `<div class="ob-label">NPC</div>${escapeObserve(text)}<div class="ob-meta">T${log.turn_number}</div>`;
+                    }
+                }
+
+                chat.appendChild(msg);
+            }
+
+            chat.scrollTop = chat.scrollHeight;
+            observeLogCount = data.logs.length;
+        }
+
+        document.getElementById('observeStatus').textContent =
+            `턴 ${data.current_turn}/8 | 실시간 관찰 중... (${new Date().toLocaleTimeString('ko-KR')})`;
+
+    } catch (e) {
+        console.error('관찰 폴링 실패:', e);
+    }
+}
+
+function escapeObserve(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+
 </body>
 </html>

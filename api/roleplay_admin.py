@@ -560,6 +560,94 @@ def delete_session(session_id):
         conn.close()
 
 # ============================================================
+# 교사용 — 팀 대화 관찰 API
+# ============================================================
+
+@app.route('/api/rp-admin/team-history', methods=['GET'])
+@teacher_required
+def teacher_team_history():
+    """교사: 특정 팀의 대화 기록 조회 (관찰용)"""
+    team_id = request.args.get('team_id')
+    scenario_id = request.args.get('scenario_id')
+
+    if not all([team_id, scenario_id]):
+        return jsonify({"error": "team_id, scenario_id 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT turn_number, speaker, message_text, actor_line,
+                       analyst_json, created_at::text as created_at,
+                       player_user_id
+                FROM rp_conversation_logs
+                WHERE team_id = %s AND scenario_id = %s
+                ORDER BY turn_number ASC, id ASC
+            """, (int(team_id), int(scenario_id)))
+            logs = cur.fetchall()
+
+            # 현재 턴
+            cur.execute("""
+                SELECT COUNT(*) FROM rp_conversation_logs
+                WHERE team_id = %s AND scenario_id = %s AND speaker = 'player'
+            """, (int(team_id), int(scenario_id)))
+            current_turn = cur.fetchone()['count']
+
+        return jsonify({
+            "logs": logs,
+            "current_turn": current_turn,
+            "turns_remaining": 8 - current_turn
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/rp-admin/team-scenarios', methods=['GET'])
+@teacher_required
+def teacher_team_scenarios():
+    """교사: 특정 세션의 팀+시나리오 목록"""
+    session_id = request.args.get('session_id')
+    team_id = request.args.get('team_id')
+
+    if not all([session_id, team_id]):
+        return jsonify({"error": "session_id, team_id 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # 시나리오 목록
+            cur.execute("""
+                SELECT ss.scenario_id, sc.title, sc.npc_name
+                FROM rp_session_scenarios ss
+                JOIN rp_scenarios sc ON ss.scenario_id = sc.id
+                WHERE ss.session_id = %s
+                ORDER BY ss.order_num
+            """, (int(session_id),))
+            scenarios = cur.fetchall()
+
+            # 팀 멤버
+            cur.execute("""
+                SELECT m.user_id, u.full_name
+                FROM rp_session_members m
+                LEFT JOIN users u ON m.user_id = u.username
+                WHERE m.team_id = %s
+            """, (int(team_id),))
+            members = cur.fetchall()
+
+        return jsonify({
+            "scenarios": scenarios,
+            "members": members
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+# ============================================================
 # 학생용 — 로비 페이지 & API
 # ============================================================
 
