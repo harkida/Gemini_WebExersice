@@ -633,7 +633,7 @@ def teacher_team_scenarios():
             cur.execute("""
                 SELECT m.user_id, u.full_name
                 FROM rp_session_members m
-                LEFT JOIN users u ON m.user_id = u.username
+                LEFT JOIN users u ON m.user_id = u.id
                 WHERE m.team_id = %s
             """, (int(team_id),))
             members = cur.fetchall()
