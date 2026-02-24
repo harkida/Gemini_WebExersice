@@ -602,6 +602,126 @@ def get_total_violations(team_id, scenario_id, conn):
             total += 1
     return total
 
+def get_boundary_pre(conn):
+    """공통 Boundary PRE 풀에서 랜덤 1개 반환"""
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("""
+            SELECT cloudflare_url, transcript FROM rp_pre_recordings
+            WHERE category = 'boundary_pre'
+            ORDER BY RANDOM() LIMIT 1
+        """)
+        row = cur.fetchone()
+        if row:
+            return row['cloudflare_url'], row['transcript']
+        return None, "네?"
+
+def handle_npc_response(conn, scenario, conversation_history,
+                        parsed, student_input, team_id, scenario_id, new_turn):
+    """분석가 결과 → boundary 체크 → NPC 응답 결정 (공통 로직)"""
+
+    actor_line = None
+    actor_latency = None
+    tts_audio_b64 = None
+    tts_latency = None
+    pre_audio_url = None
+    pre_transcript = None
+    is_exit = False
+    npc_name = scenario['npc']['name']
+
+    # ── Boundary 체크 ──
+    boundary = parsed.get('boundary', 0)
+
+    if boundary == 1:
+        total_violations = get_total_violations(team_id, scenario_id, conn) + 1
+
+        if total_violations >= 4:
+            # Exit DYN — 종료 대사
+            parsed['direction'] = f"boundary Exit: 학생이 {total_violations}회 이탈. 대화를 끝내는 대사를 하라. NPC 성격에 맞게."
+            parsed['main_emotion'] = '불쾌'
+            parsed['audio_tags'] = '[sigh][frustrated]'
+
+            actor_line, actor_latency = run_actor(
+                scenario, conversation_history, parsed, student_input)
+            voice_id = scenario.get('voice_id')
+            if actor_line:
+                tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
+
+            save_turn(conn, team_id, scenario_id, new_turn, 'npc',
+                      actor_line=actor_line, tts_audio_base64=tts_audio_b64)
+            is_exit = True
+
+        elif total_violations >= 2:
+            # Boundary DYN — 맥락 참조 대사
+            parsed['direction'] = f"boundary DYN: 학생이 {total_violations}회 이탈. 되묻기/저의확인/목표환기 중 상황에 맞게. 불쾌한 감정으로."
+            parsed['main_emotion'] = '불쾌'
+            parsed['audio_tags'] = '[frustrated][sigh]'
+
+            actor_line, actor_latency = run_actor(
+                scenario, conversation_history, parsed, student_input)
+            voice_id = scenario.get('voice_id')
+            if actor_line:
+                tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
+
+            save_turn(conn, team_id, scenario_id, new_turn, 'npc',
+                      actor_line=actor_line, tts_audio_base64=tts_audio_b64)
+
+        else:
+            # Boundary PRE — "네?" "뭐요?" 즉각 반환
+            pre_audio_url, pre_transcript = get_pre_audio_url(
+                scenario_id, "boundary_pre", conn)
+
+            if not pre_audio_url:
+                pre_audio_url, pre_transcript = get_boundary_pre(conn)
+
+            save_turn(conn, team_id, scenario_id, new_turn, 'npc',
+                      message_text="[BOUNDARY_PRE]",
+                      actor_line=pre_transcript or "네?",
+                      pre_audio_url=pre_audio_url)
+
+        return {
+            "actor_line": actor_line, "actor_latency": actor_latency,
+            "tts_audio_b64": tts_audio_b64, "tts_latency": tts_latency,
+            "pre_audio_url": pre_audio_url, "pre_transcript": pre_transcript,
+            "is_exit": is_exit, "npc_name": npc_name
+        }
+
+    # ── 정상 흐름 (boundary=0) ──
+    total_violations = get_total_violations(team_id, scenario_id, conn)
+    if total_violations > 0:
+        aftereffect = ""
+        if total_violations >= 3:
+            aftereffect = "직전에 불쾌한 상황이 있었다. 불쾌하고 사무적인 톤으로. [sigh] [flatly] 활용."
+        elif total_violations >= 1:
+            aftereffect = "직전에 당황스러운 상황이 있었다. 약간 머뭇거리는 톤으로. [hesitates] [pause] 활용."
+
+        if aftereffect and parsed.get('direction'):
+            parsed['direction'] = aftereffect + " " + parsed['direction']
+        elif aftereffect:
+            parsed['direction'] = aftereffect
+
+    if parsed.get("route") == "PRE":
+        pre_audio_url, pre_transcript = get_pre_audio_url(
+            scenario_id, parsed.get("category", ""), conn)
+        save_turn(conn, team_id, scenario_id, new_turn, 'npc',
+                  message_text=f"[PRE:{parsed.get('category','')}]",
+                  actor_line=pre_transcript, pre_audio_url=pre_audio_url)
+
+    elif parsed.get("route") == "DYN":
+        actor_line, actor_latency = run_actor(
+            scenario, conversation_history, parsed, student_input)
+        voice_id = scenario.get('voice_id')
+        if actor_line:
+            tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
+        save_turn(conn, team_id, scenario_id, new_turn, 'npc',
+                  actor_line=actor_line, tts_audio_base64=tts_audio_b64)
+
+    return {
+        "actor_line": actor_line, "actor_latency": actor_latency,
+        "tts_audio_b64": tts_audio_b64, "tts_latency": tts_latency,
+        "pre_audio_url": pre_audio_url, "pre_transcript": pre_transcript,
+        "is_exit": False, "npc_name": npc_name
+    }
+
 # ============================================================
 # 페이지 라우트
 # ============================================================
@@ -721,12 +841,25 @@ def send_text():
                   analyst_json=parsed)
 
         # 7. 응답 생성
-        actor_line = None
-        actor_latency = None
-        tts_audio_b64 = None
-        tts_latency = None
-        pre_audio_url = None
-        pre_transcript = None
+        result = handle_npc_response(
+            conn, scenario, conversation_history,
+            parsed, student_input, team_id, scenario_id, new_turn)
+
+        return jsonify({
+            "success": True,
+            "turn_number": new_turn,
+            "analyst_response": parsed,
+            "analyst_latency": analyst_latency,
+            "actor_line": result["actor_line"],
+            "actor_latency": result["actor_latency"],
+            "tts_audio_base64": result["tts_audio_b64"],
+            "tts_latency": result["tts_latency"],
+            "pre_audio_url": result["pre_audio_url"],
+            "pre_transcript": result["pre_transcript"],
+            "is_exit": result["is_exit"],
+            "npc_name": result["npc_name"],
+            "turns_remaining": 8 - new_turn
+        })
 
         if parsed.get("route") == "PRE":
             # PRE: DB에서 오디오 URL + 대사 가져오기
@@ -833,12 +966,27 @@ def send_audio():
                   analyst_json=parsed)
 
         # 6. 응답 생성
-        actor_line = None
-        actor_latency = None
-        tts_audio_b64 = None
-        tts_latency = None
-        pre_audio_url = None
-        pre_transcript = None
+        result = handle_npc_response(
+            conn, scenario, conversation_history,
+            parsed, transcribed_text or "(인식 실패)",
+            team_id, scenario_id, new_turn)
+
+        return jsonify({
+            "success": True,
+            "turn_number": new_turn,
+            "transcribed_text": transcribed_text,
+            "analyst_response": parsed,
+            "analyst_latency": analyst_latency,
+            "actor_line": result["actor_line"],
+            "actor_latency": result["actor_latency"],
+            "tts_audio_base64": result["tts_audio_b64"],
+            "tts_latency": result["tts_latency"],
+            "pre_audio_url": result["pre_audio_url"],
+            "pre_transcript": result["pre_transcript"],
+            "is_exit": result["is_exit"],
+            "npc_name": result["npc_name"],
+            "turns_remaining": 8 - new_turn
+        })
 
         if parsed.get("route") == "PRE":
             pre_audio_url, pre_transcript = get_pre_audio_url(
