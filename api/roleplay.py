@@ -861,45 +861,6 @@ def send_text():
             "turns_remaining": 8 - new_turn
         })
 
-        if parsed.get("route") == "PRE":
-            # PRE: DB에서 오디오 URL + 대사 가져오기
-            pre_audio_url, pre_transcript = get_pre_audio_url(
-                scenario_id, parsed.get("category", ""), conn)
-
-            # PRE도 NPC 턴으로 저장
-            save_turn(conn, team_id, scenario_id, new_turn, 'npc',
-                      message_text=f"[PRE:{parsed.get('category','')}]",
-                      actor_line=pre_transcript, pre_audio_url=pre_audio_url)
-
-        elif parsed.get("route") == "DYN":
-            # DYN: 연기자 → TTS
-            actor_line, actor_latency = run_actor(
-                scenario, conversation_history, parsed, student_input)
-
-            # TTS
-            voice_id = scenario.get('voice_id')
-            if actor_line:
-                tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
-
-            # NPC 턴 저장
-            save_turn(conn, team_id, scenario_id, new_turn, 'npc',
-                      actor_line=actor_line,
-                      tts_audio_base64=tts_audio_b64)
-
-        return jsonify({
-            "success": True,
-            "turn_number": new_turn,
-            "analyst_response": parsed,
-            "analyst_latency": analyst_latency,
-            "actor_line": actor_line,
-            "actor_latency": actor_latency,
-            "tts_audio_base64": tts_audio_b64,
-            "tts_latency": tts_latency,
-            "pre_audio_url": pre_audio_url,
-            "pre_transcript": pre_transcript,
-            "turns_remaining": 8 - new_turn
-        })
-
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"처리 실패: {str(e)}"}), 500
@@ -985,42 +946,6 @@ def send_audio():
             "pre_transcript": result["pre_transcript"],
             "is_exit": result["is_exit"],
             "npc_name": result["npc_name"],
-            "turns_remaining": 8 - new_turn
-        })
-
-        if parsed.get("route") == "PRE":
-            pre_audio_url, pre_transcript = get_pre_audio_url(
-                scenario_id, parsed.get("category", ""), conn)
-            save_turn(conn, team_id, scenario_id, new_turn, 'npc',
-                      message_text=f"[PRE:{parsed.get('category','')}]",
-                      actor_line=pre_transcript,
-                      pre_audio_url=pre_audio_url)
-
-        elif parsed.get("route") == "DYN":
-            student_text = transcribed_text or "(인식 실패)"
-            actor_line, actor_latency = run_actor(
-                scenario, conversation_history, parsed, student_text)
-
-            voice_id = scenario.get('voice_id')
-            if actor_line:
-                tts_audio_b64, tts_latency = run_tts(actor_line, voice_id)
-
-            save_turn(conn, team_id, scenario_id, new_turn, 'npc',
-                      actor_line=actor_line,
-                      tts_audio_base64=tts_audio_b64)
-
-        return jsonify({
-            "success": True,
-            "turn_number": new_turn,
-            "transcribed_text": transcribed_text,
-            "analyst_response": parsed,
-            "analyst_latency": analyst_latency,
-            "actor_line": actor_line,
-            "actor_latency": actor_latency,
-            "tts_audio_base64": tts_audio_b64,
-            "tts_latency": tts_latency,
-            "pre_audio_url": pre_audio_url,
-            "pre_transcript": pre_transcript,
             "turns_remaining": 8 - new_turn
         })
 
