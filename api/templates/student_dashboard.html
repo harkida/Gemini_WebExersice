@@ -323,15 +323,6 @@
             </div>
         </div>
 
-            <div class="stat-box">
-                <div class="stat-title">🎭 Roleplay (롤플레이)</div>
-                <div class="stat-score" id="score-roleplay">--</div>
-                <p style="font-size: 0.9rem; color: #b9bbbe; margin-top: 5px;">
-                    <span id="count-roleplay">0</span> sessioni (세션)
-                </p>
-            </div>
-        </div>
-
         <div style="text-align: center; margin-top: 20px;">
             <button class="action-btn" onclick="openModal()">✏️ Modifica Profilo (내 정보 수정)</button>
         </div>
@@ -449,18 +440,6 @@
                 el.style.color = data.speak_stats.color;
                 document.getElementById('count-speak').textContent = data.speak_stats.count;
             }
-
-            // 롤플레이 점수 로드
-            try {
-                const rpRes = await fetch('/api/rp-student/eval-stats');
-                const rpData = await rpRes.json();
-                if (rpData.avg !== undefined) {
-                    const el = document.getElementById('score-roleplay');
-                    el.textContent = rpData.avg;
-                    el.style.color = rpData.color;
-                    document.getElementById('count-roleplay').textContent = rpData.count;
-                }
-            } catch (e) { console.error('롤플레이 통계 로드 실패:', e); }
 
             currentUserInfo = data.user_info; // 저장해둠
 
@@ -713,19 +692,40 @@ function filterHistory(type, event) {
             for (const ev of data.evaluations) {
                 const card = document.createElement('div');
                 card.className = 'record-card type-roleplay';
+
+                // 대화 로그를 HTML로 변환
+                let chatHtml = '';
+                if (ev.conversation_log) {
+                    const lines = ev.conversation_log.split('\n').filter(l => l.trim());
+                    chatHtml = lines.map(line => {
+                        if (line.includes('] 학생:')) {
+                            const text = line.split('] 학생:')[1]?.trim() || '';
+                            return `<div style="text-align:right; margin:4px 0;"><span style="background:#7289da; color:#fff; padding:4px 10px; border-radius:10px; font-size:0.9rem;">${text}</span></div>`;
+                        } else if (line.includes('] NPC:')) {
+                            const text = line.split('] NPC:')[1]?.trim() || '';
+                            return `<div style="text-align:left; margin:4px 0;"><span style="background:#2c2f33; border:1px solid #444; color:#e0e0e0; padding:4px 10px; border-radius:10px; font-size:0.9rem;">${text}</span></div>`;
+                        }
+                        return '';
+                    }).join('');
+                }
+
                 card.innerHTML = `
                     <div class="header-row">
                         <div class="header-left">
-                            <div class="score-circle" style="border-color: ${ev.rating_color};">${ev.score}</div>
                             <div>
                                 <div class="quiz-title">🎭 ${ev.scenario_title}</div>
                                 <div class="date-info">${ev.created_at} · Team ${ev.team_code}</div>
+                                <div style="font-size:0.85rem; color:#888; margin-top:4px;">👥 ${ev.team_members}</div>
                             </div>
                         </div>
+                    </div>
+                    <div style="margin-top:12px; max-height:300px; overflow-y:auto; padding:10px; background:#1a1d2e; border-radius:8px; border:1px solid #2a2d3e;">
+                        ${chatHtml || '<p style="color:#666; text-align:center;">Nessun log disponibile.</p>'}
                     </div>
                 `;
                 container.appendChild(card);
             }
+
         } catch (e) {
             container.innerHTML = '<p style="text-align:center; color:#ff6b6b;">Errore nel caricamento.</p>';
         }

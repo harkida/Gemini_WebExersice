@@ -286,8 +286,8 @@ def evaluate_roleplay():
                     INSERT INTO rp_evaluations
                     (student_id, scenario_id, session_id, team_id,
                      team_code, class_name, scenario_title, team_members,
-                     score, feedback_json)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     score, feedback_json, conversation_log)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (student_id, team_id, scenario_id) DO NOTHING
                 """, (
                     member['user_id'], scenario_id,
@@ -295,7 +295,8 @@ def evaluate_roleplay():
                     team_info['team_code'], team_info['class_name'],
                     scenario['title'], member_names,
                     score,
-                    json.dumps(eval_result, ensure_ascii=False)
+                    json.dumps(eval_result, ensure_ascii=False),
+                    conversation_log
                 ))
 
             conn.commit()
@@ -413,8 +414,10 @@ def student_eval_history():
 
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+
             cur.execute("""
-                SELECT id, scenario_title, team_code, score, created_at
+                SELECT id, scenario_title, team_code, team_members,
+                       conversation_log, created_at
                 FROM rp_evaluations
                 WHERE student_id = %s
                 ORDER BY created_at DESC
@@ -423,7 +426,6 @@ def student_eval_history():
 
             for e in evals:
                 e['created_at'] = e['created_at'].strftime('%Y-%m-%d %H:%M') if e.get('created_at') else ''
-                e['rating_color'] = get_rating_details(e['score'])['color']
 
             return jsonify({"evaluations": evals})
 
