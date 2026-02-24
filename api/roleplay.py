@@ -360,10 +360,25 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 ## 대화 기록
 {history_text}
 
+## boundary 판단 (매 턴 반드시 포함)
+
+너는 이 NPC의 입장에서 판단한다.
+이 NPC가 지금 이 상황에서 이 말을 듣고 당황하거나 불편한가?
+
+boundary = 0: NPC가 자연스럽게 받아들일 수 있는 말
+boundary = 1: NPC가 당황하거나 불편해하거나 이해할 수 없는 말
+
+판단 시 고려할 것:
+- NPC의 성격과 직업
+- 현재 대화 상황과 관계
+- 대화의 목적 (위 "대화 목표" 참조)
+- 외국어만 사용하는 경우 → 반드시 boundary=1
+- 한국어에 흡수된 외래어 (아메리카노, 컴퓨터 등) → boundary=0
+
 ## 출력 형식 (4가지 중 하나):
 
 형식1 - PRE:
-{{"route":"PRE","category":"카테고리명","transcribed_text":"인식된 텍스트"}}
+{{"route":"PRE","category":"카테고리명","transcribed_text":"인식된 텍스트", "boundary":0}}
 
 형식2 - DYN 부분 이해:
 {{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","transcribed_text":"인식된 텍스트"}}
