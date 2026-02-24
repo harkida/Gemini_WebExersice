@@ -705,6 +705,15 @@ async function processPlayerInput(input) {
         lastKnownTurn = data.turn_number;  // ★ 추가
         lastKnownLogCount += 2;  // ★ 추가 (player + npc)
 
+        // Exit DYN 처리 (NPC 퇴장)
+        if (data.is_exit) {
+            const npcName = data.npc_name || document.getElementById('npcName').textContent;
+            addMessage('system', `🚪 ${npcName} ha lasciato la conversazione.`);
+            stopSyncPolling();
+            document.querySelector('.input-area').style.display = 'none';
+            return;
+        }        
+
         // 턴 소진 확인
         if (turnsRemaining <= 0) {
             showComplete();
