@@ -562,7 +562,6 @@ async function loadHistory() {
             showGoalAchieved();
             return;
         }
-        lastKnownLogCount = data.logs.length;
     } catch (e) {
         console.error('기록 로드 실패:', e);
     }
