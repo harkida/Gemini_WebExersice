@@ -678,8 +678,11 @@ def handle_npc_response(conn, scenario, conversation_history,
         total_violations = get_total_violations(team_id, scenario_id, conn)
 
         if total_violations >= 4:
-            # Exit DYN — 종료 대사
-            parsed['direction'] = f"boundary Exit: 학생이 {total_violations}회 이탈. 대화를 끝내는 대사를 하라. NPC 성격에 맞게."
+            if not student_input.strip():
+                parsed['direction'] = f"boundary Exit: 학생이 {total_violations}회 계속 한국어가 아닌 말을 했다. 더 이상 대화할 수 없다며 대화를 끝내는 대사를 하라. NPC 성격에 맞게."
+            else:
+                parsed['direction'] = f"boundary Exit: 학생이 \"{student_input}\"라고 했는데 {total_violations}회 계속 엉뚱한 말을 한다. 대화를 끝내는 대사를 하라. NPC 성격에 맞게."
+
             parsed['main_emotion'] = '불쾌'
             parsed['audio_tags'] = '[sigh][frustrated]'
 
@@ -693,10 +696,13 @@ def handle_npc_response(conn, scenario, conversation_history,
                       actor_line=actor_line, tts_audio_base64=tts_audio_b64)
             is_exit = True
 
-
         elif total_violations >= 3:
             # Boundary DYN — 맥락 참조 대사
-            parsed['direction'] = f"boundary DYN: 학생이 {total_violations}회 이탈. 되묻기/저의확인/목표환기 중 상황에 맞게. 불쾌한 감정으로."
+            if not student_input.strip():
+                parsed['direction'] = f"boundary DYN: 학생이 {total_violations}회 한국어가 아닌 말을 했다. 한국어로 말해달라고 요청하면서, 원래 대화 목표로 돌아가게 유도하라. 불쾌한 감정으로."
+            else:
+                parsed['direction'] = f"boundary DYN: 학생이 \"{student_input}\"라고 했는데 상황에 맞지 않는 말이다. 되묻기/저의확인/목표환기 중 상황에 맞게. 불쾌한 감정으로."
+
             parsed['main_emotion'] = '불쾌'
             parsed['audio_tags'] = '[frustrated][sigh]'
 
