@@ -702,10 +702,10 @@ function filterHistory(type, event) {
                     chatHtml = lines.map(line => {
                         if (line.includes('] 학생:')) {
                             const text = line.split('] 학생:')[1]?.trim() || '';
-                            return `<div style="text-align:right; margin:4px 0;"><span style="background:#7289da; color:#fff; padding:4px 10px; border-radius:10px; font-size:0.9rem;">${text}</span></div>`;
+                            return `<div style="text-align:right; margin:10px 0;"><span style="background:#7289da; color:#fff; padding:8px 14px; border-radius:14px; font-size:0.9rem; display:inline-block; max-width:80%;">${text}</span></div>`;
                         } else if (line.includes('] NPC:')) {
                             const text = line.split('] NPC:')[1]?.trim() || '';
-                            return `<div style="text-align:left; margin:4px 0;"><span style="background:#2c2f33; border:1px solid #444; color:#e0e0e0; padding:4px 10px; border-radius:10px; font-size:0.9rem;">${text}</span></div>`;
+                            return `<div style="text-align:left; margin:10px 0;"><span style="background:#2c2f33; border:1px solid #444; color:#e0e0e0; padding:8px 14px; border-radius:14px; font-size:0.9rem; display:inline-block; max-width:80%;">${text}</span></div>`;
                         }
                         return '';
                     }).join('');

@@ -339,7 +339,7 @@ def get_evaluations():
                     SELECT DISTINCT ON (team_id, scenario_id)
                         id, session_id, team_id, team_code, class_name,
                         scenario_id, scenario_title, team_members,
-                        score, feedback_json, created_at
+                        score, feedback_json, conversation_log, created_at                            
                     FROM rp_evaluations
                     ORDER BY team_id, scenario_id, id
                 """)
@@ -348,7 +348,7 @@ def get_evaluations():
                     SELECT DISTINCT ON (team_id, scenario_id)
                         id, session_id, team_id, team_code, class_name,
                         scenario_id, scenario_title, team_members,
-                        score, feedback_json, created_at
+                        score, feedback_json, conversation_log, created_at                            
                     FROM rp_evaluations
                     WHERE class_name = %s
                     ORDER BY team_id, scenario_id, id
