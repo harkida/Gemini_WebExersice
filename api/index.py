@@ -39,7 +39,7 @@ if api_key:
         gemini_client = genai.Client(api_key=api_key)
         print("✅ Gemini AI 모델이 성공적으로 설정되었습니다.")
         print("   📌 번역 : gemini-3-flash (빠르고 경제적)")
-        print("   📌 이해력 : gemini-3.0-pro (정밀한 평가)")
+        print("   📌 이해력/말하기 : gemini-3.1-pro (정밀한 평가)")
     except Exception as e:
         gemini_client = None
         print(f"🚨 Gemini AI 모델 설정 오류: {e}")
@@ -772,7 +772,7 @@ def submit_answer():
         if quiz_type == 'translation':
             selected_model_name = "gemini-3-flash-preview"
         elif quiz_type == 'comprehension':
-            selected_model_name = "gemini-3-pro-preview"
+            selected_model_name = "gemini-3.1-pro-preview"            
         else:
             return jsonify({"error": "잘못된 퀴즈 유형"}), 400
         
@@ -891,7 +891,7 @@ def submit_answer():
                 score_raw = ai_result.get('score')
                 
                 score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw is not None else None
-                                
+
                 cur.execute(
                     """INSERT INTO comprehension_submissions 
                        (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, class_name) 
@@ -1027,8 +1027,8 @@ def submit_speaking_answer():
             )
             
             response = gemini_client.models.generate_content(
-                model="gemini-3-pro-preview",
-                contents=[prompt_text, uploaded_audio],
+                model="gemini-3.1-pro-preview",
+                contents=[prompt_text, uploaded_audio],                
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     temperature=0.1,

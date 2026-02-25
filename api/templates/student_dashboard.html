@@ -706,7 +706,7 @@ function filterHistory(type, event) {
                 const detail = document.createElement('div');
                 detail.style.cssText = 'display:none; padding:0 18px 18px;';
                 if (ev.chat_logs?.length) {
-                    chatHtml = ev.chat_logs.map(msg => {
+                    let chatHtml = ev.chat_logs.map(msg => {
                         const clean = (msg.text || '').replace(/\[.*?\]/g, '').trim();
                         if (!clean) return '';
                         if (msg.speaker === 'player') {
