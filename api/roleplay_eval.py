@@ -267,18 +267,21 @@ def evaluate_roleplay():
                 config=types.GenerateContentConfig(
                     temperature=0.3,
                     max_output_tokens=2048,
-                    thinking_config=types.ThinkingConfig(thinking_level="NONE"),
-                    response_mime_type="application/json"
+                    response_mime_type="application/json",
+                    thinking_config=types.ThinkingConfig(
+                        thinking_level=types.ThinkingLevel.LOW
+                    )
                 )
             )
 
             eval_latency = int((time.time() - eval_start) * 1000)
 
-            raw_text = response.text
+            raw_text = (response.text or "").strip()
             json_str = extract_first_json_block(raw_text)
             if not json_str:
                 print(f"🚨 평가 JSON 파싱 실패: {raw_text}")
-                return jsonify({"error": "평가 파싱 실패", "raw": raw_text[:500]}), 500            
+                return jsonify({"error": "평가 파싱 실패", "raw": raw_text[:500]}), 500
+
             eval_result = json.loads(json_str)
             score = round(float(eval_result.get('score', 0)), 1)
 
