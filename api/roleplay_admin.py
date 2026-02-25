@@ -464,7 +464,7 @@ def create_session():
     goal_id = data.get('goal_id')
     scenario_ids = data.get('scenario_ids', [])
     team_count = data.get('team_count', 1)
-
+    max_turns = data.get('max_turns', 8)
     if not class_name or not scenario_ids:
         return jsonify({"error": "반, 시나리오는 필수입니다"}), 400
 
@@ -472,10 +472,11 @@ def create_session():
     if not conn: return jsonify({"error": "DB 연결 실패"}), 500
     try:
         with conn.cursor() as cur:
+
             cur.execute("""
-                INSERT INTO rp_sessions (class_name, goal_id, team_count, status)
-                VALUES (%s, %s, %s, 'waiting') RETURNING id
-            """, (class_name, goal_id if goal_id else None, team_count))
+                INSERT INTO rp_sessions (class_name, goal_id, team_count, max_turns, status)
+                VALUES (%s, %s, %s, %s, 'waiting') RETURNING id
+            """, (class_name, goal_id if goal_id else None, team_count, max_turns))            
             session_id = cur.fetchone()[0]
 
             for idx, sc_id in enumerate(scenario_ids):
@@ -595,11 +596,22 @@ def teacher_team_history():
             """, (int(team_id), int(scenario_id)))
             current_turn = cur.fetchone()['count']
 
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur2:
+            cur2.execute("""
+                SELECT s.max_turns FROM rp_session_teams t
+                JOIN rp_sessions s ON t.session_id = s.id
+                WHERE t.id = %s
+            """, (int(team_id),))
+            sess_row = cur2.fetchone()
+            max_turns = sess_row['max_turns'] if sess_row else 8
+
         return jsonify({
             "logs": logs,
             "current_turn": current_turn,
-            "turns_remaining": 8 - current_turn
-        })
+            "turns_remaining": max_turns - current_turn,
+            "max_turns": max_turns
+        })    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:

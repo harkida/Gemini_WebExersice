@@ -173,8 +173,11 @@
                 <label>팀 수 *</label>
                 <input type="number" id="ss-teams" value="6" min="1" max="20">
             </div>
+            <div class="form-group">
+                <label>턴 수 (기본 8)</label>
+                <input type="number" id="ss-max-turns" value="8" min="4" max="20">
+            </div>
         </div>
-
         <div class="form-group">
             <label>시나리오 선택 * (복수 가능)</label>
             <div class="scenario-checklist" id="ss-scenarios">
@@ -231,11 +234,12 @@ async function loadFormData() {
 }
 
 // ═══════════ 세션 생성 ═══════════
+
 async function createSession() {
     const className = document.getElementById('ss-class').value;
     const goalId = document.getElementById('ss-goal').value;
     const teamCount = parseInt(document.getElementById('ss-teams').value) || 1;
-
+    const maxTurns = parseInt(document.getElementById('ss-max-turns').value) || 8;
     const checked = document.querySelectorAll('#ss-scenarios input[type="checkbox"]:checked');
     const scenarioIds = Array.from(checked).map(c => parseInt(c.value));
 
@@ -246,13 +250,17 @@ async function createSession() {
         const res = await fetch('/api/rp-admin/sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+
             body: JSON.stringify({
                 class_name: className,
                 goal_id: goalId ? parseInt(goalId) : null,
                 scenario_ids: scenarioIds,
-                team_count: teamCount
+                team_count: teamCount,
+                max_turns: maxTurns
             })
+
         });
+        
         const data = await res.json();
         if (data.success) {
             showStatus(`✅ 세션 생성 완료! (ID: ${data.id}, 팀 ${data.team_count}개)`, 'success');

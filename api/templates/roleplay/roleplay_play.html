@@ -356,8 +356,8 @@ let teamId = null;
 let currentScenarioId = null;
 let currentScenario = null;
 let turnsRemaining = 8;
+let maxTurns = 8;
 let isProcessing = false;
-
 // ═══════════ 녹음 ═══════════
 let mediaRecorder = null;
 let audioChunks = [];
@@ -461,8 +461,8 @@ async function syncFromServer() {
             lastKnownLogCount = data.logs.length;
             lastKnownTurn = data.current_turn;
             turnsRemaining = data.turns_remaining;
-            updateTurnCounter(data.current_turn, 8);
-
+            if (data.max_turns) maxTurns = data.max_turns;
+            updateTurnCounter(data.current_turn, maxTurns);
             if (turnsRemaining <= 0) {
                 const lastLog = data.logs[data.logs.length - 1];
                 if (lastLog && lastLog.speaker === 'npc') {
@@ -496,8 +496,9 @@ async function loadSessionInfo() {
         if (allScenarios.length > 0) {
             const sc = allScenarios[0];
             currentScenarioId = sc.scenario_id;
-            turnsRemaining = data.max_turns - sc.current_turn;
-            updateTurnCounter(sc.current_turn, data.max_turns);
+            maxTurns = data.max_turns;
+            turnsRemaining = maxTurns - sc.current_turn;
+            updateTurnCounter(sc.current_turn, maxTurns);
             applyScenarioDetail(sc);
 
             // 이미 진행 중인 대화가 있으면 기록 로드
@@ -546,7 +547,8 @@ async function loadHistory() {
         }
 
         turnsRemaining = data.turns_remaining;
-        updateTurnCounter(data.current_turn, 8);
+        if (data.max_turns) maxTurns = data.max_turns;
+        updateTurnCounter(data.current_turn, maxTurns);        
         lastKnownTurn = data.current_turn;  // ★ 추가
         lastKnownLogCount = data.logs.length;
 
@@ -713,7 +715,7 @@ async function processPlayerInput(input) {
 
         // 턴 업데이트
         turnsRemaining = data.turns_remaining;
-        updateTurnCounter(data.turn_number, 8);
+        updateTurnCounter(data.turn_number, maxTurns);
         lastKnownTurn = data.turn_number;  // ★ 추가
         lastKnownLogCount += 2;  // ★ 추가 (player + npc)
 
@@ -936,8 +938,8 @@ async function switchToNextScenario(nextId) {
     const sc = allScenarios.find(s => s.scenario_id == nextId);
     if (sc) {
         applyScenarioDetail(sc);
-        turnsRemaining = 8 - (sc.current_turn || 0);
-        updateTurnCounter(sc.current_turn || 0, 8);
+        turnsRemaining = maxTurns - (sc.current_turn || 0);
+        updateTurnCounter(sc.current_turn || 0, maxTurns);        
     }
 
     await loadHistory();

@@ -202,12 +202,13 @@ def validate_player_session(user_id, session_id, conn):
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute("""
-            SELECT t.id as team_id, t.team_code, s.status as session_status
+            SELECT t.id as team_id, t.team_code, s.status as session_status,
+                    s.max_turns
             FROM rp_session_members m
             JOIN rp_session_teams t ON m.team_id = t.id
             JOIN rp_sessions s ON t.session_id = s.id
-            WHERE s.id = %s AND m.user_id = %s
-        """, (session_id, user_id))
+            WHERE m.user_id = %s AND s.id = %s
+        """, (user_id, int(session_id)))
         return cur.fetchone()
 
 # ============================================================
@@ -877,7 +878,7 @@ def session_info():
             "team_code": player['team_code'],
             "session_status": player['session_status'],
             "scenarios": scenarios,
-            "max_turns": 10
+            "max_turns": player.get('max_turns', 8)
         })
     except Exception as e:
         traceback.print_exc()
@@ -918,12 +919,13 @@ def send_text():
             return jsonify({"error": "세션이 활성 상태가 아닙니다"}), 400
 
         team_id = player['team_id']
+        max_turns = player.get('max_turns', 8)
 
         # 2. 턴 제한 확인
         current_turn = get_current_turn(team_id, scenario_id, conn)
-        if current_turn >= 10:
-            return jsonify({"error": "이 시나리오의 턴이 모두 소진되었습니다 (8턴)", "turn_limit_reached": True}), 400
-
+        if current_turn >= max_turns:
+            return jsonify({"error": f"이 시나리오의 턴이 모두 소진되었습니다 ({max_turns}턴)", "turn_limit_reached": True}), 400
+        
         # 3. 시나리오 로드
         scenario = load_scenario_from_db(scenario_id, conn)
         if not scenario:
@@ -965,7 +967,7 @@ def send_text():
             "pre_transcript": result["pre_transcript"],
             "is_exit": result["is_exit"],
             "npc_name": result["npc_name"],
-            "turns_remaining": 8 - new_turn,
+            "turns_remaining": max_turns - new_turn,
             "goal_achieved": result.get("goal_achieved", False)
         })
 
@@ -1008,12 +1010,13 @@ def send_audio():
             return jsonify({"error": "세션이 활성 상태가 아닙니다"}), 400
 
         team_id = player['team_id']
+        max_turns = player.get('max_turns', 8)
 
         # 2. 턴 제한
         current_turn = get_current_turn(team_id, scenario_id, conn)
-        if current_turn >= 10:
-            return jsonify({"error": "턴 소진 (8턴)", "turn_limit_reached": True}), 400
-
+        if current_turn >= max_turns:
+            return jsonify({"error": f"턴 소진 ({max_turns}턴)", "turn_limit_reached": True}), 400
+        
         # 3. 시나리오 + 대화기록 로드
         scenario = load_scenario_from_db(scenario_id, conn)
         if not scenario:
@@ -1054,7 +1057,9 @@ def send_audio():
             "pre_transcript": result["pre_transcript"],
             "is_exit": result["is_exit"],
             "npc_name": result["npc_name"],
-            "turns_remaining": 8 - new_turn,
+
+            "turns_remaining": max_turns - new_turn,
+
             "goal_achieved": result.get("goal_achieved", False)
         })
 
@@ -1102,11 +1107,23 @@ def get_history():
 
         current_turn = get_current_turn(team_id, int(scenario_id), conn)
 
+        # max_turns 조회
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur2:
+            cur2.execute("""
+                SELECT s.max_turns FROM rp_session_teams t
+                JOIN rp_sessions s ON t.session_id = s.id
+                WHERE t.id = %s
+            """, (team_id,))
+            sess_row = cur2.fetchone()
+            max_turns = sess_row['max_turns'] if sess_row else 8
+
         return jsonify({
             "logs": logs,
             "current_turn": current_turn,
-            "turns_remaining": 8 - current_turn
-        })
+            "turns_remaining": max_turns - current_turn,
+            "max_turns": max_turns
+        })    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
