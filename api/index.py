@@ -33,8 +33,6 @@ app.secret_key = os.environ.get('SECRET_KEY', 'change-this-in-prod')
 TEACHER_PASSWORD = os.environ.get('TEACHER_PASSWORD')
 
 api_key = os.environ.get('GEMINI_API_KEY')
-flash_model = None
-pro_model = None
 
 if api_key:
     try:
@@ -891,8 +889,9 @@ def submit_answer():
                 ai_result = json.loads(json_str)
                 
                 score_raw = ai_result.get('score')
-                score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw else None
                 
+                score = round(float(str(score_raw).strip().replace(',', '.')), 1) if score_raw is not None else None
+                                
                 cur.execute(
                     """INSERT INTO comprehension_submissions 
                        (comprehension_exercise_id, student_id, student_answer, ai_analysis_json, class_name) 
@@ -979,7 +978,7 @@ def submit_speaking_answer():
             
             situation_desc, required_expr, expected_ans, target_vocab, teacher_crit = row
             
-            if not pro_model:
+            if not gemini_client:
                 return jsonify({"error": "AI 모델 미설정"}), 500
 
             audio_bytes = audio_file.read()
