@@ -419,13 +419,22 @@ def student_eval_history():
 
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-
             cur.execute("""
-                SELECT id, scenario_title, team_code, team_members,
-                       conversation_log, created_at
-                FROM rp_evaluations
-                WHERE student_id = %s
-                ORDER BY created_at DESC
+                SELECT e.id, e.scenario_title, e.team_code, e.team_members, e.created_at,
+                       (SELECT json_agg(json_build_object(
+                            'speaker', cl.speaker,
+                            'text', CASE 
+                                WHEN cl.speaker = 'player' THEN COALESCE(cl.message_text, '')
+                                WHEN cl.speaker = 'npc' THEN COALESCE(cl.actor_line, cl.message_text, '')
+                            END
+                        ) ORDER BY cl.turn_number, cl.id)
+                        FROM rp_conversation_logs cl
+                        WHERE cl.team_id = e.team_id AND cl.scenario_id = e.scenario_id
+                          AND NOT (cl.speaker = 'npc' AND COALESCE(cl.actor_line, COALESCE(cl.message_text, '')) IN ('[EXIT]', '[GOAL_ACHIEVED]', '[BOUNDARY_PRE]'))
+                       ) as chat_logs
+                FROM rp_evaluations e
+                WHERE e.student_id = %s
+                ORDER BY e.created_at DESC
             """, (user_id,))
             evals = cur.fetchall()
 

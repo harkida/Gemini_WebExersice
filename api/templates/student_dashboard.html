@@ -653,7 +653,6 @@ function filterHistory(type, event) {
         }
 
         // 3. 기존 카드 표시/숨김
-
         const rpContainer = document.getElementById('roleplay-history');
         if (rpContainer) rpContainer.style.display = 'none';
         const allCards = document.querySelectorAll('.record-card');
@@ -669,7 +668,6 @@ function filterHistory(type, event) {
     }
 
     async function loadRoleplayHistory() {
-        // 기존 카드 전부 숨김
         document.querySelectorAll('.record-card').forEach(c => c.style.display = 'none');
 
         let container = document.getElementById('roleplay-history');
@@ -686,48 +684,56 @@ function filterHistory(type, event) {
             const data = await res.json();
 
             if (!data.evaluations?.length) {
-                container.innerHTML = '<p style="text-align:center; color:#777; margin-top:30px;">Nessun risultato di roleplay. (아직 롤플레이 기록이 없습니다)</p>';
+                container.innerHTML = '<p style="text-align:center; color:#777; margin-top:30px;">Nessun risultato di roleplay.</p>';
                 return;
             }
 
             container.innerHTML = '';
             for (const ev of data.evaluations) {
                 const card = document.createElement('div');
-                card.className = 'record-card type-roleplay';
+                card.style.cssText = 'background:#1e2030; border:1px solid #2a2d3e; border-radius:10px; margin-bottom:12px; overflow:hidden;';
 
-                // 대화 로그를 HTML로 변환
+                const header = document.createElement('div');
+                header.style.cssText = 'padding:14px 18px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;';
+                header.innerHTML = `
+                    <div>
+                        <div style="font-weight:700; color:#e0e0e0;">🎭 ${ev.scenario_title}</div>
+                        <div style="font-size:0.8rem; color:#666; margin-top:4px;">${ev.created_at} · Team ${ev.team_code} · 👥 ${ev.team_members}</div>
+                    </div>
+                    <span class="rp-toggle" style="color:#666; font-size:1.2rem;">▶</span>
+                `;
+
+                const detail = document.createElement('div');
+                detail.style.cssText = 'display:none; padding:0 18px 18px;';
+
                 let chatHtml = '';
-                if (ev.conversation_log) {
-                    const lines = ev.conversation_log.split('\n').filter(l => l.trim());
-                    chatHtml = lines.map(line => {
-                        if (line.includes('] 학생:')) {
-                            const text = line.split('] 학생:')[1]?.trim() || '';
-                            return `<div style="text-align:right; margin:10px 0;"><span style="background:#7289da; color:#fff; padding:8px 14px; border-radius:14px; font-size:0.9rem; display:inline-block; max-width:80%;">${text}</span></div>`;
-                        } else if (line.includes('] NPC:')) {
-                            const text = line.split('] NPC:')[1]?.trim() || '';
-                            return `<div style="text-align:left; margin:10px 0;"><span style="background:#2c2f33; border:1px solid #444; color:#e0e0e0; padding:8px 14px; border-radius:14px; font-size:0.9rem; display:inline-block; max-width:80%;">${text}</span></div>`;
+                if (ev.chat_logs?.length) {
+                    chatHtml = ev.chat_logs.map(msg => {
+                        if (msg.speaker === 'player' && msg.text) {
+                            return `<div style="text-align:right; margin:10px 0;"><span style="background:#7289da; color:#fff; padding:8px 14px; border-radius:14px; font-size:0.9rem; display:inline-block; max-width:80%;">${msg.text}</span></div>`;
+                        } else if (msg.speaker === 'npc' && msg.text) {
+                            return `<div style="text-align:left; margin:10px 0;"><span style="background:#2c2f33; border:1px solid #444; color:#e0e0e0; padding:8px 14px; border-radius:14px; font-size:0.9rem; display:inline-block; max-width:80%;">${msg.text}</span></div>`;
                         }
                         return '';
                     }).join('');
                 }
 
-                card.innerHTML = `
-                    <div class="header-row">
-                        <div class="header-left">
-                            <div>
-                                <div class="quiz-title">🎭 ${ev.scenario_title}</div>
-                                <div class="date-info">${ev.created_at} · Team ${ev.team_code}</div>
-                                <div style="font-size:0.85rem; color:#888; margin-top:4px;">👥 ${ev.team_members}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="margin-top:12px; max-height:300px; overflow-y:auto; padding:10px; background:#1a1d2e; border-radius:8px; border:1px solid #2a2d3e;">
+                detail.innerHTML = `
+                    <div style="max-height:300px; overflow-y:auto; padding:10px; background:#151725; border-radius:8px; border:1px solid #2a2d3e;">
                         ${chatHtml || '<p style="color:#666; text-align:center;">Nessun log disponibile.</p>'}
                     </div>
                 `;
+
+                header.addEventListener('click', () => {
+                    const isOpen = detail.style.display !== 'none';
+                    detail.style.display = isOpen ? 'none' : 'block';
+                    header.querySelector('.rp-toggle').textContent = isOpen ? '▶' : '▼';
+                });
+
+                card.appendChild(header);
+                card.appendChild(detail);
                 container.appendChild(card);
             }
-
         } catch (e) {
             container.innerHTML = '<p style="text-align:center; color:#ff6b6b;">Errore nel caricamento.</p>';
         }
