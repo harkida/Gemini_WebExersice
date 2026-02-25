@@ -266,9 +266,11 @@ def evaluate_roleplay():
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.3,
-                    max_output_tokens=2048
+                    max_output_tokens=2048,
+                    thinking_config=types.ThinkingConfig(thinking_level="NONE")
                 )
             )
+
             eval_latency = int((time.time() - eval_start) * 1000)
 
             raw_text = response.text
