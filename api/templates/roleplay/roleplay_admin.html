@@ -236,9 +236,6 @@
         <div class="card-header"><div class="card-title">➕ 새 목표 추가</div></div>
         <div class="form-row">
             <div class="form-group"><label>목표 제목 *</label><input type="text" id="gl-title" placeholder="카페에서 주문하기"></div>
-            <div class="form-group"><label>반 (Class)</label>
-                <select id="gl-class"><option value="siena-3">3학년 (Triennale 3)</option><option value="siena-master-1">석사1 (Magistrale 1)</option><option value="siena-master-2">석사2 (Magistrale 2)</option></select>
-            </div>
         </div>
         <div class="form-row full"><div class="form-group"><label>목표 표현</label><input type="text" id="gl-expression" placeholder="주세요, 할게요, 있어요?"></div></div>
         <div class="form-row">
@@ -464,7 +461,7 @@ async function loadGoals() {
             html += `
             <div class="card">
                 <div class="card-header">
-                    <div><span class="card-title">${g.title}</span><span class="card-id">ID: ${g.id} · ${g.class_name||'-'}</span></div>
+                    <div><span class="card-title">${g.title}</span><span class="card-id">ID: ${g.id}</span></div>
                     <div class="card-actions">
                         <button class="btn btn-ghost btn-sm" onclick='editGoal(${JSON.stringify(g).replace(/'/g,"&#39;")})'>수정</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteGoal(${g.id})">삭제</button>
@@ -483,8 +480,7 @@ async function loadGoals() {
 
 function editGoal(g) {
     const html = `
-    <div class="form-row"><div class="form-group"><label>제목</label><input id="ed-gl-title" value="${g.title||''}"></div>
-    <div class="form-group"><label>반</label><select id="ed-gl-class"><option value="siena-3" ${g.class_name==='siena-3'?'selected':''}>3학년 (Triennale 3)</option><option value="siena-master-1" ${g.class_name==='siena-master-1'?'selected':''}>석사1 (Magistrale 1)</option><option value="siena-master-2" ${g.class_name==='siena-master-2'?'selected':''}>석사2 (Magistrale 2)</option></select></div></div>
+    <div class="form-row"><div class="form-group full"><label>제목</label><input id="ed-gl-title" value="${g.title||''}"></div></div>
     <div class="form-row full"><div class="form-group"><label>표현</label><input id="ed-gl-expr" value="${g.target_expression||''}"></div></div>
     <div class="form-row"><div class="form-group"><label>문법</label><input id="ed-gl-gram" value="${g.target_grammar||''}"></div>
     <div class="form-group"><label>어휘</label><input id="ed-gl-vocab" value="${g.target_vocabulary||''}"></div></div>`;
@@ -494,8 +490,7 @@ function editGoal(g) {
             title: document.getElementById('ed-gl-title').value.trim(),
             target_expression: document.getElementById('ed-gl-expr').value.trim(),
             target_grammar: document.getElementById('ed-gl-gram').value.trim(),
-            target_vocabulary: document.getElementById('ed-gl-vocab').value.trim(),
-            class_name: document.getElementById('ed-gl-class').value
+            target_vocabulary: document.getElementById('ed-gl-vocab').value.trim()
         };
         try {
             const res = await fetch(`/api/rp-admin/goals/${g.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
@@ -509,8 +504,7 @@ async function createGoal() {
         title: document.getElementById('gl-title').value.trim(),
         target_expression: document.getElementById('gl-expression').value.trim(),
         target_grammar: document.getElementById('gl-grammar').value.trim(),
-        target_vocabulary: document.getElementById('gl-vocabulary').value.trim(),
-        class_name: document.getElementById('gl-class').value
+        target_vocabulary: document.getElementById('gl-vocabulary').value.trim()
     };
     if (!payload.title) { showStatus('goal-status','❌ 제목 필수','error'); return; }
     try {
