@@ -183,6 +183,9 @@
             </div>
             <div class="form-row full"><div class="form-group"><label>상황 설명</label><textarea id="sc-situation" placeholder="플레이어가 카페에 들어가서..."></textarea></div></div>
             <div class="form-row full"><div class="form-group"><label>대화 목표 (Boundary 판단 기준)</label><textarea id="sc-conv-goal" placeholder="음료를 주문하고 결제한다"></textarea></div></div>
+            <div class="form-row full"><div class="form-group"><label>🇮🇹 Obiettivo (학생에게 보이는 이탈리아어 목표)</label><textarea id="sc-objective-it" placeholder="Ordina una bevanda al bar e paga"></textarea></div></div>
+        </div>
+
         </div>
 
         <div class="form-section">
@@ -357,6 +360,7 @@ function editScenario(s) {
     <div class="form-group"><label>Voice ID</label><input id="ed-sc-voice" value="${s.npc_voice_id||''}"></div></div>
     <div class="form-row full"><div class="form-group"><label>상황</label><textarea id="ed-sc-situation">${s.situation||''}</textarea></div></div>
     <div class="form-row full"><div class="form-group"><label>대화 목표</label><textarea id="ed-sc-goal">${s.conversation_goal||''}</textarea></div></div>
+    <div class="form-row full"><div class="form-group"><label>🇮🇹 Obiettivo</label><textarea id="ed-sc-objective-it">${s.objective_it||''}</textarea></div></div>
     <div class="form-row">
         <div class="form-group"><label>NPC 이름</label><input id="ed-sc-name" value="${s.npc_name||''}"></div>
         <div class="form-group"><label>나이</label><input type="number" id="ed-sc-age" value="${s.npc_age||''}"></div>
@@ -390,6 +394,7 @@ function editScenario(s) {
             title: document.getElementById('ed-sc-title').value.trim(),
             situation: document.getElementById('ed-sc-situation').value.trim(),
             conversation_goal: document.getElementById('ed-sc-goal').value.trim(),
+            objective_it: document.getElementById('ed-sc-objective-it').value.trim(),
             npc_name: document.getElementById('ed-sc-name').value.trim(),
             npc_age: parseInt(document.getElementById('ed-sc-age').value) || null,
             npc_job: document.getElementById('ed-sc-job').value.trim(),
@@ -416,6 +421,7 @@ async function createScenario() {
         title: document.getElementById('sc-title').value.trim(),
         situation: document.getElementById('sc-situation').value.trim(),
         conversation_goal: document.getElementById('sc-conv-goal').value.trim(),
+        objective_it: document.getElementById('sc-objective-it').value.trim(),
         npc_name: document.getElementById('sc-npc-name').value.trim(),
         npc_age: parseInt(document.getElementById('sc-npc-age').value) || null,
         npc_job: document.getElementById('sc-npc-job').value.trim(),
@@ -445,7 +451,7 @@ async function deleteScenario(id) {
 }
 
 function clearScenarioForm() {
-    ['sc-title','sc-situation','sc-conv-goal','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id'].forEach(id => document.getElementById(id).value = '');
+    ['sc-title','sc-situation','sc-conv-goal','sc-objective-it','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id'].forEach(id => document.getElementById(id).value = '');    
     document.getElementById('sc-temperature').value = '0.3';
     document.getElementById('sc-thinking').value = 'LOW';
 }

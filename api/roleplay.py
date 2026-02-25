@@ -860,8 +860,8 @@ def session_info():
         # 시나리오 목록 (순서대로)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT ss.scenario_id, ss.order_num, sc.title, sc.npc_name
-                FROM rp_session_scenarios ss
+                SELECT ss.scenario_id, ss.order_num, sc.title, sc.npc_name, sc.objective_it
+                FROM rp_session_scenarios ss                        
                 JOIN rp_scenarios sc ON ss.scenario_id = sc.id
                 WHERE ss.session_id = %s
                 ORDER BY ss.order_num
@@ -877,7 +877,7 @@ def session_info():
             "team_code": player['team_code'],
             "session_status": player['session_status'],
             "scenarios": scenarios,
-            "max_turns": 8
+            "max_turns": 10
         })
     except Exception as e:
         traceback.print_exc()
@@ -921,7 +921,7 @@ def send_text():
 
         # 2. 턴 제한 확인
         current_turn = get_current_turn(team_id, scenario_id, conn)
-        if current_turn >= 8:
+        if current_turn >= 10:
             return jsonify({"error": "이 시나리오의 턴이 모두 소진되었습니다 (8턴)", "turn_limit_reached": True}), 400
 
         # 3. 시나리오 로드
@@ -1011,7 +1011,7 @@ def send_audio():
 
         # 2. 턴 제한
         current_turn = get_current_turn(team_id, scenario_id, conn)
-        if current_turn >= 8:
+        if current_turn >= 10:
             return jsonify({"error": "턴 소진 (8턴)", "turn_limit_reached": True}), 400
 
         # 3. 시나리오 + 대화기록 로드

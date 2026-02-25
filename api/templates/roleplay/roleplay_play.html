@@ -520,7 +520,7 @@ function applyScenarioDetail(sc) {
     if (sc) {
         currentScenario = sc;
         document.getElementById('npcName').textContent = sc.npc_name || 'NPC';
-        document.getElementById('situationText').textContent = sc.title || '';
+        document.getElementById('situationText').textContent = sc.objective_it || sc.title || '';
     }
 }
 
