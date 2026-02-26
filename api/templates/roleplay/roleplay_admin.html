@@ -242,6 +242,8 @@
         <div class="form-row">
             <div class="form-group"><label>목표 문법</label><input type="text" id="gl-grammar" placeholder="-아/어 주세요"></div>
             <div class="form-group"><label>목표 어휘</label><input type="text" id="gl-vocabulary" placeholder="아메리카노, 라떼"></div>
+            <div class="form-group full"><label>대화 목표 (conversation_goal)</label><textarea id="gl-conv-goal" rows="3" placeholder="예: 학생이 카페에서 음료를 주문하고 결제까지 완료한다."></textarea></div>
+            <div class="form-group full"><label>NPC 행동 방침 (npc_guidelines)</label><textarea id="gl-npc-guide" rows="3" placeholder="예: 근황에 대해 후속 질문은 1번만 한다. 그 후에는 학생이 질문할 수 있도록 대화를 넘긴다."></textarea></div>
         </div>
         <div class="btn-row"><button class="btn btn-primary" onclick="createGoal()">목표 저장</button></div>
     </div>
@@ -475,6 +477,8 @@ async function loadGoals() {
                     <span class="label">표현</span><span class="value">${g.target_expression||'-'}</span>
                     <span class="label">문법</span><span class="value">${g.target_grammar||'-'}</span>
                     <span class="label">어휘</span><span class="value">${g.target_vocabulary||'-'}</span>
+                    <span class="label">대화 목표</span><span class="value">${g.conversation_goal||'-'}</span>
+                    <span class="label">NPC 방침</span><span class="value">${g.npc_guidelines||'-'}</span>                    
                 </div>
             </div>`;
         }
@@ -487,14 +491,18 @@ function editGoal(g) {
     <div class="form-row"><div class="form-group full"><label>제목</label><input id="ed-gl-title" value="${g.title||''}"></div></div>
     <div class="form-row full"><div class="form-group"><label>표현</label><input id="ed-gl-expr" value="${g.target_expression||''}"></div></div>
     <div class="form-row"><div class="form-group"><label>문법</label><input id="ed-gl-gram" value="${g.target_grammar||''}"></div>
-    <div class="form-group"><label>어휘</label><input id="ed-gl-vocab" value="${g.target_vocabulary||''}"></div></div>`;
+    <div class="form-group"><label>어휘</label><input id="ed-gl-vocab" value="${g.target_vocabulary||''}"></div></div>
+    <div class="form-row"><div class="form-group full"><label>대화 목표</label><textarea id="ed-gl-conv-goal" rows="3">${g.conversation_goal||''}</textarea></div></div>
+    <div class="form-row"><div class="form-group full"><label>NPC 행동 방침</label><textarea id="ed-gl-npc-guide" rows="3">${g.npc_guidelines||''}</textarea></div></div>`;
 
     openModal(`목표 수정 (ID: ${g.id})`, html, async () => {
         const payload = {
             title: document.getElementById('ed-gl-title').value.trim(),
             target_expression: document.getElementById('ed-gl-expr').value.trim(),
             target_grammar: document.getElementById('ed-gl-gram').value.trim(),
-            target_vocabulary: document.getElementById('ed-gl-vocab').value.trim()
+            target_vocabulary: document.getElementById('ed-gl-vocab').value.trim(),
+            conversation_goal: document.getElementById('ed-gl-conv-goal').value.trim(),
+            npc_guidelines: document.getElementById('ed-gl-npc-guide').value.trim()
         };
         try {
             const res = await fetch(`/api/rp-admin/goals/${g.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
@@ -508,7 +516,9 @@ async function createGoal() {
         title: document.getElementById('gl-title').value.trim(),
         target_expression: document.getElementById('gl-expression').value.trim(),
         target_grammar: document.getElementById('gl-grammar').value.trim(),
-        target_vocabulary: document.getElementById('gl-vocabulary').value.trim()
+        target_vocabulary: document.getElementById('gl-vocabulary').value.trim(),
+        conversation_goal: document.getElementById('gl-conv-goal').value.trim(),
+        npc_guidelines: document.getElementById('gl-npc-guide').value.trim()        
     };
     if (!payload.title) { showStatus('goal-status','❌ 제목 필수','error'); return; }
     try {

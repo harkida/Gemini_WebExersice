@@ -145,6 +145,14 @@ def load_scenario_from_db(scenario_id, conn):
             "pre_categories": pre_categories
         }
 
+def load_goal_data(goal_id, conn):
+    """세션의 goal_id로 목표 데이터(conversation_goal, npc_guidelines) 로드"""
+    if not goal_id:
+        return None
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT conversation_goal, npc_guidelines FROM rp_goals WHERE id = %s", (goal_id,))
+        return cur.fetchone()
+
 def load_conversation_history(team_id, scenario_id, conn):
     """DB에서 이 팀+시나리오의 대화 기록 로드"""
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -203,12 +211,12 @@ def validate_player_session(user_id, session_id, conn):
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute("""
             SELECT t.id as team_id, t.team_code, s.status as session_status,
-                    s.max_turns
+                    s.max_turns, s.goal_id
             FROM rp_session_members m
             JOIN rp_session_teams t ON m.team_id = t.id
             JOIN rp_sessions s ON t.session_id = s.id
             WHERE m.user_id = %s AND s.id = %s
-        """, (user_id, int(session_id)))
+        """, (user_id, int(session_id)))        
         return cur.fetchone()
 
 # ============================================================
@@ -245,6 +253,10 @@ def build_analyst_prompt(scenario, conversation_history, student_input):
 
 ## 대화 목표
 {scenario.get('conversation_goal', '')}
+
+## NPC 행동 방침 (direction 결정 시 반드시 참고)
+{scenario.get('npc_guidelines', '') if scenario.get('npc_guidelines') else '(없음)'}
+※ 행동 방침이 있으면, 대화 기록을 보고 NPC가 이미 해당 행동을 했는지 판단한 뒤 direction에 반영하라.
 
 ## 사용 가능한 PRE(사전녹음) 카테고리
 아래 목록에 해당하는 상황이면 PRE를 우선 사용하라. 레이턴시 절약에 매우 중요하다.
@@ -356,6 +368,10 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 
 ## 대화 목표
 {scenario.get('conversation_goal', '')}
+
+## NPC 행동 방침 (direction 결정 시 반드시 참고)
+{scenario.get('npc_guidelines', '') if scenario.get('npc_guidelines') else '(없음)'}
+※ 행동 방침이 있으면, 대화 기록을 보고 NPC가 이미 해당 행동을 했는지 판단한 뒤 direction에 반영하라.
 
 ## 사용 가능한 PRE(사전녹음) 카테고리
 {pre_list}
@@ -931,6 +947,14 @@ def send_text():
         if not scenario:
             return jsonify({"error": "시나리오를 찾을 수 없습니다"}), 404
 
+        # 3-1. 목표 데이터 병합 (goal의 conversation_goal/npc_guidelines 우선)
+        goal_data = load_goal_data(player.get('goal_id'), conn)
+        if goal_data:
+            if goal_data.get('conversation_goal'):
+                scenario['conversation_goal'] = goal_data['conversation_goal']
+            if goal_data.get('npc_guidelines'):
+                scenario['npc_guidelines'] = goal_data['npc_guidelines']        
+
         # 4. 대화 기록 로드
         conversation_history = load_conversation_history(team_id, scenario_id, conn)
 
@@ -1021,6 +1045,14 @@ def send_audio():
         scenario = load_scenario_from_db(scenario_id, conn)
         if not scenario:
             return jsonify({"error": "시나리오 없음"}), 404
+
+        # 3-1. 목표 데이터 병합
+        goal_data = load_goal_data(player.get('goal_id'), conn)
+        if goal_data:
+            if goal_data.get('conversation_goal'):
+                scenario['conversation_goal'] = goal_data['conversation_goal']
+            if goal_data.get('npc_guidelines'):
+                scenario['npc_guidelines'] = goal_data['npc_guidelines']
 
         conversation_history = load_conversation_history(team_id, scenario_id, conn)
 

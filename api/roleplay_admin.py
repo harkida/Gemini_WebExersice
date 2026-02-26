@@ -240,14 +240,16 @@ def create_goal():
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO rp_goals (title, target_expression, target_grammar, target_vocabulary, class_name)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id
+                INSERT INTO rp_goals (title, target_expression, target_grammar, target_vocabulary, class_name, conversation_goal, npc_guidelines)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
             """, (
                 data.get('title'),
                 data.get('target_expression'),
                 data.get('target_grammar'),
                 data.get('target_vocabulary'),
-                data.get('class_name')
+                data.get('class_name'),
+                data.get('conversation_goal'),
+                data.get('npc_guidelines')
             ))
             new_id = cur.fetchone()[0]
             conn.commit()
@@ -286,13 +288,16 @@ def update_goal(goal_id):
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                UPDATE rp_goals SET title=%s, target_expression=%s, target_grammar=%s, target_vocabulary=%s, class_name=%s
+                UPDATE rp_goals SET title=%s, target_expression=%s, target_grammar=%s, target_vocabulary=%s, class_name=%s,
+                    conversation_goal=%s, npc_guidelines=%s
                 WHERE id=%s
             """, (
                 data.get('title'), data.get('target_expression'),
                 data.get('target_grammar'), data.get('target_vocabulary'),
-                data.get('class_name'), goal_id
-            ))
+                data.get('class_name'),
+                data.get('conversation_goal'), data.get('npc_guidelines'),
+                goal_id
+            ))            
             conn.commit()
             return jsonify({"success": True})
     except Exception as e:
