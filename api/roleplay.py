@@ -885,6 +885,11 @@ def session_info():
             """, (session_id,))
             scenarios = cur.fetchall()
 
+        # 팀별 랜덤 순서
+        import random
+        rng = random.Random(player['team_id'])
+        rng.shuffle(scenarios)
+
         # 각 시나리오별 현재 턴 + 완료 여부
         for sc in scenarios:
             sc['current_turn'] = get_current_turn(player['team_id'], sc['scenario_id'], conn)
@@ -898,7 +903,7 @@ def session_info():
                     LIMIT 1
                 """, (player['team_id'], sc['scenario_id']))
                 sc['is_completed'] = cur2.fetchone() is not None
-                
+
         return jsonify({
             "team_id": player['team_id'],
             "team_code": player['team_code'],
