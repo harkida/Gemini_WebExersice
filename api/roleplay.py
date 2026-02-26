@@ -885,10 +885,20 @@ def session_info():
             """, (session_id,))
             scenarios = cur.fetchall()
 
-        # 각 시나리오별 현재 턴
+        # 각 시나리오별 현재 턴 + 완료 여부
         for sc in scenarios:
             sc['current_turn'] = get_current_turn(player['team_id'], sc['scenario_id'], conn)
-
+            # 완료 여부 확인 ([GOAL_ACHIEVED] 또는 [EXIT] 마커 존재 여부)
+            with conn.cursor() as cur2:
+                cur2.execute("""
+                    SELECT 1 FROM rp_conversation_logs
+                    WHERE team_id = %s AND scenario_id = %s
+                      AND speaker = 'npc'
+                      AND message_text IN ('[GOAL_ACHIEVED]', '[EXIT]')
+                    LIMIT 1
+                """, (player['team_id'], sc['scenario_id']))
+                sc['is_completed'] = cur2.fetchone() is not None
+                
         return jsonify({
             "team_id": player['team_id'],
             "team_code": player['team_code'],
