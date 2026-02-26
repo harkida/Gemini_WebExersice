@@ -224,12 +224,22 @@ def evaluate_roleplay():
 
             # ── 4. 시나리오 정보 ──
             cur.execute("""
-                SELECT title, situation, conversation_goal, npc_name, npc_job
+                SELECT title, situation, npc_name, npc_job
                 FROM rp_scenarios WHERE id = %s
             """, (scenario_id,))
             scenario = cur.fetchone()
             if not scenario:
                 return jsonify({"error": "시나리오 없음"}), 404
+
+            # ── 4-1. 목표에서 conversation_goal 로드 ──
+            cur.execute("""
+                SELECT g.conversation_goal
+                FROM rp_sessions s
+                JOIN rp_goals g ON s.goal_id = g.id
+                WHERE s.id = %s
+            """, (team_info['session_id'],))
+            goal_row = cur.fetchone()
+            conversation_goal = goal_row['conversation_goal'] if goal_row else (scenario.get('conversation_goal') or '')
 
             # ── 5. 대화 기록 ──
             cur.execute("""
@@ -254,7 +264,7 @@ def evaluate_roleplay():
             prompt = ROLEPLAY_EVALUATION_PROMPT.format(
                 scenario_title=scenario['title'],
                 situation=scenario['situation'],
-                conversation_goal=scenario['conversation_goal'],
+                conversation_goal=conversation_goal,
                 npc_name=scenario['npc_name'],
                 npc_job=scenario['npc_job'] or '',
                 conversation_log=conversation_log

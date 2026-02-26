@@ -111,7 +111,7 @@ def create_scenario():
 
             cur.execute("""
                 INSERT INTO rp_scenarios (
-                    title, situation, conversation_goal, objective_it,
+                    title, situation, objective_it,
                     illustration_url,
                     npc_name, npc_age, npc_job,
                     npc_personality, npc_current_state, npc_knowledge,
@@ -122,7 +122,6 @@ def create_scenario():
             """, (
                 data.get('title'),
                 data.get('situation'),
-                data.get('conversation_goal'),
                 data.get('objective_it'),
                 data.get('illustration_url'),
                 data.get('npc_name'),
@@ -183,14 +182,14 @@ def update_scenario(scenario_id):
 
             cur.execute("""
                 UPDATE rp_scenarios SET
-                    title=%s, situation=%s, conversation_goal=%s, objective_it=%s,
+                    title=%s, situation=%s, objective_it=%s,
                     illustration_url=%s,                        
                     npc_name=%s, npc_age=%s, npc_job=%s,
                     npc_personality=%s, npc_current_state=%s, npc_knowledge=%s,
                     npc_voice_id=%s, temperature=%s, thinking_level=%s
                 WHERE id=%s
             """, (
-                data.get('title'), data.get('situation'), data.get('conversation_goal'), data.get('objective_it'),
+                data.get('title'), data.get('situation'), data.get('objective_it'),
                 data.get('illustration_url'),
                 data.get('npc_name'), data.get('npc_age'), data.get('npc_job'),
                 data.get('npc_personality'), data.get('npc_current_state'), npc_knowledge,
