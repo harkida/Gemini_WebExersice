@@ -524,7 +524,7 @@ async function createGoal() {
     try {
         const res = await fetch('/api/rp-admin/goals', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
         const data = await res.json();
-        if (data.success) { showStatus('goal-status',`✅ 저장 완료! (ID: ${data.id})`,'success'); ['gl-title','gl-expression','gl-grammar','gl-vocabulary'].forEach(id=>document.getElementById(id).value=''); loadGoals(); }
+        if (data.success) { showStatus('goal-status',`✅ 저장 완료! (ID: ${data.id})`,'success'); ['gl-title','gl-expression','gl-grammar','gl-vocabulary','gl-conv-goal','gl-npc-guide'].forEach(id=>document.getElementById(id).value=''); loadGoals(); }
         else showStatus('goal-status',`❌ ${data.error}`,'error');
     } catch(e) { showStatus('goal-status',`❌ ${e.message}`,'error'); }
 }
