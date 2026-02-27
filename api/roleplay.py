@@ -272,13 +272,13 @@ def build_analyst_prompt(scenario, conversation_history, student_input):
 
 ## 판단 우선순위 (반드시 이 순서를 따를 것)
 1단계: 학생의 발화를 이해할 수 있는가?
-  - 완전히 이해 불가 → PRE "not_understood"
-  - 부분적으로 이해 → DYN (되묻기)
-  - 이해 가능 → 2단계로
+  - 의미를 전혀 파악 불가 → 형식2 DYN (되묻기, intended=null)
+  - 표현이 어색/부정확하지만 대충 이해 가능 → 형식2 DYN (확인, intended="추정 표현")
+  - 완전히 이해 가능 → 2단계로
 2단계: PRE 웨이포인트에 해당하는가?
-  - 해당함 → PRE + category
+  - 해당함 → 형식1 PRE + category
   - 해당하지 않음 → 3단계로
-3단계: DYN + 감정 분석
+3단계: 형식3 DYN + 감정 분석
 
 ## 대화 기록
 {history_text}
@@ -312,14 +312,16 @@ goal_achieved = false: 아직 목표 미달성
 
 ## 출력 형식 (3가지 중 하나):
 
-형식1 - PRE:
-{{"route":"PRE","category":"카테고리명","boundary":0, "goal_achieved":false}}
+형식1 - PRE (완전 이해 + 웨이포인트 해당):
+{{"route":"PRE","category":"카테고리명","boundary":0또는1,"goal_achieved":false}}
 
-형식2 - DYN 부분 이해:
-{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","boundary":0또는1, "goal_achieved":false}}
+형식2 - DYN 부분 이해 / 어색한 표현:
+{{"route":"DYN","understood":"partial","heard":"학생이 쓴 표현","intended":"추정되는 올바른 표현 또는 null","direction":"되묻기 또는 확인 방향","boundary":0또는1,"goal_achieved":false}}
+※ intended가 있으면: NPC가 "~라는 말씀이시죠?" 패턴으로 확인
+※ intended가 null이면: NPC가 "다시 말씀해주시겠어요?" 식으로 되묻기
 
 형식3 - DYN 완전 이해:
-{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","boundary":0또는1, "goal_achieved":false}}
+{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","boundary":0또는1,"goal_achieved":false}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
     
@@ -342,15 +344,44 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 
     prompt = f"""너는 롤플레이 게임의 "분석가"이다. 너의 역할은 플레이어(한국어 학습 중인 이탈리아 학생)의 발화를 분석하고, NPC가 어떻게 반응해야 하는지 판단하는 것이다.
 
-## 🎤 중요: 음성 입력 (이 규칙은 절대적이다)
-첨부된 오디오 파일은 학생이 직접 말한 음성이다.
-1. 먼저 음성을 듣고 한국어인지 판별하라.
-2. 한국어가 아닌 경우 (영어, 이탈리아어, 기타 외국어): 형식4(음성 인식 실패)로 처리하라. 절대로 한국어로 추측하지 마라.
-3. 한국어인 경우: 텍스트로 변환하여 "transcribed_text"에 포함하라.
-4. 그 텍스트를 기반으로 아래 분석을 수행하라.
-※ 학생은 한국어 학습자이므로 발음이 부정확할 수 있다. 관대하게 인식하되, 한국어가 전혀 들리지 않으면 추측하지 마라.
-※ 음성이 너무 짧거나(1초 미만), 잡음만 있거나, 한국어가 아닌 경우 → 형식4를 사용하라.
-※ 판단 기준: 음성에서 한국어 단어가 1개라도 명확히 들리면 한국어로 처리. 한국어 단어가 전혀 안 들리면 무조건 형식4.
+## 🎤 음성 입력 처리 (3단계 — 반드시 순서대로)
+
+### STEP 1: 순수 음성 전사 (BLIND MODE — 가장 중요)
+이 단계에서 너는 아래의 NPC 정보, 상황, 대화 기록을 전혀 모른다고 가정하라.
+오직 귀로 들리는 소리를 한글로 변환하는 것이 전부다.
+
+**절대 규칙:**
+- 모든 소리를 한글로 적어라. 외국어도 한글로 음차하라.
+- 학생이 실제로 발음한 소리를 있는 그대로(as-is) 전사하라.
+- 문맥을 기반으로 자동 교정(correction)하지 마라.
+- 문법적으로 틀린 조사, 어미, 어휘라도 들린 그대로 적어라.
+
+✅ 올바른 전사 예:
+- 학생이 "아메리카도 주세오"라고 발음 → "아메리카도 주세오"
+- 학생이 "커피를 마시고 싶어여"라고 발음 → "커피를 마시고 싶어여"
+- 학생이 "이거 얼마에오?"라고 발음 → "이거 얼마에오?"
+- 학생이 "Come ti chiami?"라고 말함 → "코메 티 키아미?"
+- 학생이 "학교를 가요"라고 말함 → "학교를 가요"
+
+❌ 절대 금지:
+- "아메리카도 주세오" → "아메리카노 주세요" (❌ 교정 금지!)
+- "커피를 마시고 싶어여" → "커피를 마시고 싶어요" (❌ 어미 교정 금지!)
+- "학교를 가요" → "학교에 가요" (❌ 조사 교정 금지!)
+- "이거 얼마에오?" → "이거 얼마예요?" (❌ 추측 금지!)
+
+**특수 상황:**
+- 침묵/잡음만 있으면: transcribed_text를 빈 문자열("")로
+- 음성이 1초 미만이면: transcribed_text를 빈 문자열("")로
+
+### STEP 2: 언어 판별
+STEP 1에서 전사한 텍스트를 보고 판별하라:
+- 한국어 단어가 1개라도 포함 → 한국어로 판단, STEP 3으로
+- 한국어 단어가 전혀 없음 (외국어만) → 형식4 사용
+- 빈 문자열 (침묵/잡음) → 형식4 사용
+
+### STEP 3: 분석
+이제 아래의 NPC 정보와 상황을 참고하여 PRE/DYN 판단을 수행하라.
+단, transcribed_text는 STEP 1의 결과를 절대 수정하지 마라.
 
 ## NPC 정보
 - 이름: {npc['name']}
@@ -386,13 +417,13 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 
 ## 판단 우선순위 (반드시 이 순서를 따를 것)
 1단계: 학생의 발화를 이해할 수 있는가?
-  - 완전히 이해 불가 → PRE "not_understood"
-  - 부분적으로 이해 → DYN (되묻기)
-  - 이해 가능 → 2단계로
+  - 한국어이지만 의미를 전혀 파악 불가 → 형식2 DYN (되묻기, intended=null)
+  - 한국어이지만 표현이 어색/부정확 → 형식2 DYN (확인, intended="추정 표현")
+  - 완전히 이해 가능 → 2단계로
 2단계: PRE 웨이포인트에 해당하는가?
-  - 해당함 → PRE + category
+  - 해당함 → 형식1 PRE + category
   - 해당하지 않음 → 3단계로
-3단계: DYN + 감정 분석
+3단계: 형식3 DYN + 감정 분석
 
 ## 대화 기록
 {history_text}
@@ -422,17 +453,19 @@ goal_achieved = false: 아직 목표 미달성
 
 ## 출력 형식 (4가지 중 하나):
 
-형식1 - PRE:
-{{"route":"PRE","category":"카테고리명","transcribed_text":"인식된 텍스트", "boundary":0, "goal_achieved":false}}
+형식1 - PRE (완전 이해 + 웨이포인트 해당):
+{{"route":"PRE","category":"카테고리명","transcribed_text":"STEP1 전사 결과","boundary":0또는1,"goal_achieved":false}}
 
-형식2 - DYN 부분 이해:
-{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","transcribed_text":"인식된 텍스트", "boundary":0또는1, "goal_achieved":false}}
+형식2 - DYN 부분 이해 / 어색한 표현:
+{{"route":"DYN","understood":"partial","heard":"들린 부분","intended":"추정되는 올바른 표현 또는 null","direction":"되묻기 또는 확인 방향","transcribed_text":"STEP1 전사 결과","boundary":0또는1,"goal_achieved":false}}
+※ intended가 있으면: NPC가 "~라는 말씀이시죠?" 패턴으로 확인할 수 있다
+※ intended가 null이면: NPC가 "다시 말씀해주시겠어요?" 식으로 되묻는다
 
 형식3 - DYN 완전 이해:
-{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트", "boundary":0또는1, "goal_achieved":false}}
+{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"STEP1 전사 결과","boundary":0또는1,"goal_achieved":false}}
 
-형식4 - 음성 인식 실패:
-{{"route":"PRE","category":"not_understood","transcribed_text":"","boundary":1,"goal_achieved":false}}
+형식4 - 외국어 / 인식 실패 (한국어가 아니거나 소리 없음):
+{{"route":"DYN","understood":false,"is_korean":false,"transcribed_text":"STEP1 전사 결과 또는 빈문자열","direction":"외국어라서 못 알아듣겠다는 자연스러운 반응","boundary":1,"goal_achieved":false}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 
@@ -496,7 +529,11 @@ def build_actor_prompt(scenario, conversation_history, analyst_json, student_inp
 
 5. **NPC 도메인 지식을 반드시 확인하고 정확히 따르라.** 메뉴, 가격, 옵션 정보가 도메인 지식에 있으면 반드시 그대로 사용하라. 도메인 지식에 없는 선택지를 만들어내지 마라. 예: 메뉴에 "온도":["아이스"]만 있으면 핫/아이스를 묻지 말고 바로 아이스로 진행하라.
 
-6. **direction을 충실히 따르되, 대사는 네가 직접 만들어라.** direction은 지시일 뿐, 그대로 읽지 마라.
+7. **반말 금지.** NPC는 항상 존댓말(해요체 또는 합쇼체)을 사용하라. 학생이 존댓말을 하든 반말을 하든, NPC는 절대 반말을 쓰지 않는다.
+
+8. **부분 이해 시 확인 패턴.** 분석가가 "understood":"partial"이고 "intended" 값이 있으면, NPC는 intended의 내용을 활용하여 "~라는 말씀이시죠?", "~요?", "혹시 ~(이)요?" 패턴으로 자연스럽게 확인하라.
+   예: intended가 "아메리카노 주세요"이면 → "아메리카노 주세요...라는 말씀이시죠?"
+   예: intended가 "카드로 할게요"이면 → "카드로 하신다는 거죠?"
 
 ## 출력
 대사 텍스트만 출력하라. 따옴표, 설명, JSON 등 다른 것은 일절 금지.
