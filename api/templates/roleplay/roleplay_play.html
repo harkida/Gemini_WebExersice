@@ -445,9 +445,12 @@ async function syncFromServer() {
                 addMessage('system', `🚪 ${npcName} ha lasciato la conversazione.`);
                 stopSyncPolling();
                 document.querySelector('.input-area').style.display = 'none';
+                // ★ EXIT 동기화에서도 채점 요청
+                fetch(`/api/rp/evaluate?team_id=${teamId}&scenario_id=${currentScenarioId}`, { method: 'POST' });
                 showExitOptions();
                 return;
             }
+
 
             // Goal Achievement 동기화 체크
             const goalLog = newLogs.find(log => log.speaker === 'npc' && log.message_text === '[GOAL_ACHIEVED]');
@@ -738,9 +741,11 @@ async function processPlayerInput(input) {
             addMessage('system', `🚪 ${npcName} ha lasciato la conversazione.`);
             stopSyncPolling();
             document.querySelector('.input-area').style.display = 'none';
+            // ★ EXIT에서도 채점 요청
+            fetch(`/api/rp/evaluate?team_id=${teamId}&scenario_id=${currentScenarioId}`, { method: 'POST' });
             showExitOptions();
             return;
-        }    
+        }
 
         // Goal Achievement 처리
         if (data.goal_achieved) {
@@ -967,7 +972,26 @@ async function switchToNextScenario(nextId) {
 function showComplete() {
     stopSyncPolling();
     document.querySelector('.input-area').style.display = 'none';
-    addMessage('system', '🎉 Conversazione completata! Hai usato tutti i turni disponibili.<br>Non è possibile continuare la conversazione.');
+
+    // ★ 채점 요청 추가 (goal 미달성이어도 채점)
+    fetch(`/api/rp/evaluate?team_id=${teamId}&scenario_id=${currentScenarioId}`, { method: 'POST' });
+
+    // ★ 다음 시나리오 버튼 추가
+    const currentIdx = allScenarios.findIndex(sc => sc.scenario_id === currentScenarioId);
+    const nextScenario = allScenarios[currentIdx + 1];
+
+    let btnHtml = '';
+    if (nextScenario) {
+        btnHtml = `<br><button onclick="switchToNextScenario(${nextScenario.scenario_id})" 
+                    style="margin-top:12px; padding:10px 24px; background:#7c6ff7; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:15px;">
+                    ➡️ Prossimo scenario</button>`;
+    } else {
+        btnHtml = `<br><button onclick="exitPlay()" 
+                    style="margin-top:12px; padding:10px 24px; background:#f0a500; color:#000; border:none; border-radius:8px; cursor:pointer; font-size:15px;">
+                    🏠 Torna alla lobby</button>`;
+    }
+
+    addMessage('system', `🎉 Conversazione completata! Hai usato tutti i turni disponibili.${btnHtml}`);
 }
 
 function showAllCompleted() {

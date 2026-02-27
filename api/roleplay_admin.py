@@ -646,6 +646,11 @@ def teacher_team_scenarios():
             """, (int(session_id),))
             scenarios = cur.fetchall()
 
+            # ★ 학생 측과 동일한 셔플 적용
+            import random
+            rng = random.Random(int(team_id))
+            rng.shuffle(scenarios)
+            
             # 팀 멤버
             cur.execute("""
                 SELECT m.user_id, u.full_name
