@@ -373,6 +373,7 @@ let syncInterval = null;
 let lastKnownTurn = 0;
 let lastKnownLogCount = 0;
 let allScenarios = [];
+let currentPlayerName = 'Tu';
 
 // ═══════════ 초기화 ═══════════
 document.addEventListener('DOMContentLoaded', async () => {
@@ -538,6 +539,11 @@ function applyScenarioDetail(sc) {
         currentScenario = sc;
         document.getElementById('npcName').textContent = sc.npc_name || 'NPC';
         document.getElementById('situationText').textContent = sc.objective_it || sc.title || '';
+
+        // npc_knowledge에서 플레이어 이름 추출
+        let knowledge = sc.npc_knowledge;
+        if (typeof knowledge === 'string') { try { knowledge = JSON.parse(knowledge); } catch { knowledge = {}; } }
+        currentPlayerName = (knowledge?.player?.name) || 'Tu';
     }
 }
 
@@ -730,7 +736,7 @@ async function processPlayerInput(input) {
             const msgs = document.querySelectorAll('.msg.player');
             const lastMsg = msgs[msgs.length - 1];
             if (lastMsg) {
-                lastMsg.innerHTML = `<div class="label">Tu</div>🎤 "${data.transcribed_text}"<div class="meta">Turno ${data.turn_number}</div>`;
+                lastMsg.innerHTML = `<div class="label">${escapeHtml(currentPlayerName)}</div>🎤 "${data.transcribed_text}"<div class="meta">Turno ${data.turn_number}</div>`;
             }
         }
 
@@ -791,7 +797,7 @@ function addMessage(role, text, label) {
     msg.className = `msg ${role}`;
 
     if (role === 'player') {
-        msg.innerHTML = `<div class="label">Tu</div>${escapeHtml(text)}`;
+        msg.innerHTML = `<div class="label">${escapeHtml(currentPlayerName)}</div>${escapeHtml(text)}`;
     } else if (role === 'system') {
         msg.innerHTML = text;
     } else {

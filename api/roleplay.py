@@ -973,7 +973,8 @@ def session_info():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT ss.scenario_id, ss.order_num, sc.title, sc.npc_name,
-                       sc.illustration_url, sc.speech_style
+                       sc.illustration_url, sc.speech_style, sc.npc_knowledge,
+                       sc.situation
                 FROM rp_session_scenarios ss                        
                 JOIN rp_scenarios sc ON ss.scenario_id = sc.id
                 WHERE ss.session_id = %s
