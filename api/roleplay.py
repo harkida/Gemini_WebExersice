@@ -972,12 +972,27 @@ def session_info():
         # 시나리오 목록 (순서대로)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT ss.scenario_id, ss.order_num, sc.title, sc.npc_name, sc.objective_it
+                SELECT ss.scenario_id, ss.order_num, sc.title, sc.npc_name,
+                       sc.illustration_url, sc.speech_style
                 FROM rp_session_scenarios ss                        
                 JOIN rp_scenarios sc ON ss.scenario_id = sc.id
                 WHERE ss.session_id = %s
                 ORDER BY ss.order_num
             """, (session_id,))
+            scenarios = cur.fetchall()
+
+            # 세션의 goal에서 objective_it 로드
+            cur.execute("""
+                SELECT g.objective_it FROM rp_sessions s
+                JOIN rp_goals g ON s.goal_id = g.id
+                WHERE s.id = %s
+            """, (session_id,))
+            goal_row = cur.fetchone()
+            objective_it = goal_row['objective_it'] if goal_row else ''
+
+            # 모든 시나리오에 objective_it 추가
+            for sc in scenarios:
+                sc['objective_it'] = objective_it
             scenarios = cur.fetchall()
 
         # 팀별 랜덤 순서
