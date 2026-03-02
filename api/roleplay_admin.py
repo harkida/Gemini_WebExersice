@@ -111,19 +111,19 @@ def create_scenario():
 
             cur.execute("""
                 INSERT INTO rp_scenarios (
-                    title, situation, objective_it,
-                    illustration_url,
+                    title, situation,
+                    illustration_url, speech_style,
                     npc_name, npc_age, npc_job,
                     npc_personality, npc_current_state, npc_knowledge,
                     npc_voice_id, temperature, thinking_level
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 ) RETURNING id
             """, (
                 data.get('title'),
                 data.get('situation'),
-                data.get('objective_it'),
                 data.get('illustration_url'),
+                data.get('speech_style', '비격식 존댓말'),
                 data.get('npc_name'),
                 data.get('npc_age'),
                 data.get('npc_job'),
@@ -134,6 +134,8 @@ def create_scenario():
                 data.get('temperature', 0.3),
                 data.get('thinking_level', 'LOW')
             ))
+
+            
             new_id = cur.fetchone()[0]
             conn.commit()
             return jsonify({"success": True, "id": new_id})
@@ -182,20 +184,22 @@ def update_scenario(scenario_id):
 
             cur.execute("""
                 UPDATE rp_scenarios SET
-                    title=%s, situation=%s, objective_it=%s,
-                    illustration_url=%s,                        
+                    title=%s, situation=%s,
+                    illustration_url=%s, speech_style=%s,
                     npc_name=%s, npc_age=%s, npc_job=%s,
                     npc_personality=%s, npc_current_state=%s, npc_knowledge=%s,
                     npc_voice_id=%s, temperature=%s, thinking_level=%s
                 WHERE id=%s
             """, (
-                data.get('title'), data.get('situation'), data.get('objective_it'),
-                data.get('illustration_url'),
+                data.get('title'), data.get('situation'),
+                data.get('illustration_url'), data.get('speech_style', '비격식 존댓말'),
                 data.get('npc_name'), data.get('npc_age'), data.get('npc_job'),
                 data.get('npc_personality'), data.get('npc_current_state'), npc_knowledge,
                 data.get('npc_voice_id'), data.get('temperature', 0.3), data.get('thinking_level', 'LOW'),
                 scenario_id
             ))
+
+
             conn.commit()
             return jsonify({"success": True})
     except Exception as e:
@@ -238,9 +242,10 @@ def create_goal():
     if not conn: return jsonify({"error": "DB 연결 실패"}), 500
     try:
         with conn.cursor() as cur:
+            
             cur.execute("""
-                INSERT INTO rp_goals (title, target_expression, target_grammar, target_vocabulary, class_name, conversation_goal, npc_guidelines)
-                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                INSERT INTO rp_goals (title, target_expression, target_grammar, target_vocabulary, class_name, conversation_goal, npc_guidelines, objective_it)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             """, (
                 data.get('title'),
                 data.get('target_expression'),
@@ -248,8 +253,10 @@ def create_goal():
                 data.get('target_vocabulary'),
                 data.get('class_name'),
                 data.get('conversation_goal'),
-                data.get('npc_guidelines')
+                data.get('npc_guidelines'),
+                data.get('objective_it')
             ))
+
             new_id = cur.fetchone()[0]
             conn.commit()
             return jsonify({"success": True, "id": new_id})
@@ -288,15 +295,16 @@ def update_goal(goal_id):
         with conn.cursor() as cur:
             cur.execute("""
                 UPDATE rp_goals SET title=%s, target_expression=%s, target_grammar=%s, target_vocabulary=%s, class_name=%s,
-                    conversation_goal=%s, npc_guidelines=%s
+                    conversation_goal=%s, npc_guidelines=%s, objective_it=%s
                 WHERE id=%s
             """, (
                 data.get('title'), data.get('target_expression'),
                 data.get('target_grammar'), data.get('target_vocabulary'),
                 data.get('class_name'),
                 data.get('conversation_goal'), data.get('npc_guidelines'),
+                data.get('objective_it'),
                 goal_id
-            ))            
+            ))
             conn.commit()
             return jsonify({"success": True})
     except Exception as e:
