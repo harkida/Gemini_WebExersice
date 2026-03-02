@@ -138,7 +138,7 @@ def load_scenario_from_db(scenario_id, conn):
                 "knowledge": npc_knowledge or {}
             },
             "situation": sc.get('situation', ''),
-            "conversation_goal": sc.get('conversation_goal', ''),
+            "speech_style": sc.get('speech_style', '비격식 존댓말'),
             "voice_id": sc.get('npc_voice_id'),
             "temperature": sc.get('temperature', 0.3),
             "thinking_level": sc.get('thinking_level', 'LOW'),
