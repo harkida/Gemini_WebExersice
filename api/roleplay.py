@@ -993,7 +993,6 @@ def session_info():
             # 모든 시나리오에 objective_it 추가
             for sc in scenarios:
                 sc['objective_it'] = objective_it
-            scenarios = cur.fetchall()
 
         # 팀별 랜덤 순서
         import random
