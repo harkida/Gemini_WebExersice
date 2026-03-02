@@ -265,6 +265,7 @@
             <div class="form-group full"><label>대화 목표 (conversation_goal)</label><textarea id="gl-conv-goal" rows="3" placeholder="예: 학생이 카페에서 음료를 주문하고 결제까지 완료한다."></textarea></div>
             <div class="form-group full"><label>NPC 행동 방침 (npc_guidelines)</label><textarea id="gl-npc-guide" rows="3" placeholder="예: 근황에 대해 후속 질문은 1번만 한다. 그 후에는 학생이 질문할 수 있도록 대화를 넘긴다."></textarea></div>
         </div>
+        <div class="form-row full"><div class="form-group"><label>🇮🇹 Obiettivo (학생에게 보이는 이탈리아어 목표)</label><textarea id="gl-objective-it" rows="2" placeholder="Ordina una bevanda al bar e paga"></textarea></div></div>
         <div class="btn-row"><button class="btn btn-primary" onclick="createGoal()">목표 저장</button></div>
     </div>
 
@@ -374,11 +375,27 @@ async function loadScenarios() {
 function editScenario(s) {
     const knowledge = typeof s.npc_knowledge === 'object' ? JSON.stringify(s.npc_knowledge, null, 2) : (s.npc_knowledge || '');
     
+    // 기존 도메인 지식에서 player 정보 분리
+    let knowledgeForEdit = typeof s.npc_knowledge === 'object' ? {...s.npc_knowledge} : {};
+    if (typeof s.npc_knowledge === 'string') { try { knowledgeForEdit = JSON.parse(s.npc_knowledge); } catch { knowledgeForEdit = {}; } }
+    const playerInfo = knowledgeForEdit.player || {};
+    delete knowledgeForEdit.player;
+    const knowledgeStrForEdit = Object.keys(knowledgeForEdit).length > 0 ? JSON.stringify(knowledgeForEdit, null, 2) : '';
+
     const html = `
     <div class="form-row"><div class="form-group"><label>제목</label><input id="ed-sc-title" value="${s.title||''}"></div>
     <div class="form-group"><label>Voice ID</label><input id="ed-sc-voice" value="${s.npc_voice_id||''}"></div></div>
     <div class="form-row full"><div class="form-group"><label>상황</label><textarea id="ed-sc-situation">${s.situation||''}</textarea></div></div>
-    <div class="form-row full"><div class="form-group"><label>🇮🇹 Obiettivo</label><textarea id="ed-sc-objective-it">${s.objective_it||''}</textarea></div></div>
+    <div class="form-row">
+        <div class="form-group"><label>🖼️ 삽화 URL</label><input id="ed-sc-illustration" value="${s.illustration_url||''}"></div>
+        <div class="form-group"><label>🗣️ NPC 말투</label>
+            <select id="ed-sc-speech-style">
+                <option value="격식 존댓말" ${s.speech_style==='격식 존댓말'?'selected':''}>격식 존댓말</option>
+                <option value="비격식 존댓말" ${s.speech_style==='비격식 존댓말'||!s.speech_style?'selected':''}>비격식 존댓말</option>
+                <option value="반말" ${s.speech_style==='반말'?'selected':''}>반말</option>
+            </select>
+        </div>
+    </div>
     <div class="form-row">
         <div class="form-group"><label>NPC 이름</label><input id="ed-sc-name" value="${s.npc_name||''}"></div>
         <div class="form-group"><label>나이</label><input type="number" id="ed-sc-age" value="${s.npc_age||''}"></div>
@@ -386,7 +403,7 @@ function editScenario(s) {
     <div class="form-row full"><div class="form-group"><label>직업</label><input id="ed-sc-job" value="${s.npc_job||''}"></div></div>
     <div class="form-row full"><div class="form-group"><label>성격</label><textarea id="ed-sc-personality">${s.npc_personality||''}</textarea></div></div>
     <div class="form-row full"><div class="form-group"><label>현재 상태</label><textarea id="ed-sc-state">${s.npc_current_state||''}</textarea></div></div>
-    <div class="form-row full"><div class="form-group"><label>도메인 지식 (JSON)</label><textarea id="ed-sc-knowledge" rows="4">${knowledge}</textarea></div></div>
+    <div class="form-row full"><div class="form-group"><label>도메인 지식 (JSON)</label><textarea id="ed-sc-knowledge" rows="4">${knowledgeStrForEdit}</textarea></div></div>
     <div class="form-row">
         <div class="form-group"><label>Temperature</label>
             <select id="ed-sc-temperature">
@@ -404,20 +421,49 @@ function editScenario(s) {
                 <option value="HIGH" ${s.thinking_level==='HIGH'?'selected':''}>HIGH</option>
             </select>
         </div>
+    </div>
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid #2a2d3e;">
+        <div style="font-size:13px; color:#7c6ff7; margin-bottom:10px; font-weight:500;">🎭 플레이어 정보</div>
+        <div class="form-row">
+            <div class="form-group"><label>이름</label><input id="ed-sc-player-name" value="${playerInfo.name||''}"></div>
+            <div class="form-group"><label>역할</label><input id="ed-sc-player-role" value="${playerInfo.role||''}"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>호칭</label><input id="ed-sc-player-address" value="${playerInfo.how_to_address||''}"></div>
+            <div class="form-group"><label>관계</label><input id="ed-sc-player-relationship" value="${playerInfo.relationship||''}"></div>
+        </div>
     </div>`;
 
     openModal(`시나리오 수정 (ID: ${s.id})`, html, async () => {
 
+        // 도메인 지식 + 플레이어 정보 병합
+        let editKnowledge = {};
+        const editKnStr = document.getElementById('ed-sc-knowledge').value.trim();
+        if (editKnStr) { try { editKnowledge = JSON.parse(editKnStr); } catch { showStatus('scenario-status','❌ JSON 형식 오류','error'); return; } }
+        const edPlayerName = document.getElementById('ed-sc-player-name').value.trim();
+        const edPlayerRole = document.getElementById('ed-sc-player-role').value.trim();
+        const edPlayerAddress = document.getElementById('ed-sc-player-address').value.trim();
+        const edPlayerRel = document.getElementById('ed-sc-player-relationship').value.trim();
+        if (edPlayerName || edPlayerRole || edPlayerAddress || edPlayerRel) {
+            editKnowledge.player = {
+                name: edPlayerName || null,
+                role: edPlayerRole || null,
+                how_to_address: edPlayerAddress || null,
+                relationship: edPlayerRel || null
+            };
+        }
+
         const payload = {
             title: document.getElementById('ed-sc-title').value.trim(),
             situation: document.getElementById('ed-sc-situation').value.trim(),
-            objective_it: document.getElementById('ed-sc-objective-it').value.trim(),
+            illustration_url: document.getElementById('ed-sc-illustration').value.trim() || null,
+            speech_style: document.getElementById('ed-sc-speech-style').value,
             npc_name: document.getElementById('ed-sc-name').value.trim(),
             npc_age: parseInt(document.getElementById('ed-sc-age').value) || null,
             npc_job: document.getElementById('ed-sc-job').value.trim(),
             npc_personality: document.getElementById('ed-sc-personality').value.trim(),
             npc_current_state: document.getElementById('ed-sc-state').value.trim(),
-            npc_knowledge: document.getElementById('ed-sc-knowledge').value.trim() || null,
+            npc_knowledge: Object.keys(editKnowledge).length > 0 ? JSON.stringify(editKnowledge, null, 2) : null,
             npc_voice_id: document.getElementById('ed-sc-voice').value.trim(),
             temperature: parseFloat(document.getElementById('ed-sc-temperature').value),
             thinking_level: document.getElementById('ed-sc-thinking').value            
@@ -437,7 +483,8 @@ async function createScenario() {
     const payload = {
         title: document.getElementById('sc-title').value.trim(),
         situation: document.getElementById('sc-situation').value.trim(),
-        objective_it: document.getElementById('sc-objective-it').value.trim(),
+        illustration_url: document.getElementById('sc-illustration-url').value.trim() || null,
+        speech_style: document.getElementById('sc-speech-style').value,
         npc_name: document.getElementById('sc-npc-name').value.trim(),
         npc_age: parseInt(document.getElementById('sc-npc-age').value) || null,
         npc_job: document.getElementById('sc-npc-job').value.trim(),
@@ -448,7 +495,26 @@ async function createScenario() {
         thinking_level: document.getElementById('sc-thinking').value,
     };
     const knowledgeStr = document.getElementById('sc-npc-knowledge').value.trim();
-    if (knowledgeStr) { try { JSON.parse(knowledgeStr); payload.npc_knowledge = knowledgeStr; } catch { showStatus('scenario-status','❌ JSON 형식 오류','error'); return; } }
+    let knowledgeObj = {};
+    if (knowledgeStr) { try { knowledgeObj = JSON.parse(knowledgeStr); } catch { showStatus('scenario-status','❌ JSON 형식 오류','error'); return; } }
+
+    // 플레이어 정보 → 도메인 지식에 자동 병합
+    const playerName = document.getElementById('sc-player-name').value.trim();
+    const playerRole = document.getElementById('sc-player-role').value.trim();
+    const playerAddress = document.getElementById('sc-player-address').value.trim();
+    const playerRelationship = document.getElementById('sc-player-relationship').value.trim();
+    if (playerName || playerRole || playerAddress || playerRelationship) {
+        knowledgeObj.player = {
+            name: playerName || null,
+            role: playerRole || null,
+            how_to_address: playerAddress || null,
+            relationship: playerRelationship || null
+        };
+    }
+    if (Object.keys(knowledgeObj).length > 0) {
+        payload.npc_knowledge = JSON.stringify(knowledgeObj, null, 2);
+    }
+
     if (!payload.title) { showStatus('scenario-status','❌ 제목 필수','error'); return; }
     try {
         const res = await fetch('/api/rp-admin/scenarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
@@ -467,9 +533,10 @@ async function deleteScenario(id) {
 }
 
 function clearScenarioForm() {
-    ['sc-title','sc-situation','sc-objective-it','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id'].forEach(id => document.getElementById(id).value = '');    
+    ['sc-title','sc-situation','sc-illustration-url','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id','sc-player-name','sc-player-role','sc-player-address','sc-player-relationship'].forEach(id => document.getElementById(id).value = '');    
     document.getElementById('sc-temperature').value = '0.3';
     document.getElementById('sc-thinking').value = 'LOW';
+    document.getElementById('sc-speech-style').value = '비격식 존댓말';
 }
 
 // ═══════════════ 목표 ═══════════════
@@ -494,7 +561,8 @@ async function loadGoals() {
                     <span class="label">문법</span><span class="value">${g.target_grammar||'-'}</span>
                     <span class="label">어휘</span><span class="value">${g.target_vocabulary||'-'}</span>
                     <span class="label">대화 목표</span><span class="value">${g.conversation_goal||'-'}</span>
-                    <span class="label">NPC 방침</span><span class="value">${g.npc_guidelines||'-'}</span>                    
+                    <span class="label">NPC 방침</span><span class="value">${g.npc_guidelines||'-'}</span>
+                    <span class="label">🇮🇹 Obiettivo</span><span class="value">${g.objective_it||'-'}</span>
                 </div>
             </div>`;
         }
@@ -509,7 +577,9 @@ function editGoal(g) {
     <div class="form-row"><div class="form-group"><label>문법</label><input id="ed-gl-gram" value="${g.target_grammar||''}"></div>
     <div class="form-group"><label>어휘</label><input id="ed-gl-vocab" value="${g.target_vocabulary||''}"></div></div>
     <div class="form-row"><div class="form-group full"><label>대화 목표</label><textarea id="ed-gl-conv-goal" rows="3">${g.conversation_goal||''}</textarea></div></div>
-    <div class="form-row"><div class="form-group full"><label>NPC 행동 방침</label><textarea id="ed-gl-npc-guide" rows="3">${g.npc_guidelines||''}</textarea></div></div>`;
+    <div class="form-row"><div class="form-group full"><label>NPC 행동 방침</label><textarea id="ed-gl-npc-guide" rows="3">${g.npc_guidelines||''}</textarea></div></div>
+    <div class="form-row full"><div class="form-group"><label>🇮🇹 Obiettivo</label><textarea id="ed-gl-objective-it" rows="2">${g.objective_it||''}</textarea></div></div>`;
+
 
     openModal(`목표 수정 (ID: ${g.id})`, html, async () => {
         const payload = {
@@ -518,7 +588,8 @@ function editGoal(g) {
             target_grammar: document.getElementById('ed-gl-gram').value.trim(),
             target_vocabulary: document.getElementById('ed-gl-vocab').value.trim(),
             conversation_goal: document.getElementById('ed-gl-conv-goal').value.trim(),
-            npc_guidelines: document.getElementById('ed-gl-npc-guide').value.trim()
+            npc_guidelines: document.getElementById('ed-gl-npc-guide').value.trim(),
+            objective_it: document.getElementById('ed-gl-objective-it').value.trim()
         };
         try {
             const res = await fetch(`/api/rp-admin/goals/${g.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
@@ -534,7 +605,8 @@ async function createGoal() {
         target_grammar: document.getElementById('gl-grammar').value.trim(),
         target_vocabulary: document.getElementById('gl-vocabulary').value.trim(),
         conversation_goal: document.getElementById('gl-conv-goal').value.trim(),
-        npc_guidelines: document.getElementById('gl-npc-guide').value.trim()        
+        npc_guidelines: document.getElementById('gl-npc-guide').value.trim(),
+        objective_it: document.getElementById('gl-objective-it').value.trim()
     };
     if (!payload.title) { showStatus('goal-status','❌ 제목 필수','error'); return; }
     try {
