@@ -308,6 +308,40 @@
             .input-area input { padding: 8px 10px; font-size: 0.85em; }
         }
 
+        /* ── 브리핑 오버레이 ── */
+        .briefing-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            justify-content: center; align-items: center;
+            padding: 20px;
+        }
+        .briefing-overlay.active { display: flex; }
+        .briefing-card {
+            background: #1a1d2e; border: 1px solid #2a2d3e;
+            border-radius: 14px; padding: 28px; max-width: 420px; width: 100%;
+            text-align: center;
+        }
+        .briefing-role {
+            font-size: 1.1em; color: #7c6ff7; font-weight: 700;
+            margin-bottom: 14px;
+        }
+        .briefing-situation {
+            font-size: 0.95em; color: #ccc; line-height: 1.5;
+            margin-bottom: 14px; text-align: left;
+        }
+        .briefing-objective {
+            font-size: 0.95em; color: #69db7c; font-weight: 600;
+            margin-bottom: 20px; padding: 10px; background: #1f2d1f;
+            border-radius: 8px;
+        }
+        .briefing-start-btn {
+            background: #7c6ff7; color: #fff; border: none;
+            padding: 12px 32px; border-radius: 8px;
+            font-size: 1em; font-weight: 600; cursor: pointer;
+        }
+        .briefing-start-btn:hover { background: #6b5ce7; }
 
     </style>
 </head>
@@ -329,6 +363,17 @@
 <div class="scenario-bar">
     <span>🗣️ <span class="npc-name" id="npcName">-</span></span>
     <span class="situation" id="situationText">Caricamento...</span>
+</div>
+
+<!-- 브리핑 오버레이 -->
+<div class="briefing-overlay" id="briefingOverlay">
+    <div class="briefing-card">
+        <img id="briefingImage" src="" alt="" style="display:none; width:100%; max-height:200px; object-fit:cover; border-radius:10px; margin-bottom:16px;">
+        <div class="briefing-role" id="briefingRole"></div>
+        <div class="briefing-situation" id="briefingSituation"></div>
+        <div class="briefing-objective" id="briefingObjective"></div>
+        <button class="briefing-start-btn" onclick="dismissBriefing()">▶ Inizia la conversazione</button>
+    </div>
 </div>
 
 <!-- 채팅 -->
@@ -513,9 +558,11 @@ async function loadSessionInfo() {
             updateTurnCounter(startScenario.current_turn, maxTurns);
             applyScenarioDetail(startScenario);
 
-            // 이미 진행 중인 대화가 있으면 기록 로드
+            // 이미 진행 중인 대화가 있으면 기록 로드, 없으면 브리핑 표시
             if (startScenario.current_turn > 0) {
                 await loadHistory();
+            } else if (!startScenario.is_completed) {
+                showBriefing(startScenario);
             }
 
             // 모든 시나리오 완료 시 완료 UI
@@ -545,6 +592,44 @@ function applyScenarioDetail(sc) {
         if (typeof knowledge === 'string') { try { knowledge = JSON.parse(knowledge); } catch { knowledge = {}; } }
         currentPlayerName = (knowledge?.player?.name) || 'Tu';
     }
+}
+
+function showBriefing(sc) {
+    const overlay = document.getElementById('briefingOverlay');
+    
+    // 삽화
+    const img = document.getElementById('briefingImage');
+    if (sc.illustration_url) {
+        img.src = sc.illustration_url;
+        img.style.display = 'block';
+    } else {
+        img.style.display = 'none';
+    }
+    
+    // 플레이어 역할
+    let knowledge = sc.npc_knowledge;
+    if (typeof knowledge === 'string') { try { knowledge = JSON.parse(knowledge); } catch { knowledge = {}; } }
+    const player = knowledge?.player || {};
+    const roleParts = [];
+    if (player.name) roleParts.push(player.name);
+    if (player.role) roleParts.push(player.role);
+    document.getElementById('briefingRole').textContent = roleParts.length > 0 
+        ? `🎭 ${roleParts.join(' — ')}` 
+        : '🎭 Sei un cliente';
+    
+    // 상황
+    document.getElementById('briefingSituation').textContent = sc.situation || sc.title || '';
+    
+    // 목표
+    document.getElementById('briefingObjective').textContent = sc.objective_it 
+        ? `🎯 ${sc.objective_it}` 
+        : '';
+    
+    overlay.classList.add('active');
+}
+
+function dismissBriefing() {
+    document.getElementById('briefingOverlay').classList.remove('active');
 }
 
 // ═══════════ 기존 대화 기록 로드 ═══════════
@@ -980,6 +1065,7 @@ async function switchToNextScenario(nextId) {
     await loadHistory();
 
     if (lastKnownLogCount === 0) {
+        showBriefing(sc);
         addMessage('system', `💡 Nuovo scenario iniziato! Parla con ${sc?.npc_name || 'NPC'}.`);
     }
 
