@@ -645,10 +645,21 @@ async function toggleRecording() {
     }
 }
 
+let playbackAudio = null;
+
 function playRecording() {
     if (!recordedBlob) return;
+    
+    // 이미 재생 중이면 정지
+    if (playbackAudio && !playbackAudio.paused) {
+        playbackAudio.pause();
+        playbackAudio.currentTime = 0;
+        return;
+    }
+    
     const url = URL.createObjectURL(recordedBlob);
-    new Audio(url).play();
+    playbackAudio = new Audio(url);
+    playbackAudio.play();
 }
 
 async function sendAudio() {
