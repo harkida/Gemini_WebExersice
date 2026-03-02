@@ -182,7 +182,16 @@
                 <div class="form-group"><label>NPC Voice ID</label><input type="text" id="sc-voice-id" placeholder="ElevenLabs Voice ID"></div>
             </div>
             <div class="form-row full"><div class="form-group"><label>상황 설명</label><textarea id="sc-situation" placeholder="플레이어가 카페에 들어가서..."></textarea></div></div>
-            <div class="form-row full"><div class="form-group"><label>🇮🇹 Obiettivo (학생에게 보이는 이탈리아어 목표)</label><textarea id="sc-objective-it" placeholder="Ordina una bevanda al bar e paga"></textarea></div></div>
+            <div class="form-row">
+                <div class="form-group"><label>🖼️ 삽화 URL (Cloudflare R2)</label><input type="text" id="sc-illustration-url" placeholder="https://pub-xxx.r2.dev/cafe.png"></div>
+                <div class="form-group"><label>🗣️ NPC 말투</label>
+                    <select id="sc-speech-style">
+                        <option value="격식 존댓말">격식 존댓말 (-습니다체)</option>
+                        <option value="비격식 존댓말" selected>비격식 존댓말 (-아/어요체)</option>
+                        <option value="반말">반말 (-아/어체)</option>
+                    </select>
+                </div>
+            </div>
         </div>
 
         <div class="form-section">
@@ -195,6 +204,18 @@
             <div class="form-row full"><div class="form-group"><label>NPC 성격</label><textarea id="sc-npc-personality" placeholder="밝고 친절한 성격..."></textarea></div></div>
             <div class="form-row full"><div class="form-group"><label>NPC 현재 상태</label><textarea id="sc-npc-state" placeholder="오전 10시, 매장이 한가한 상태..."></textarea></div></div>
             <div class="form-row full"><div class="form-group"><label>NPC 도메인 지식 (JSON)</label><textarea id="sc-npc-knowledge" rows="3" placeholder='{"메뉴": [...], "사이즈": [...]}'></textarea></div></div>
+        </div>
+
+        <div class="form-section">
+            <h3>🎭 플레이어 정보 (도메인 지식에 자동 병합)</h3>
+            <div class="form-row">
+                <div class="form-group"><label>플레이어 이름</label><input type="text" id="sc-player-name" placeholder="김지호 (빈칸 = 모르는 사이)"></div>
+                <div class="form-group"><label>플레이어 역할</label><input type="text" id="sc-player-role" placeholder="단골 손님, 환자, 후배 등"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>호칭 방식</label><input type="text" id="sc-player-address" placeholder="지호씨, 김 대리님 (빈칸 = 호칭 없음)"></div>
+                <div class="form-group"><label>관계 설명</label><input type="text" id="sc-player-relationship" placeholder="매일 아침 오는 단골, 1년째 알고 지내는 사이"></div>
+            </div>
         </div>
 
         <div class="form-section">
