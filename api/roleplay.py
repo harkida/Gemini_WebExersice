@@ -535,7 +535,11 @@ def build_actor_prompt(scenario, conversation_history, analyst_json, student_inp
 
 5. **NPC 도메인 지식을 반드시 확인하고 정확히 따르라.** 메뉴, 가격, 옵션 정보가 도메인 지식에 있으면 반드시 그대로 사용하라. 도메인 지식에 없는 선택지를 만들어내지 마라. 예: 메뉴에 "온도":["아이스"]만 있으면 핫/아이스를 묻지 말고 바로 아이스로 진행하라.
 
-7. **반말 금지.** NPC는 항상 존댓말(해요체 또는 합쇼체)을 사용하라. 학생이 존댓말을 하든 반말을 하든, NPC는 절대 반말을 쓰지 않는다.
+7. **말투 규칙: {scenario.get('speech_style', '비격식 존댓말')}을 사용하라.**
+   - "격식 존댓말": 합쇼체(-습니다, -습니까)를 사용. 예: "주문하시겠습니까?", "감사합니다."
+   - "비격식 존댓말": 해요체(-아/어요)를 사용. 예: "주문하시겠어요?", "감사해요~"
+   - "반말": 해체(-아/어)를 사용. 예: "뭐 마실 거야?", "잠깐만~"
+   학생이 어떤 말투를 쓰든, NPC는 위 지정된 말투를 일관되게 유지하라.
 
 8. **부분 이해 시 확인 패턴.** 분석가가 "understood":"partial"이고 "intended" 값이 있으면, NPC는 intended의 내용을 활용하여 "~라는 말씀이시죠?", "~요?", "혹시 ~(이)요?" 패턴으로 자연스럽게 확인하라.
    예: intended가 "아메리카노 주세요"이면 → "아메리카노 주세요...라는 말씀이시죠?"
@@ -697,17 +701,64 @@ def run_actor(scenario, conversation_history, analyst_json, student_input):
 
     return actor_line, actor_latency
 
+def convert_korean_numbers(text):
+    """TTS 전처리: 한국어 맥락의 숫자를 한글로 변환"""
+    import re
+    
+    # 가격 패턴: 숫자+원 → 한글+원
+    def price_to_korean(match):
+        num = int(match.group(1))
+        if num >= 10000:
+            man = num // 10000
+            remainder = num % 10000
+            if remainder >= 1000:
+                cheon = remainder // 1000
+                rest = remainder % 1000
+                if rest > 0:
+                    return f"{_sino(man)}만 {_sino(cheon)}천{_sino_hundreds(rest)}원"
+                return f"{_sino(man)}만 {_sino(cheon)}천원"
+            elif remainder > 0:
+                return f"{_sino(man)}만 {_sino_hundreds(remainder)}원"
+            return f"{_sino(man)}만원"
+        elif num >= 1000:
+            cheon = num // 1000
+            rest = num % 1000
+            if rest > 0:
+                return f"{_sino(cheon)}천{_sino_hundreds(rest)}원"
+            return f"{_sino(cheon)}천원"
+        return f"{num}원"
+    
+    def _sino(n):
+        """1~9 → 한글 (한자어 수)"""
+        sino = {1:'일',2:'이',3:'삼',4:'사',5:'오',6:'육',7:'칠',8:'팔',9:'구'}
+        return sino.get(n, str(n))
+    
+    def _sino_hundreds(n):
+        """100~999 부분을 한글로"""
+        result = ''
+        if n >= 100:
+            h = n // 100
+            result += f"{_sino(h)}백"
+            n %= 100
+        if n >= 10:
+            t = n // 10
+            result += f"{_sino(t)}십"
+            n %= 10
+        if n > 0:
+            result += _sino(n)
+        return result
+    
+    # 가격 변환: 숫자+원
+    text = re.sub(r'(\d+)원', price_to_korean, text)
+    
+    return text
 
 def run_tts(text, voice_id=None):
-    """TTS 호출 → base64 반환"""
+    """TTS 호출 → base64 반환 (숫자→한글 전처리 포함)"""
     tts_start = time.time()
-    tts_bytes = call_elevenlabs_tts(text, voice_id)
+    processed_text = convert_korean_numbers(text)
+    tts_bytes = call_elevenlabs_tts(processed_text, voice_id)
     tts_latency = int((time.time() - tts_start) * 1000)
-
-    if tts_bytes:
-        return base64.b64encode(tts_bytes).decode('utf-8'), tts_latency
-    return None, tts_latency
-
 
 # ============================================================
 # PRE 오디오 URL 조회
