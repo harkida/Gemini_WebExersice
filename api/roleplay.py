@@ -506,6 +506,9 @@ def build_actor_prompt(scenario, conversation_history, analyst_json, student_inp
 ## 현재 상황
 {scenario['situation']}
 
+## NPC 행동 방침 (반드시 따를 것)
+{scenario.get('npc_guidelines', '') if scenario.get('npc_guidelines') else '(없음)'}
+
 ## NPC 도메인 지식 (너는 이것을 알고 있다)
 {knowledge_text}
 
@@ -575,9 +578,34 @@ def run_analyst(scenario, conversation_history, student_input):
     if '}' in clean:
         clean = clean[:clean.rindex('}') + 1]
 
+    parsed = None
     try:
         parsed = json.loads(clean)
     except json.JSONDecodeError:
+        # 마지막 '}' 에서 실패 시, 첫 번째 완전한 JSON 객체를 찾는다
+        import re
+        match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean)
+        if match:
+            try:
+                parsed = json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        
+        # 그래도 실패하면, 중첩 깊이로 첫 번째 완전한 JSON을 추출
+        if not parsed:
+            depth = 0
+            start = clean.index('{')
+            for i in range(start, len(clean)):
+                if clean[i] == '{': depth += 1
+                elif clean[i] == '}': depth -= 1
+                if depth == 0:
+                    try:
+                        parsed = json.loads(clean[start:i+1])
+                        break
+                    except json.JSONDecodeError:
+                        continue
+
+    if not parsed:
         parsed = {"parse_error": True, "raw": raw_text}
 
     return parsed, analyst_latency, prompt
@@ -612,10 +640,37 @@ def run_analyst_audio(scenario, conversation_history, audio_bytes, mime_type):
     if '}' in clean:
         clean = clean[:clean.rindex('}') + 1]
 
+    parsed = None
     try:
         parsed = json.loads(clean)
     except json.JSONDecodeError:
+        # 마지막 '}' 에서 실패 시, 첫 번째 완전한 JSON 객체를 찾는다
+        import re
+        match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean)
+        if match:
+            try:
+                parsed = json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        
+        # 그래도 실패하면, 중첩 깊이로 첫 번째 완전한 JSON을 추출
+        if not parsed:
+            depth = 0
+            start = clean.index('{')
+            for i in range(start, len(clean)):
+                if clean[i] == '{': depth += 1
+                elif clean[i] == '}': depth -= 1
+                if depth == 0:
+                    try:
+                        parsed = json.loads(clean[start:i+1])
+                        break
+                    except json.JSONDecodeError:
+                        continue
+
+    if not parsed:
         parsed = {"parse_error": True, "raw": raw_text}
+
+        
 
     return parsed, analyst_latency, prompt_text
 
@@ -1117,6 +1172,14 @@ def send_audio():
             scenario, conversation_history, audio_bytes, mime_type)
 
         transcribed_text = parsed.get("transcribed_text", "")
+        
+        # parse_error 발생 시 raw에서 transcribed_text 복구 시도
+        if not transcribed_text and parsed.get("parse_error"):
+            import re
+            raw = parsed.get("raw", "")
+            m = re.search(r'"transcribed_text"\s*:\s*"([^"]*)"', raw)
+            if m:
+                transcribed_text = m.group(1)
 
         # 5. 플레이어 턴 저장
         new_turn = current_turn + 1
