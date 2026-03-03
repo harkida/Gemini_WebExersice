@@ -182,6 +182,7 @@
                 <div class="form-group"><label>NPC Voice ID</label><input type="text" id="sc-voice-id" placeholder="ElevenLabs Voice ID"></div>
             </div>
             <div class="form-row full"><div class="form-group"><label>상황 설명</label><textarea id="sc-situation" placeholder="플레이어가 카페에 들어가서..."></textarea></div></div>
+            <div class="form-row full"><div class="form-group"><label>🇮🇹 상황 설명 (이탈리아어, 학생 브리핑용)</label><textarea id="sc-situation-it" placeholder="Sei entrato in un caffè e vuoi ordinare..."></textarea></div></div>
             <div class="form-row">
                 <div class="form-group"><label>🖼️ 삽화 URL (Cloudflare R2)</label><input type="text" id="sc-illustration-url" placeholder="https://pub-xxx.r2.dev/cafe.png"></div>
                 <div class="form-group"><label>🗣️ NPC 말투</label>
@@ -215,6 +216,18 @@
             <div class="form-row">
                 <div class="form-group"><label>호칭 방식</label><input type="text" id="sc-player-address" placeholder="지호씨, 김 대리님 (빈칸 = 호칭 없음)"></div>
                 <div class="form-group"><label>관계 설명</label><input type="text" id="sc-player-relationship" placeholder="매일 아침 오는 단골, 1년째 알고 지내는 사이"></div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>대화 시작</h3>
+            <div class="form-row">
+                <div class="form-group"><label>🎬 첫 발화자</label>
+                    <select id="sc-first-speaker">
+                        <option value="player" selected>player — 학생이 먼저 말함</option>
+                        <option value="npc">npc — NPC가 먼저 말함 (Opening PRE 필요)</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -358,6 +371,8 @@ async function loadScenarios() {
                 </div>
                 <div class="card-grid">
                     <span class="label">상황</span><span class="value">${s.situation||'-'}</span>
+                    <span class="label">🇮🇹 상황</span><span class="value">${s.situation_it||'-'}</span>
+                    <span class="label">첫 발화자</span><span class="value">${s.first_speaker||'player'}</span>
                     <span class="label">NPC</span><span class="value">${s.npc_name||'-'} (${s.npc_age||'?'}세, ${s.npc_job||'-'})</span>
                     <span class="label">성격</span><span class="value">${s.npc_personality||'-'}</span>
                     <span class="label">현재 상태</span><span class="value">${s.npc_current_state||'-'}</span>
@@ -386,6 +401,7 @@ function editScenario(s) {
     <div class="form-row"><div class="form-group"><label>제목</label><input id="ed-sc-title" value="${s.title||''}"></div>
     <div class="form-group"><label>Voice ID</label><input id="ed-sc-voice" value="${s.npc_voice_id||''}"></div></div>
     <div class="form-row full"><div class="form-group"><label>상황</label><textarea id="ed-sc-situation">${s.situation||''}</textarea></div></div>
+    <div class="form-row full"><div class="form-group"><label>🇮🇹 상황 (이탈리아어)</label><textarea id="ed-sc-situation-it">${s.situation_it||''}</textarea></div></div>
     <div class="form-row">
         <div class="form-group"><label>🖼️ 삽화 URL</label><input id="ed-sc-illustration" value="${s.illustration_url||''}"></div>
         <div class="form-group"><label>🗣️ NPC 말투</label>
@@ -419,6 +435,14 @@ function editScenario(s) {
                 <option value="LOW" ${s.thinking_level==='LOW'||!s.thinking_level?'selected':''}>LOW</option>
                 <option value="MEDIUM" ${s.thinking_level==='MEDIUM'?'selected':''}>MEDIUM</option>
                 <option value="HIGH" ${s.thinking_level==='HIGH'?'selected':''}>HIGH</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group"><label>🎬 첫 발화자</label>
+            <select id="ed-sc-first-speaker">
+                <option value="player" ${s.first_speaker==='player'||!s.first_speaker?'selected':''}>player</option>
+                <option value="npc" ${s.first_speaker==='npc'?'selected':''}>npc</option>
             </select>
         </div>
     </div>
@@ -456,6 +480,8 @@ function editScenario(s) {
         const payload = {
             title: document.getElementById('ed-sc-title').value.trim(),
             situation: document.getElementById('ed-sc-situation').value.trim(),
+            situation_it: document.getElementById('ed-sc-situation-it').value.trim(),
+            first_speaker: document.getElementById('ed-sc-first-speaker').value,
             illustration_url: document.getElementById('ed-sc-illustration').value.trim() || null,
             speech_style: document.getElementById('ed-sc-speech-style').value,
             npc_name: document.getElementById('ed-sc-name').value.trim(),
@@ -483,6 +509,8 @@ async function createScenario() {
     const payload = {
         title: document.getElementById('sc-title').value.trim(),
         situation: document.getElementById('sc-situation').value.trim(),
+        situation_it: document.getElementById('sc-situation-it').value.trim(),
+        first_speaker: document.getElementById('sc-first-speaker').value,
         illustration_url: document.getElementById('sc-illustration-url').value.trim() || null,
         speech_style: document.getElementById('sc-speech-style').value,
         npc_name: document.getElementById('sc-npc-name').value.trim(),
@@ -494,6 +522,7 @@ async function createScenario() {
         temperature: parseFloat(document.getElementById('sc-temperature').value),
         thinking_level: document.getElementById('sc-thinking').value,
     };
+
     const knowledgeStr = document.getElementById('sc-npc-knowledge').value.trim();
     let knowledgeObj = {};
     if (knowledgeStr) { try { knowledgeObj = JSON.parse(knowledgeStr); } catch { showStatus('scenario-status','❌ JSON 형식 오류','error'); return; } }
@@ -533,10 +562,11 @@ async function deleteScenario(id) {
 }
 
 function clearScenarioForm() {
-    ['sc-title','sc-situation','sc-illustration-url','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id','sc-player-name','sc-player-role','sc-player-address','sc-player-relationship'].forEach(id => document.getElementById(id).value = '');    
+    ['sc-title','sc-situation','sc-situation-it','sc-illustration-url','sc-npc-name','sc-npc-age','sc-npc-job','sc-npc-personality','sc-npc-state','sc-npc-knowledge','sc-voice-id','sc-player-name','sc-player-role','sc-player-address','sc-player-relationship'].forEach(id => document.getElementById(id).value = '');    
     document.getElementById('sc-temperature').value = '0.3';
     document.getElementById('sc-thinking').value = 'LOW';
     document.getElementById('sc-speech-style').value = '비격식 존댓말';
+    document.getElementById('sc-first-speaker').value = 'player';
 }
 
 // ═══════════════ 목표 ═══════════════
