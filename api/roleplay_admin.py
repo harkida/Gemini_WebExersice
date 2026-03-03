@@ -111,17 +111,19 @@ def create_scenario():
 
             cur.execute("""
                 INSERT INTO rp_scenarios (
-                    title, situation,
+                    title, situation, situation_it, first_speaker,
                     illustration_url, speech_style,
                     npc_name, npc_age, npc_job,
                     npc_personality, npc_current_state, npc_knowledge,
                     npc_voice_id, temperature, thinking_level
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 ) RETURNING id
             """, (
                 data.get('title'),
                 data.get('situation'),
+                data.get('situation_it'),
+                data.get('first_speaker', 'player'),
                 data.get('illustration_url'),
                 data.get('speech_style', '비격식 존댓말'),
                 data.get('npc_name'),
@@ -134,7 +136,6 @@ def create_scenario():
                 data.get('temperature', 0.3),
                 data.get('thinking_level', 'LOW')
             ))
-
             
             new_id = cur.fetchone()[0]
             conn.commit()
@@ -184,7 +185,7 @@ def update_scenario(scenario_id):
 
             cur.execute("""
                 UPDATE rp_scenarios SET
-                    title=%s, situation=%s,
+                    title=%s, situation=%s, situation_it=%s, first_speaker=%s,
                     illustration_url=%s, speech_style=%s,
                     npc_name=%s, npc_age=%s, npc_job=%s,
                     npc_personality=%s, npc_current_state=%s, npc_knowledge=%s,
@@ -192,13 +193,13 @@ def update_scenario(scenario_id):
                 WHERE id=%s
             """, (
                 data.get('title'), data.get('situation'),
+                data.get('situation_it'), data.get('first_speaker', 'player'),
                 data.get('illustration_url'), data.get('speech_style', '비격식 존댓말'),
                 data.get('npc_name'), data.get('npc_age'), data.get('npc_job'),
                 data.get('npc_personality'), data.get('npc_current_state'), npc_knowledge,
                 data.get('npc_voice_id'), data.get('temperature', 0.3), data.get('thinking_level', 'LOW'),
                 scenario_id
             ))
-
 
             conn.commit()
             return jsonify({"success": True})
