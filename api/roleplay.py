@@ -760,6 +760,11 @@ def run_tts(text, voice_id=None):
     tts_bytes = call_elevenlabs_tts(processed_text, voice_id)
     tts_latency = int((time.time() - tts_start) * 1000)
 
+    if tts_bytes:
+        tts_audio_b64 = base64.b64encode(tts_bytes).decode('utf-8')
+        return tts_audio_b64, tts_latency
+    return None, tts_latency
+
 # ============================================================
 # PRE 오디오 URL 조회
 # ============================================================
