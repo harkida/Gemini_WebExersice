@@ -617,9 +617,9 @@ function showBriefing(sc) {
         ? `🎭 ${roleParts.join(' — ')}` 
         : '🎭 Sei un cliente';
     
-    // 상황
-    document.getElementById('briefingSituation').textContent = sc.situation || sc.title || '';
-    
+    // 상황 (이탈리아어 브리핑 우선, 없으면 한국어 폴백)
+    document.getElementById('briefingSituation').textContent = sc.situation_it || sc.situation || sc.title || '';
+
     // 목표
     document.getElementById('briefingObjective').textContent = sc.objective_it 
         ? `🎯 ${sc.objective_it}` 
@@ -628,8 +628,35 @@ function showBriefing(sc) {
     overlay.classList.add('active');
 }
 
-function dismissBriefing() {
+async function dismissBriefing() {
     document.getElementById('briefingOverlay').classList.remove('active');
+
+    // first_speaker='npc'이면 Opening PRE 호출
+    if (currentScenario && currentScenario.first_speaker === 'npc') {
+        showLoading(true);
+        setInputEnabled(false);
+        try {
+            const res = await fetch('/api/rp-play/opening-pre', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    scenario_id: currentScenarioId
+                })
+            });
+            const data = await res.json();
+
+            if (data.success && data.transcript) {
+                addNpcMessage(data.transcript, data.audio_url, null, 0);
+                lastKnownLogCount += 1;
+            }
+        } catch (e) {
+            console.error('Opening PRE 실패:', e);
+        } finally {
+            showLoading(false);
+            setInputEnabled(true);
+        }
+    }
 }
 
 // ═══════════ 기존 대화 기록 로드 ═══════════
