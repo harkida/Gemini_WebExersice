@@ -1025,7 +1025,7 @@ def session_info():
             cur.execute("""
                 SELECT ss.scenario_id, ss.order_num, sc.title, sc.npc_name,
                        sc.illustration_url, sc.speech_style, sc.npc_knowledge,
-                       sc.situation
+                       sc.situation, sc.situation_it, sc.first_speaker
                 FROM rp_session_scenarios ss                        
                 JOIN rp_scenarios sc ON ss.scenario_id = sc.id
                 WHERE ss.session_id = %s
@@ -1341,6 +1341,76 @@ def get_history():
         })    
 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+# ============================================================
+# Opening PRE (NPC 선발화)
+# ============================================================
+@app.route('/api/rp-play/opening-pre', methods=['POST'])
+@player_required
+def opening_pre():
+    """first_speaker='npc'일 때 Opening PRE 재생 + turn 0 저장"""
+    data = request.get_json()
+    session_id = data.get('session_id')
+    scenario_id = data.get('scenario_id')
+    user_id = session.get('user_id')
+
+    if not session_id or not scenario_id:
+        return jsonify({"error": "session_id, scenario_id 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        player = validate_player_session(user_id, session_id, conn)
+        if not player:
+            return jsonify({"error": "팀 멤버가 아닙니다"}), 403
+
+        team_id = player['team_id']
+
+        # 이미 turn 0이 있으면 중복 방지
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 1 FROM rp_conversation_logs
+                WHERE team_id = %s AND scenario_id = %s AND turn_number = 0
+                LIMIT 1
+            """, (team_id, scenario_id))
+            if cur.fetchone():
+                return jsonify({"skipped": True, "reason": "opening already exists"})
+
+        # Opening PRE 오디오 가져오기
+        audio_url, transcript = get_pre_audio_url(scenario_id, 'opening', conn, team_id)
+
+        if not transcript:
+            return jsonify({"skipped": True, "reason": "no opening PRE registered"})
+
+        # NPC 이름 조회
+        with conn.cursor() as cur:
+            cur.execute("SELECT npc_name FROM rp_scenarios WHERE id = %s", (scenario_id,))
+            row = cur.fetchone()
+            npc_name = row[0] if row else 'NPC'
+
+        # turn 0으로 저장 (턴 카운트에 포함되지 않음)
+        save_turn(
+            conn, team_id, scenario_id,
+            turn_number=0,
+            speaker='npc',
+            message_text=transcript,
+            actor_line=transcript,
+            pre_audio_url=audio_url
+        )
+
+        return jsonify({
+            "success": True,
+            "audio_url": audio_url,
+            "transcript": transcript,
+            "npc_name": npc_name
+        })
+
+    except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
