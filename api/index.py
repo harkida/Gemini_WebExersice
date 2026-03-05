@@ -1011,13 +1011,8 @@ def submit_speaking_answer():
             except Exception as e:
                 return jsonify({"error": f"파일 저장 실패: {str(e)}"}), 500            
                         
-            import tempfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{extension}') as tmp_file:
-                tmp_file.write(audio_bytes)
-                tmp_file_path = tmp_file.name
-            
-            uploaded_audio = gemini_client.files.upload(file=tmp_file_path)
-            
+            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)            
+
             prompt_text = SPEAKING_EVALUATION_PROMPT.format(
                 situation_description=situation_desc,
                 required_expression=required_expr,
@@ -1028,15 +1023,13 @@ def submit_speaking_answer():
             
             response = gemini_client.models.generate_content(
                 model="gemini-3.1-pro-preview",
-                contents=[prompt_text, uploaded_audio],                
+                contents=[prompt_text, audio_part],                
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     temperature=0.1,
                 )
-            )
-            
-            print(f"🤖 [말하기 퀴즈] gemini-3-pro-preview 사용 - 학생: {student_id}")
-            os.unlink(tmp_file_path)
+            )           
+            print(f"🤖 [말하기 퀴즈] gemini-3.1-pro-preview 사용 - 학생: {student_id}")                        
             
             # ★★★ 수정된 핵심 로직 시작 ★★★
             ai_result = None
