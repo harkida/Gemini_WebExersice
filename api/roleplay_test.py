@@ -615,7 +615,7 @@ def run_stt(audio_bytes, mime_type):
         stt_text = str(stt_text) if stt_text else ""
 
     # 불필요한 따옴표 제거
-    stt_text = stt_text.strip('"').strip("'").strip()
+    stt_text = re.sub(r'^[\s"\'\u201c\u201d\u2018\u2019]+|[\s"\'\u201c\u201d\u2018\u2019]+$', '', stt_text)
 
     latency = int((time.time() - start) * 1000)
     return stt_text, latency

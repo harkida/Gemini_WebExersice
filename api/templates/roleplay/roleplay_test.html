@@ -501,7 +501,7 @@ function addDebugCard(turn, inputText, data) {
 
         <div class="stage-box stt">
             <div class="stage-label"><span>👂 귀 (STT)</span><span class="ms">${data.stt_latency}ms${data.stt_latency === 0 ? ' (텍스트)' : ''}</span></div>
-            <pre>"${escapeHtml(data.stt_text || '')}"</pre>
+            <pre>${escapeHtml(data.stt_text || '')}</pre>
         </div>
 
         <div class="stage-box analyst">
