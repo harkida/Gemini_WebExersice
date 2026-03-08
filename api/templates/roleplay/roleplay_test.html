@@ -316,6 +316,16 @@ async function startTest() {
         document.getElementById('setupPanel').style.display = 'none';
         document.getElementById('chatScreen').classList.add('active');
 
+        // NPC 첫 발화 (opening PRE)
+        if (data.first_speaker === 'npc' && data.opening_transcript) {
+            addChatMessage('npc', data.opening_transcript);
+            conversationHistory.push({
+                role: "npc",
+                text: data.opening_transcript,
+                route: "PRE"
+            });
+        }
+
     } catch (e) {
         document.getElementById('setupError').textContent = '네트워크 오류: ' + e.message;
     }
