@@ -601,10 +601,14 @@ def run_stt(audio_bytes, mime_type):
         else:
             stt_text = str(parsed)
     except (json.JSONDecodeError, TypeError):
-        stt_text = raw.strip('"').strip("'")        
+        stt_text = raw.strip('"').strip("'")
+
+    # 문자열 보장
+    if not isinstance(stt_text, str):
+        stt_text = str(stt_text) if stt_text else ""
+
     latency = int((time.time() - start) * 1000)
     return stt_text, latency
-
 
 # ============================================================
 # handle_npc_response — 프로덕션 roleplay.py 미러링
