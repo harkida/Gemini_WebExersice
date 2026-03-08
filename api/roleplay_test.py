@@ -581,7 +581,7 @@ def run_stt(audio_bytes, mime_type):
         config=types.GenerateContentConfig(
             temperature=0.1,
             max_output_tokens=1024,
-            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.NONE)
+            thinking_config=types.ThinkingConfig(thinking_budget=0)
         )
     )
     stt_text = (response.text or "").strip().strip('"').strip("'")
