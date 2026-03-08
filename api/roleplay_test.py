@@ -7,7 +7,9 @@ import pathlib
 import traceback
 import requests as http_requests
 import base64
-import time    
+import time
+import psycopg2
+import psycopg2.extras
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR.parent / "templates"
@@ -18,114 +20,132 @@ app = Flask(__name__, template_folder=str(TEMPLATES_DIR))
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'test-secret-key-change-me')
 
 # ============================================================
-# Gemini 모델 설정
+# Gemini 클라이언트
 # ============================================================
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+gemini_client = None
 
 if GEMINI_API_KEY:
     try:
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        print("✅ 분석가 클라이언트 로드 완료")
+        print("✅ [test] Gemini 클라이언트 로드 완료")
     except Exception as e:
-        print(f"🚨 클라이언트 로드 실패: {e}")
+        print(f"🚨 [test] 클라이언트 로드 실패: {e}")
 else:
-    print("⚠️ GEMINI_API_KEY 미설정")
-
+    print("⚠️ [test] GEMINI_API_KEY 미설정")
 
 # ============================================================
-# ElevenLabs TTS 설정
+# DB 연결
+# ============================================================
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+def get_db_connection():
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except Exception as e:
+        print(f"🚨 [test] DB 연결 오류: {e}")
+        return None
+
+# ============================================================
+# ElevenLabs TTS
 # ============================================================
 ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY')
-ELEVENLABS_VOICE_ID = "xi3rF0t7dg7uN2M0WUhr"
 ELEVENLABS_MODEL_ID = "eleven_v3"
 
-def call_elevenlabs_tts(text, voice_id=None, model_id=None):
-    """
-    ElevenLabs TTS API 호출 → MP3 bytes 반환.
-    실패 시 None 반환 (TTS 실패가 전체 응답을 막으면 안 됨).
-    """
+def call_elevenlabs_tts(text, voice_id=None):
     if not ELEVENLABS_API_KEY:
         print("⚠️ ELEVENLABS_API_KEY 미설정 — TTS 건너뜀")
         return None
 
-    voice_id = voice_id or ELEVENLABS_VOICE_ID
-    model_id = model_id or ELEVENLABS_MODEL_ID
-
+    voice_id = voice_id or "xi3rF0t7dg7uN2M0WUhr"
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-
-    headers = {
-        "Content-Type": "application/json",
-        "xi-api-key": ELEVENLABS_API_KEY
-    }
-
-    payload = {
-        "text": text,
-        "model_id": model_id,
-        "language_code": "ko"
-    }
+    headers = {"Content-Type": "application/json", "xi-api-key": ELEVENLABS_API_KEY}
+    payload = {"text": text, "model_id": ELEVENLABS_MODEL_ID, "language_code": "ko"}
 
     try:
-        resp = http_requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            params={"output_format": "mp3_44100_128"},
-            timeout=15
-        )
-
+        resp = http_requests.post(url, headers=headers, json=payload,
+                                  params={"output_format": "mp3_44100_128"}, timeout=15)
         if resp.status_code == 200:
-            return resp.content   # MP3 bytes
+            return resp.content
         else:
             print(f"🚨 ElevenLabs 오류 {resp.status_code}: {resp.text[:200]}")
             return None
-
     except Exception as e:
         print(f"🚨 ElevenLabs 요청 실패: {e}")
         return None
 
 
 # ============================================================
-# 테스트용 하드코딩 시나리오 (카페)
+# DB 로드 헬퍼 (프로덕션 roleplay.py와 동일)
 # ============================================================
-TEST_SCENARIO = {
-    "npc": {
-        "name": "김수진",
-        "age": 25,
-        "job": "카페 점원",
-        "personality": "친절하고 밝은 성격. 손님에게 항상 웃으면서 대응. 단, 무례한 손님에게는 약간 당황하거나 불쾌해할 수 있음."
-    },
-    "situation": "학생이 카페에 들어와서 음료를 주문하는 상황. 일반적인 카페 주문 절차를 따른다.",
-    "target_grammar": "-(으)ㄹ게요",
-    "pre_categories": {
-        "greeting_cafe": "손님이 막 들어왔을 때 인사. 예: '어서오세요, 주문 도와드리겠습니다'",
-        "size_ask": "음료 주문 후 사이즈를 물어볼 때. 예: '사이즈는 어떤 걸로 하시겠어요?'",
-        "hot_or_ice_ask": "뜨거운 것인지 차가운 것인지 물어볼 때. 예: '뜨거운 걸로 드릴까요, 차가운 걸로 드릴까요?'",
-        "payment_ask": "결제 방식을 물어볼 때. 예: '카드로 계산하시겠어요, 현금으로요?'",
-        "not_understood": "손님 말을 완전히 못 알아들었을 때. 예: '죄송하지만 다시 한번 말씀해주시겠어요?'",
-        "simple_confirm": "단순 수긍. 예: '네, 알겠습니다'",
-        "farewell_cafe": "마무리 인사. 예: '감사합니다, 맛있게 드세요!'"
-    }
-}
+def load_scenario_from_db(scenario_id, conn):
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT * FROM rp_scenarios WHERE id = %s", (scenario_id,))
+        sc = cur.fetchone()
+        if not sc:
+            return None
+
+        cur.execute("""
+            SELECT DISTINCT category, guide_text 
+            FROM rp_pre_recordings 
+            WHERE scenario_id = %s
+        """, (scenario_id,))
+        pre_rows = cur.fetchall()
+        pre_categories = {}
+        for row in pre_rows:
+            pre_categories[row['category']] = row['guide_text'] or ''
+
+        npc_knowledge = sc.get('npc_knowledge')
+        if isinstance(npc_knowledge, str):
+            try:
+                npc_knowledge = json.loads(npc_knowledge)
+            except:
+                npc_knowledge = {}
+
+        return {
+            "id": sc['id'],
+            "npc": {
+                "name": sc.get('npc_name', ''),
+                "age": sc.get('npc_age', 0),
+                "job": sc.get('npc_job', ''),
+                "personality": sc.get('npc_personality', ''),
+                "current_state": sc.get('npc_current_state', ''),
+                "knowledge": npc_knowledge or {}
+            },
+            "situation": sc.get('situation', ''),
+            "speech_style": sc.get('speech_style', '비격식 존댓말'),
+            "voice_id": sc.get('npc_voice_id'),
+            "temperature": sc.get('temperature', 0.3),
+            "thinking_level": sc.get('thinking_level', 'LOW'),
+            "pre_categories": pre_categories
+        }
+
+
+def load_goal_data(goal_id, conn):
+    if not goal_id:
+        return None
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT conversation_goal, npc_guidelines FROM rp_goals WHERE id = %s", (goal_id,))
+        return cur.fetchone()
+
 
 # ============================================================
-# 분석가 프롬프트
+# 프롬프트: 분석가 — 프로덕션 동기화
 # ============================================================
-def build_analyst_prompt_for_audio(scenario, conversation_history):
-    """음성 입력용 분석가 프롬프트 — 텍스트 버전에 STT 지시를 추가"""
+def build_analyst_prompt(scenario, conversation_history, student_input):
     npc = scenario["npc"]
     pre_cats = scenario["pre_categories"]
     pre_list = "\n".join([f'  - "{key}": {desc}' for key, desc in pre_cats.items()])
 
-    prompt = f"""너는 롤플레이 게임의 "분석가"이다. 너의 역할은 플레이어(한국어 학습 중인 이탈리아 학생)의 발화를 분석하고, NPC가 어떻게 반응해야 하는지 판단하는 것이다.
+    history_text = ""
+    if conversation_history:
+        for turn in conversation_history:
+            role = "손님" if turn.get("role") == "player" else f"{npc['name']}(NPC)"
+            history_text += f"{role}: {turn.get('text', '')}\n"
+    else:
+        history_text = "(첫 번째 턴)"
 
-## 🎤 중요: 음성 입력
-첨부된 오디오 파일은 학생이 직접 말한 음성이다.
-1. 먼저 음성을 듣고 한국어인지 판별하라.
-2. 한국어가 아닌 경우 (영어, 이탈리아어, 기타 외국어): 형식4(음성 인식 실패)로 처리하라. 절대로 한국어로 추측하지 마라.
-3. 한국어인 경우: 텍스트로 변환하여 "transcribed_text"에 포함하라.
-4. 그 텍스트를 기반으로 아래 분석을 수행하라.
-※ 학생은 한국어 학습자이므로 발음이 부정확할 수 있다. 관대하게 인식하되, 한국어가 전혀 들리지 않으면 추측하지 마라.
-※ 음성이 너무 짧거나(1초 미만), 잡음만 있거나, 한국어가 아닌 경우 → 형식4를 사용하라.
+    prompt = f"""너는 롤플레이 게임의 "분석가"이다. 너의 역할은 플레이어(한국어 학습 중인 이탈리아 학생)의 발화를 분석하고, NPC가 어떻게 반응해야 하는지 판단하는 것이다.
 
 ## NPC 정보
 - 이름: {npc['name']}
@@ -136,10 +156,22 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 ## 현재 상황
 {scenario['situation']}
 
-## 학생의 목표 문법
-{scenario['target_grammar']}
+## NPC 행동 방침 (반드시 따를 것)
+{scenario.get('npc_guidelines', '') if scenario.get('npc_guidelines') else '(없음)'}
+
+## NPC 도메인 지식 (PRE 판단 시 반드시 참고)
+{json.dumps(scenario['npc'].get('knowledge', {}), ensure_ascii=False, indent=2) if scenario['npc'].get('knowledge') else '(없음)'}
+※ 도메인 지식과 PRE 카테고리가 충돌하면 PRE를 사용하지 마라. DYN으로 처리하라.
+
+## 대화 목표
+{scenario.get('conversation_goal', '')}
+
+## NPC 행동 방침 (direction 결정 시 반드시 참고)
+{scenario.get('npc_guidelines', '') if scenario.get('npc_guidelines') else '(없음)'}
+※ 행동 방침이 있으면, 대화 기록을 보고 NPC가 이미 해당 행동을 했는지 판단한 뒤 direction에 반영하라.
 
 ## 사용 가능한 PRE(사전녹음) 카테고리
+아래 목록에 해당하는 상황이면 PRE를 우선 사용하라. 레이턴시 절약에 매우 중요하다.
 {pre_list}
 
 ## 감정 프레임워크
@@ -152,30 +184,40 @@ def build_analyst_prompt_for_audio(scenario, conversation_history):
 
 ## 판단 우선순위 (반드시 이 순서를 따를 것)
 1단계: 학생의 발화를 이해할 수 있는가?
-  - 완전히 이해 불가 → PRE "not_understood"
-  - 부분적으로 이해 → DYN (되묻기)
-  - 이해 가능 → 2단계로
+  - 의미를 전혀 파악 불가 → 형식2 DYN (되묻기, intended=null)
+  - 표현이 어색/부정확하지만 대충 이해 가능 → 형식2 DYN (확인, intended="추정 표현")
+  - 완전히 이해 가능 → 2단계로
 2단계: PRE 웨이포인트에 해당하는가?
-  - 해당함 → PRE + category
+  - 해당함 → 형식1 PRE + category
   - 해당하지 않음 → 3단계로
-3단계: DYN + 감정 분석
+3단계: 형식3 DYN + 감정 분석
 
 ## 대화 기록
-{json.dumps(conversation_history, ensure_ascii=False) if conversation_history else "(첫 번째 턴)"}
+{history_text}
 
-## 출력 형식 (4가지 중 하나 선택):
+## 학생의 현재 발화
+"{student_input}"
+
+## boundary 판단 (매 턴 반드시 포함)
+너는 이 NPC의 입장에서 판단한다.
+boundary = 0: NPC가 자연스럽게 받아들일 수 있는 말
+boundary = 1: NPC가 당황하거나 불편해하거나 이해할 수 없는 말
+
+## 목적 달성 판단 (매 턴 반드시 포함)
+대화 목표: "{scenario.get('conversation_goal', '')}"
+goal_achieved = true: 목표 달성 완료
+goal_achieved = false: 아직 미달성
+
+## 출력 형식 (3가지 중 하나):
 
 형식1 - PRE:
-{{"route":"PRE","category":"카테고리명","transcribed_text":"인식된 텍스트"}}
+{{"route":"PRE","category":"카테고리명","boundary":0또는1,"goal_achieved":false}}
 
 형식2 - DYN 부분 이해:
-{{"route":"DYN","understood":"partial","heard":"들린 부분","direction":"되묻기 방향","transcribed_text":"인식된 텍스트"}}
+{{"route":"DYN","understood":"partial","heard":"학생이 쓴 표현","intended":"추정 표현 또는 null","direction":"방향","boundary":0또는1,"goal_achieved":false}}
 
 형식3 - DYN 완전 이해:
-{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","transcribed_text":"인식된 텍스트"}}
-
-형식4 - 음성 인식 실패 (잡음만 들리거나 아무 말도 안 한 경우):
-{{"route":"PRE","category":"not_understood","transcribed_text":""}}
+{{"route":"DYN","understood":true,"main_emotion":"감정","intensity":강도,"sub_emotion":"보조감정또는null","sub_intensity":강도또는null,"audio_tags":"[태그1][태그2]","direction":"반응 방향","boundary":0또는1,"goal_achieved":false}}
 
 JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 
@@ -183,267 +225,21 @@ JSON만 출력하라. 설명, 마크다운, 줄바꿈 금지."""
 
 
 # ============================================================
-# 라우트
+# 프롬프트: 연기자 — 프로덕션 동기화
 # ============================================================
-@app.route('/roleplay-test')
-def roleplay_test_page():
-    return render_template('roleplay/roleplay_test.html')
-
-@app.route('/api/analyst-test', methods=['POST'])
-def analyst_test():
-    """분석가 테스트 엔드포인트"""
-    if not gemini_client:
-        return jsonify({"error": "Gemini 모델이 설정되지 않았습니다."}), 500
-
-    data = request.get_json(silent=True) or {}
-    student_input = data.get('student_input', '').strip()
-    conversation_history = data.get('conversation_history', [])
-
-    if not student_input:
-        return jsonify({"error": "학생 입력이 비어있습니다."}), 400
-
-    try:
-        import time
-        # 분석가 프롬프트 생성
-        prompt = build_analyst_prompt(TEST_SCENARIO, conversation_history, student_input)
-
-        # Gemini 호출 (분석가)
-        analyst_start = time.time()
-        response = gemini_client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.3,
-                max_output_tokens=2048,
-                response_mime_type="application/json",
-                thinking_config=types.ThinkingConfig(
-                        thinking_level=types.ThinkingLevel.LOW
-                )
-            )
-        )
-
-        raw_text = (response.text or "").strip()
-
-        # JSON 파싱 시도
-        # Gemini가 붙이는 불필요한 텍스트 + 마크다운 코드블록 제거
-        clean = raw_text.replace("```json", "").replace("```", "").strip()
-        # "Here is the JSON requested:" 같은 접두어 제거 — JSON은 { 로 시작함
-        if '{' in clean:
-            clean = clean[clean.index('{'):]
-        if '}' in clean:
-            clean = clean[:clean.rindex('}') + 1]
-
-        try:
-            parsed = json.loads(clean)
-        except json.JSONDecodeError:
-            parsed = {"parse_error": True, "raw": raw_text}
-
-        analyst_latency = int((time.time() - analyst_start) * 1000)
-        # ============================================================
-        # 연기자 체인: DYN일 때만 연기자 호출
-        # ============================================================
-        actor_line = None
-        actor_raw = None
-        actor_latency = None
-
-        if parsed.get("route") == "DYN":
-            import time
-            actor_start = time.time()
-
-            actor_prompt = build_actor_prompt(
-                TEST_SCENARIO, conversation_history, parsed, student_input
-            )
-
-            actor_response = gemini_client.models.generate_content(
-                model="gemini-3-flash-preview",
-                contents=actor_prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.6,
-                    max_output_tokens=1024,
-                    thinking_config=types.ThinkingConfig(
-                            thinking_level=types.ThinkingLevel.LOW
-                    )
-                )
-            )
-
-            actor_raw = (actor_response.text or "").strip()
-            # 따옴표 감싸기 제거
-            actor_line = actor_raw.strip('"').strip("'")
-            actor_latency = int((time.time() - actor_start) * 1000)
-
-        # ============================================================
-        # TTS: 연기자 대사가 있으면 ElevenLabs로 음성 생성
-        # ============================================================
-        tts_audio_b64 = None
-        tts_latency = None
-
-        if actor_line:
-            tts_start = time.time()
-            tts_bytes = call_elevenlabs_tts(actor_line)
-            tts_latency = int((time.time() - tts_start) * 1000)
-
-            if tts_bytes:
-                tts_audio_b64 = base64.b64encode(tts_bytes).decode('utf-8')
-                print(f"✅ TTS 완료: {len(tts_bytes)} bytes, {tts_latency}ms")
-            else:
-                print(f"⚠️ TTS 실패 — 텍스트만 반환")
-
-        return jsonify({
-            "success": True,
-            "analyst_response": parsed,
-            "analyst_latency": analyst_latency,
-            "raw_text": raw_text,
-            "actor_line": actor_line,
-            "actor_latency": actor_latency,
-            "tts_audio_base64": tts_audio_b64,
-            "tts_latency": tts_latency,
-            "prompt_used": prompt
-        })
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": f"Gemini 호출 실패: {str(e)}"}), 500
-
-
-@app.route('/api/analyst-test-audio', methods=['POST'])
-def analyst_test_audio():
-    """음성 입력 → 분석가 테스트 엔드포인트"""
-    if not gemini_client:
-        return jsonify({"error": "Gemini 클라이언트 미설정"}), 500
-
-    audio_file = request.files.get('audio_file')
-    mime_type = request.form.get('mime_type', 'audio/mp4')
-    conversation_history_str = request.form.get('conversation_history', '[]')
-
-    if not audio_file:
-        return jsonify({"error": "오디오 파일이 없습니다."}), 400
-
-    try:
-        conversation_history = json.loads(conversation_history_str)
-    except json.JSONDecodeError:
-        conversation_history = []
-
-    try:
-        import time
-
-        # 오디오 바이트 읽기
-        audio_bytes = audio_file.read()
-
-        # 분석가 프롬프트 생성 (음성용 — student_input 자리에 지시 추가)
-        prompt_text = build_analyst_prompt_for_audio(TEST_SCENARIO, conversation_history)
-
-        # Gemini에 오디오 + 프롬프트 함께 전달
-        analyst_start = time.time()
-        response = gemini_client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=[
-                types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
-                prompt_text
-            ],
-            config=types.GenerateContentConfig(
-                temperature=0.3,
-                max_output_tokens=2048,
-                response_mime_type="application/json",
-                thinking_config=types.ThinkingConfig(
-                    thinking_level=types.ThinkingLevel.LOW
-                )
-            )
-        )
-
-        raw_text = (response.text or "").strip()
-
-        # JSON 파싱
-        clean = raw_text.replace("```json", "").replace("```", "").strip()
-        if '{' in clean:
-            clean = clean[clean.index('{'):]
-        if '}' in clean:
-            clean = clean[:clean.rindex('}') + 1]
-
-        try:
-            parsed = json.loads(clean)
-        except json.JSONDecodeError:
-            parsed = {"parse_error": True, "raw": raw_text}
-
-        analyst_latency = int((time.time() - analyst_start) * 1000)
-
-        # 인식된 텍스트 추출
-        transcribed_text = parsed.get("transcribed_text", "(인식 실패)")
-
-        # 연기자 체인: DYN일 때만
-        actor_line = None
-        actor_latency = None
-
-        if parsed.get("route") == "DYN":
-            actor_start = time.time()
-            actor_prompt = build_actor_prompt(
-                TEST_SCENARIO, conversation_history, parsed, transcribed_text
-            )
-            actor_response = gemini_client.models.generate_content(
-                model="gemini-3-flash-preview",
-                contents=actor_prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.6,
-                    max_output_tokens=1024,
-                    thinking_config=types.ThinkingConfig(
-                        thinking_level=types.ThinkingLevel.LOW
-                    )
-                )
-            )
-            actor_raw = (actor_response.text or "").strip()
-            actor_line = actor_raw.strip('"').strip("'")
-            actor_latency = int((time.time() - actor_start) * 1000)
-
-        # ============================================================
-        # TTS: 연기자 대사가 있으면 ElevenLabs로 음성 생성
-        # ============================================================
-        tts_audio_b64 = None
-        tts_latency = None
-
-        if actor_line:
-            tts_start = time.time()
-            tts_bytes = call_elevenlabs_tts(actor_line)
-            tts_latency = int((time.time() - tts_start) * 1000)
-
-            if tts_bytes:
-                tts_audio_b64 = base64.b64encode(tts_bytes).decode('utf-8')
-                print(f"✅ TTS 완료: {len(tts_bytes)} bytes, {tts_latency}ms")
-            else:
-                print(f"⚠️ TTS 실패 — 텍스트만 반환")
-
-        return jsonify({
-            "success": True,
-            "analyst_response": parsed,
-            "analyst_latency": analyst_latency,
-            "transcribed_text": transcribed_text,
-            "raw_text": raw_text,
-            "actor_line": actor_line,
-            "actor_latency": actor_latency,
-            "tts_audio_base64": tts_audio_b64,
-            "tts_latency": tts_latency,
-            "prompt_used": prompt_text
-        })
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": f"음성 처리 실패: {str(e)}"}), 500
-
-
-@app.route('/api/scenario-info')
-def scenario_info():
-    """현재 테스트 시나리오 정보 반환"""
-    return jsonify(TEST_SCENARIO)
-
 def build_actor_prompt(scenario, conversation_history, analyst_json, student_input):
     npc = scenario["npc"]
 
-    # 대화 기록을 읽기 쉬운 텍스트로 변환
     history_text = ""
     if conversation_history:
         for turn in conversation_history:
-            role = "손님" if turn.get("role") == "player" else "점원(나)"
+            role = "손님" if turn.get("role") == "player" else f"{npc['name']}(나)"
             history_text += f"{role}: {turn.get('text', '')}\n"
     else:
         history_text = "(첫 번째 턴)"
+
+    knowledge = npc.get('knowledge', {})
+    knowledge_text = json.dumps(knowledge, ensure_ascii=False, indent=2) if isinstance(knowledge, dict) and knowledge else "(없음)"
 
     prompt = f"""너는 롤플레이 게임에서 NPC를 연기하는 "연기자"이다.
 너는 분석가가 보내준 감정 가이드를 받아서, 그에 맞는 대사를 생성한다.
@@ -453,18 +249,16 @@ def build_actor_prompt(scenario, conversation_history, analyst_json, student_inp
 - 나이: {npc['age']}세
 - 직업: {npc['job']}
 - 성격: {npc['personality']}
+- 현재 상태: {npc.get('current_state', '')}
 
 ## 현재 상황
 {scenario['situation']}
 
+## NPC 행동 방침 (반드시 따를 것)
+{scenario.get('npc_guidelines', '') if scenario.get('npc_guidelines') else '(없음)'}
+
 ## NPC 도메인 지식 (너는 이것을 알고 있다)
-- 메뉴: 아메리카노(핫/아이스, 4500원), 카페라떼(핫/아이스, 5000원), 카푸치노(핫만, 5000원), 녹차라떼(핫/아이스, 5500원), 바닐라라떼(핫/아이스, 5500원)
-- 사이즈: Regular(기본), Large(+500원). "Tall", "Grande" 같은 건 없음
-- 결제: 카드, 현금, 카카오페이
-- 와이파이: 비밀번호는 영수증 하단에 인쇄됨
-- 화장실: 매장 안쪽 왼편
-- 디카페인: 아메리카노, 카페라떼만 가능 (+500원)
-- 오늘의 추천: 바닐라라떼 (신메뉴)
+{knowledge_text}
 
 ## 지금까지의 대화
 {history_text}
@@ -476,22 +270,221 @@ def build_actor_prompt(scenario, conversation_history, analyst_json, student_inp
 {json.dumps(analyst_json, ensure_ascii=False)}
 
 ## 연기 규칙 (매우 중요)
-
 1. **audio tags를 대사 안에 자연스럽게 삽입하라.**
-   분석가가 제공한 audio_tags를 대사 텍스트 안에 넣어라.
-   예: "[laughing] 아 네, 카푸치노는 원래 따뜻한 거예요. [warmly] 맛있게 드세요!"
-
-2. **1~2문장으로 짧게.** 진짜 대화처럼 짧게 말하라. 길게 설명하지 마라.
-
-3. **캐릭터를 유지하라.** 김수진은 25세 카페 점원이다. 격식체("~요")를 쓰되 자연스럽게.
-
-4. **NPC 도메인 지식을 활용하라.** 카페 점원이 당연히 아는 정보는 자연스럽게 사용하라.
-   예: "카푸치노요? 카푸치노는 따뜻한 것만 있어요~"
-
-5. **direction을 충실히 따르되, 대사는 네가 직접 만들어라.** direction은 지시일 뿐, 그대로 읽지 마라.
+2. **1~2문장으로 짧게.** 진짜 대화처럼 짧게 말하라.
+3. **어휘 수준은 TOPIK 3급 이하로 제한하라.**
+4. **캐릭터를 유지하라.**
+5. **NPC 도메인 지식을 반드시 확인하고 정확히 따르라.**
+7. **말투 규칙: {scenario.get('speech_style', '비격식 존댓말')}을 사용하라.**
+8. **부분 이해 시 확인 패턴.** intended 값이 있으면 자연스럽게 확인하라.
 
 ## 출력
-대사 텍스트만 출력하라. 따옴표, 설명, JSON 등 다른 것은 일절 금지.
-audio tags가 포함된 순수 대사 텍스트만."""
+대사 텍스트만 출력하라. 따옴표, 설명, JSON 등 금지. audio tags 포함된 순수 대사 텍스트만."""
 
     return prompt
+
+
+# ============================================================
+# JSON 파싱 / Gemini / TTS 헬퍼
+# ============================================================
+def parse_gemini_json(raw_text):
+    clean = raw_text.replace("```json", "").replace("```", "").strip()
+    if '{' in clean:
+        clean = clean[clean.index('{'):]
+    if '}' in clean:
+        clean = clean[:clean.rindex('}') + 1]
+    try:
+        return json.loads(clean)
+    except json.JSONDecodeError:
+        return {"parse_error": True, "raw": raw_text}
+
+
+def run_analyst(scenario, conversation_history, student_input):
+    prompt = build_analyst_prompt(scenario, conversation_history, student_input)
+    start = time.time()
+    response = gemini_client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.3, max_output_tokens=2048,
+            response_mime_type="application/json",
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+        )
+    )
+    raw = (response.text or "").strip()
+    latency = int((time.time() - start) * 1000)
+    return parse_gemini_json(raw), latency, prompt
+
+
+def run_actor(scenario, conversation_history, analyst_json, student_input):
+    prompt = build_actor_prompt(scenario, conversation_history, analyst_json, student_input)
+    start = time.time()
+    response = gemini_client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.6, max_output_tokens=1024,
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+        )
+    )
+    raw = (response.text or "").strip()
+    latency = int((time.time() - start) * 1000)
+    return raw.strip('"').strip("'"), latency, prompt
+
+
+def run_tts(text, voice_id=None):
+    start = time.time()
+    tts_bytes = call_elevenlabs_tts(text, voice_id)
+    latency = int((time.time() - start) * 1000)
+    if tts_bytes:
+        return base64.b64encode(tts_bytes).decode('utf-8'), latency
+    return None, latency
+
+
+# ============================================================
+# 페이지 라우트
+# ============================================================
+@app.route('/roleplay-test')
+def roleplay_test_page():
+    return render_template('roleplay/roleplay_test.html')
+
+
+# ============================================================
+# API: 시나리오 목록
+# ============================================================
+@app.route('/api/test/scenarios', methods=['GET'])
+def test_get_scenarios():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT id, title, npc_name, npc_job, speech_style FROM rp_scenarios ORDER BY id")
+            return jsonify({"scenarios": cur.fetchall()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ============================================================
+# API: 목표 목록
+# ============================================================
+@app.route('/api/test/goals', methods=['GET'])
+def test_get_goals():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT id, title, target_expression, conversation_goal, npc_guidelines FROM rp_goals ORDER BY id")
+            return jsonify({"goals": cur.fetchall()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ============================================================
+# API: 시나리오+목표 병합 로드
+# ============================================================
+@app.route('/api/test/load-config', methods=['GET'])
+def test_load_config():
+    scenario_id = request.args.get('scenario_id', type=int)
+    goal_id = request.args.get('goal_id', type=int)
+    if not scenario_id:
+        return jsonify({"error": "scenario_id 필수"}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB 연결 실패"}), 500
+    try:
+        scenario = load_scenario_from_db(scenario_id, conn)
+        if not scenario:
+            return jsonify({"error": "시나리오 없음"}), 404
+        if goal_id:
+            goal_data = load_goal_data(goal_id, conn)
+            if goal_data:
+                if goal_data.get('conversation_goal'):
+                    scenario['conversation_goal'] = goal_data['conversation_goal']
+                if goal_data.get('npc_guidelines'):
+                    scenario['npc_guidelines'] = goal_data['npc_guidelines']
+        return jsonify({"success": True, "scenario": scenario})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ============================================================
+# 메인: 3단계 체인 (텍스트)
+# ============================================================
+@app.route('/api/analyst-test', methods=['POST'])
+def analyst_test():
+    if not gemini_client:
+        return jsonify({"error": "Gemini 미설정"}), 500
+
+    data = request.get_json(silent=True) or {}
+    student_input = data.get('student_input', '').strip()
+    conversation_history = data.get('conversation_history', [])
+    scenario_id = data.get('scenario_id')
+    goal_id = data.get('goal_id')
+
+    if not student_input:
+        return jsonify({"error": "입력이 비어있습니다."}), 400
+    if not scenario_id:
+        return jsonify({"error": "시나리오를 선택해주세요."}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB 연결 실패"}), 500
+
+    try:
+        scenario = load_scenario_from_db(scenario_id, conn)
+        if not scenario:
+            return jsonify({"error": "시나리오 없음"}), 404
+        if goal_id:
+            goal_data = load_goal_data(goal_id, conn)
+            if goal_data:
+                if goal_data.get('conversation_goal'):
+                    scenario['conversation_goal'] = goal_data['conversation_goal']
+                if goal_data.get('npc_guidelines'):
+                    scenario['npc_guidelines'] = goal_data['npc_guidelines']
+        conn.close()
+        conn = None
+
+        # STAGE 1: 귀 (텍스트 패스스루)
+        stt_text = student_input
+        stt_latency = 0
+
+        # STAGE 2: 분석가
+        analyst_json, analyst_latency, analyst_prompt = run_analyst(scenario, conversation_history, stt_text)
+
+        # STAGE 3: 연기자 (DYN만)
+        actor_line = None
+        actor_latency = None
+        actor_prompt = None
+        if analyst_json.get("route") == "DYN":
+            actor_line, actor_latency, actor_prompt = run_actor(scenario, conversation_history, analyst_json, stt_text)
+
+        # TTS
+        tts_audio_b64 = None
+        tts_latency = None
+        if actor_line:
+            tts_audio_b64, tts_latency = run_tts(actor_line, scenario.get('voice_id'))
+
+        return jsonify({
+            "success": True,
+            "stt_text": stt_text, "stt_latency": stt_latency,
+            "analyst_response": analyst_json, "analyst_latency": analyst_latency, "analyst_prompt": analyst_prompt,
+            "actor_line": actor_line, "actor_latency": actor_latency, "actor_prompt": actor_prompt,
+            "tts_audio_base64": tts_audio_b64, "tts_latency": tts_latency,
+            "total_latency": stt_latency + analyst_latency + (actor_latency or 0) + (tts_latency or 0)
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"처리 실패: {str(e)}"}), 500
+    finally:
+        if conn:
+            conn.close()

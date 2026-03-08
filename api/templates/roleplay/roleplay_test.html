@@ -3,809 +3,488 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎭 분석가(Analyst) 테스트</title>
+    <title>🎭 3단계 체인 디버거</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #1a1b1e;
-            color: #e0e0e0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1b1e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
 
-        /* 헤더 */
-        .header {
-            background: #2b2d31;
-            padding: 15px 20px;
-            border-bottom: 1px solid #3a3c41;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.2em; color: #7289da; }
-        .header .badge {
-            background: #ffa500;
-            color: #000;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-        }
+        .header { background: #2b2d31; padding: 12px 20px; border-bottom: 1px solid #3a3c41; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.1em; color: #7289da; }
+        .header .badges { display: flex; gap: 8px; }
+        .header .badge { padding: 3px 10px; border-radius: 10px; font-size: 0.75em; font-weight: bold; }
+        .badge-stt { background: #3498db; color: #fff; }
+        .badge-analyst { background: #e67e22; color: #fff; }
+        .badge-actor { background: #27ae60; color: #fff; }
 
-        /* 메인 레이아웃 */
-        .main-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
+        /* ═══ 설정 패널 ═══ */
+        .setup-panel {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex: 1; padding: 40px;
         }
-
-        /* 왼쪽: 대화창 */
-        .chat-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid #3a3c41;
+        .setup-card {
+            background: #2b2d31; border: 1px solid #3a3c41; border-radius: 12px;
+            padding: 30px; max-width: 600px; width: 100%;
         }
+        .setup-card h2 { color: #ffa500; margin-bottom: 20px; font-size: 1.2em; text-align: center; }
+        .setup-group { margin-bottom: 16px; }
+        .setup-group label { display: block; color: #b9bbbe; font-size: 0.85em; margin-bottom: 6px; }
+        .setup-group select {
+            width: 100%; padding: 10px 12px; background: #40444b; border: 1px solid #555;
+            border-radius: 8px; color: #e0e0e0; font-size: 0.95em; outline: none;
+        }
+        .setup-group select:focus { border-color: #7289da; }
+        .setup-detail {
+            margin-top: 8px; padding: 10px; background: #1a1b1e; border-radius: 6px;
+            font-size: 0.82em; color: #999; line-height: 1.6; max-height: 120px; overflow-y: auto;
+        }
+        .setup-detail strong { color: #7289da; }
+        .setup-btn {
+            width: 100%; padding: 14px; background: #7289da; color: white; border: none;
+            border-radius: 8px; font-size: 1.05em; font-weight: bold; cursor: pointer; margin-top: 20px;
+        }
+        .setup-btn:hover { background: #5b6eae; }
+        .setup-btn:disabled { background: #555; cursor: not-allowed; }
+        .setup-error { color: #e74c3c; font-size: 0.85em; margin-top: 10px; text-align: center; }
 
-        /* 시나리오 정보 */
+        /* ═══ 대화 화면 (초기 숨김) ═══ */
+        .chat-screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        .chat-screen.active { display: flex; }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        .chat-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #3a3c41; }
         .scenario-info {
-            background: #2b2d31;
-            padding: 12px 16px;
-            font-size: 0.85em;
-            border-bottom: 1px solid #3a3c41;
-            max-height: 120px;
-            overflow-y: auto;
+            background: #2b2d31; padding: 10px 14px; font-size: 0.82em;
+            border-bottom: 1px solid #3a3c41; max-height: 100px; overflow-y: auto;
         }
         .scenario-info strong { color: #7289da; }
-        .scenario-info .npc-name { color: #ffa500; font-weight: bold; }
+        .scenario-info .val { color: #ffa500; }
 
-        /* 대화 목록 */
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .message {
-            max-width: 80%;
-            padding: 10px 14px;
-            border-radius: 12px;
-            line-height: 1.5;
-            font-size: 0.95em;
-        }
-        .message.student {
-            align-self: flex-end;
-            background: #7289da;
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        .message.npc {
-            align-self: flex-start;
-            background: #3a3c41;
-            border-bottom-left-radius: 4px;
-        }
-        .message .label {
-            font-size: 0.75em;
-            opacity: 0.7;
-            margin-bottom: 4px;
-        }
-        .message.system {
-            align-self: center;
-            background: #2b2d31;
-            border: 1px dashed #555;
-            color: #aaa;
-            font-size: 0.85em;
-            max-width: 90%;
-        }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .message { max-width: 80%; padding: 10px 14px; border-radius: 12px; line-height: 1.5; font-size: 0.93em; }
+        .message.student { align-self: flex-end; background: #7289da; color: white; border-bottom-right-radius: 4px; }
+        .message.npc { align-self: flex-start; background: #3a3c41; border-bottom-left-radius: 4px; }
+        .message.system { align-self: center; background: #2b2d31; border: 1px dashed #555; color: #aaa; font-size: 0.83em; max-width: 90%; }
+        .message .label { font-size: 0.73em; opacity: 0.7; margin-bottom: 3px; }
+        .message .msg-time { font-size: 0.7em; opacity: 0.5; margin-top: 4px; text-align: right; }
 
-        /* 입력창 */
-        .input-area {
-            padding: 12px 16px;
-            background: #2b2d31;
-            border-top: 1px solid #3a3c41;
-            display: flex;
-            gap: 8px;
-        }
-        .input-area input {
-            flex: 1;
-            padding: 10px 14px;
-            background: #40444b;
-            border: 1px solid #555;
-            border-radius: 8px;
-            color: #e0e0e0;
-            font-size: 1em;
-            outline: none;
-        }
+        .input-area { padding: 10px 14px; background: #2b2d31; border-top: 1px solid #3a3c41; display: flex; gap: 8px; }
+        .input-area input { flex: 1; padding: 10px 14px; background: #40444b; border: 1px solid #555; border-radius: 8px; color: #e0e0e0; font-size: 1em; outline: none; }
         .input-area input:focus { border-color: #7289da; }
-        .input-area button {
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+        .input-area button { padding: 10px 18px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
         .btn-send { background: #7289da; color: white; }
         .btn-send:hover { background: #5b6eae; }
         .btn-send:disabled { background: #555; cursor: not-allowed; }
         .btn-reset { background: #e74c3c; color: white; }
         .btn-reset:hover { background: #c0392b; }
+        .btn-back { background: #555; color: white; }
+        .btn-back:hover { background: #666; }
 
-        /* 오른쪽: JSON 패널 */
-        .json-panel {
-            width: 45%;
-            display: flex;
-            flex-direction: column;
-            background: #1e1f23;
-        }
-        .json-panel .panel-header {
-            padding: 12px 16px;
-            background: #2b2d31;
-            border-bottom: 1px solid #3a3c41;
-            font-weight: bold;
-            color: #ffa500;
-            font-size: 0.9em;
-            display: flex;
-            justify-content: space-between;
-        }
-        .json-panel .panel-header .turn-count {
-            color: #7289da;
-        }
-        .json-output {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .json-card {
-            background: #2b2d31;
-            border-radius: 8px;
-            padding: 12px;
-            border-left: 3px solid #7289da;
-        }
-        .json-card .turn-label {
-            font-size: 0.8em;
-            color: #7289da;
-            margin-bottom: 6px;
-            font-weight: bold;
-        }
-        .json-card .route-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        .route-badge.pre { background: #27ae60; color: white; }
-        .route-badge.dyn { background: #e67e22; color: white; }
-        .route-badge.error { background: #e74c3c; color: white; }
-        .json-card pre {
-            background: #1a1b1e;
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-            font-size: 0.82em;
-            line-height: 1.5;
-            color: #b0d0b0;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        /* 프롬프트 토글 */
-        .prompt-toggle {
-            color: #888;
-            font-size: 0.8em;
-            cursor: pointer;
-            margin-top: 8px;
-            user-select: none;
-        }
-        .prompt-toggle:hover { color: #aaa; }
-        .prompt-content {
-            display: none;
-            margin-top: 8px;
-        }
-        .prompt-content.visible { display: block; }
-        .prompt-content pre {
-            font-size: 0.75em;
-            color: #888;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        /* 로딩 */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-            color: #7289da;
-        }
+        .loading { display: none; text-align: center; padding: 16px; color: #7289da; }
         .loading.active { display: block; }
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #555;
-            border-top: 3px solid #7289da;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
+        .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #555; border-top-color: #7289da; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* 레이턴시 표시 */
-        .latency { font-size: 0.8em; color: #aaa; }
+        /* ═══ 디버그 패널 ═══ */
+        .debug-panel { width: 48%; display: flex; flex-direction: column; background: #1e1f23; }
+        .panel-header { padding: 10px 14px; background: #2b2d31; border-bottom: 1px solid #3a3c41; font-weight: bold; color: #ffa500; font-size: 0.88em; display: flex; justify-content: space-between; }
+        .panel-header .turn-count { color: #7289da; }
+        .debug-output { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
 
-        .record-area {
-            padding: 12px 16px;
-            background: #2b2d31;
-            border-top: 1px solid #3a3c41;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        .btn-record {
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            background: #e74c3c;
-            color: white;
-            font-size: 0.95em;
-            transition: background 0.2s;
-        }
-        .btn-record:hover { background: #c0392b; }
-        .btn-record.recording {
-            background: #27ae60;
-            animation: pulse 1.5s infinite;
-        }
-        .btn-listen {
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            background: #3498db;
-            color: white;
-            font-size: 0.95em;
-        }
-        .btn-listen:hover { background: #2980b9; }
-        .btn-listen.playing { background: #8e44ad; }
-        .btn-play-inline {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 1.0em;
-            cursor: pointer;
-            margin-left: 4px;
-        }
-        .btn-play-inline:hover { background: #2980b9; }
-        .msg-time {
-            font-size: 0.7em;
-            color: rgba(255,255,255,0.4);
-            text-align: right;
-            margin-top: 4px;
-        }
+        .turn-card { background: #2b2d31; border-radius: 8px; padding: 12px; border-left: 3px solid #7289da; }
+        .turn-card .turn-header { font-size: 0.82em; color: #7289da; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .turn-card .total-time { color: #ffa500; }
 
-        .npc-hidden-text {
-            display: none;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.15);
-            line-height: 1.5;
-        }
-        .npc-hidden-text.visible {
-            display: block;
-        }    
+        .stage-box { margin-top: 8px; padding: 8px 10px; border-radius: 6px; border-left: 3px solid; }
+        .stage-box.stt { background: #1a2a3a; border-color: #3498db; }
+        .stage-box.analyst { background: #2a1f0a; border-color: #e67e22; }
+        .stage-box.actor { background: #0a2a1a; border-color: #27ae60; }
+        .stage-box.tts { background: #2a0a2a; border-color: #9b59b6; }
+        .stage-label { font-size: 0.78em; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .stage-label .ms { font-weight: normal; opacity: 0.7; }
+        .stage-box pre { background: #1a1b1e; padding: 8px; border-radius: 4px; font-size: 0.78em; line-height: 1.4; color: #b0d0b0; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
+        .stage-box .actor-text { color: #e0e0e0; font-size: 0.9em; padding: 6px; background: #1a1b1e; border-radius: 4px; }
 
+        .route-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.78em; font-weight: bold; }
+        .route-badge.pre { background: #27ae60; color: white; }
+        .route-badge.dyn { background: #e67e22; color: white; }
+
+        .prompt-toggle { color: #666; font-size: 0.75em; cursor: pointer; margin-top: 6px; user-select: none; }
+        .prompt-toggle:hover { color: #999; }
+        .prompt-content { display: none; margin-top: 6px; }
+        .prompt-content.visible { display: block; }
+        .prompt-content pre { font-size: 0.7em; color: #777; max-height: 150px; overflow-y: auto; }
+
+        .btn-play-inline { background: #27ae60; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+        .btn-play-inline:hover { background: #219a52; }
+        .npc-hidden-text { display: none; margin-top: 6px; font-size: 0.9em; color: #ccc; }
+        .npc-hidden-text.visible { display: block; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>🎭 분석가(Analyst) 테스트 — 카페 시나리오</h1>
-    <span class="badge">⚙️ 테스트 모드 — 분석가만 작동</span>
+    <h1>🎭 3단계 체인 디버거</h1>
+    <div class="badges">
+        <span class="badge badge-stt">👂 귀</span>
+        <span class="badge badge-analyst">🧠 분석가</span>
+        <span class="badge badge-actor">🎭 연기자</span>
+    </div>
 </div>
 
-<div class="main-container">
-    <!-- 왼쪽: 대화창 -->
-    <div class="chat-panel">
-        <div class="scenario-info" id="scenarioInfo">
-            로딩 중...
+<!-- ═══════════ 설정 화면 ═══════════ -->
+<div class="setup-panel" id="setupPanel">
+    <div class="setup-card">
+        <h2>⚙️ 테스트 설정</h2>
+
+        <div class="setup-group">
+            <label>시나리오 선택 *</label>
+            <select id="setupScenario" onchange="onScenarioChange()">
+                <option value="">-- 시나리오를 선택하세요 --</option>
+            </select>
+            <div class="setup-detail" id="scenarioDetail" style="display:none;"></div>
         </div>
 
-        <div class="chat-messages" id="chatMessages">
-            <div class="message system">
-                💡 학생 역할로 한국어를 입력하세요. 분석가의 판단(PRE/DYN)을 오른쪽 패널에서 확인합니다.
+        <div class="setup-group">
+            <label>목표 선택 (선택사항 — 목표의 conversation_goal과 npc_guidelines가 시나리오에 병합됩니다)</label>
+            <select id="setupGoal">
+                <option value="">-- 목표 없이 진행 --</option>
+            </select>
+            <div class="setup-detail" id="goalDetail" style="display:none;"></div>
+        </div>
+
+        <button class="setup-btn" id="setupStartBtn" onclick="startTest()" disabled>🚀 테스트 시작</button>
+        <div class="setup-error" id="setupError"></div>
+    </div>
+</div>
+
+<!-- ═══════════ 대화 화면 ═══════════ -->
+<div class="chat-screen" id="chatScreen">
+    <div class="main-container">
+        <div class="chat-panel">
+            <div class="scenario-info" id="scenarioInfo">로딩 중...</div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message system">💡 텍스트로 한국어를 입력하세요. 3단계 체인의 각 출력값을 오른쪽에서 확인할 수 있습니다.</div>
+            </div>
+
+            <div class="loading" id="loading"><span class="spinner"></span> 3단계 체인 처리 중...</div>
+
+            <div class="input-area">
+                <input type="text" id="studentInput" placeholder="한국어로 입력..." autocomplete="off" />
+                <button class="btn-send" id="sendBtn" onclick="sendMessage()">전송</button>
+                <button class="btn-reset" onclick="resetConversation()">초기화</button>
+                <button class="btn-back" onclick="backToSetup()">⬅ 설정</button>
             </div>
         </div>
 
-        <div class="loading" id="loading">
-            <span class="spinner"></span> 분석가가 판단 중...
-        </div>
-
-        <!-- 녹음 컨트롤 -->
-        <div class="record-area">
-            <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎤 녹음 시작</button>
-            <button class="btn-listen" id="listenBtn" onclick="playRecording()" style="display:none;">🔊 듣기</button>
-            <button class="btn-send" id="sendAudioBtn" onclick="sendAudio()" style="display:none;">📤 전송</button>
-            <button class="btn-reset" onclick="resetConversation()">초기화</button>
-        </div>
-
-        <!-- 텍스트 입력 (디버깅용) -->
-        <div class="input-area">
-            <input type="text" id="studentInput" placeholder="[디버깅] 텍스트로 직접 입력..." 
-                   autocomplete="off" />
-            <button class="btn-send" id="sendBtn" onclick="sendMessage()">텍스트 전송</button>
-        </div>
-    </div>
-
-    <!-- 오른쪽: JSON 결과 패널 -->
-    <div class="json-panel">
-        <div class="panel-header">
-            <span>📊 분석가 응답 (Raw JSON)</span>
-            <span class="turn-count" id="turnCount">턴: 0</span>
-        </div>
-        <div class="json-output" id="jsonOutput">
-            <div class="json-card">
-                <pre style="color: #888;">분석가의 응답이 여기에 표시됩니다.</pre>
+        <div class="debug-panel">
+            <div class="panel-header">
+                <span>📊 3단계 체인 출력</span>
+                <span class="turn-count" id="turnCount">턴: 0</span>
+            </div>
+            <div class="debug-output" id="debugOutput">
+                <div class="turn-card">
+                    <pre style="color:#666;">각 단계의 출력값이 여기에 표시됩니다.
+👂 귀(STT): 텍스트 입력이므로 패스스루
+🧠 분석가: PRE/DYN 판단 + 감정 + boundary + goal
+🎭 연기자: DYN일 때만 대사 생성
+🔊 TTS: 연기자 대사가 있을 때만</pre>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let conversationHistory = [];
-    let turnNumber = 0;
-    // ============================================================
-    // 녹음 관련
-    // ============================================================
-    let mediaRecorder = null;
-    let audioChunks = [];
-    let recordedBlob = null;
-    let recordedMimeType = 'audio/mp4';
-    let playbackAudioEl = new Audio();
+// ═══════════ 상태 ═══════════
+let conversationHistory = [];
+let turnNumber = 0;
+let selectedScenarioId = null;
+let selectedGoalId = null;
+let loadedConfig = null;
+const npcAudioStore = {};
 
-    // ============================================================
-    // NPC 오디오 재생 카운터
-    // ============================================================
-    const npcAudioStore = {};
+// 시나리오/목표 목록 캐시
+let scenarioList = [];
+let goalList = [];
 
-    function playNpcAudio(btn, msgId) {
-        const store = npcAudioStore[msgId];
-        if (!store) return;
+// ═══════════ 초기 로드 ═══════════
+document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadScenarios(), loadGoals()]);
+});
 
-        if (store.audio && !store.audio.paused) {
-            store.audio.pause();
-            store.audio.currentTime = 0;
-            btn.textContent = '▶ 듣기';
+async function loadScenarios() {
+    try {
+        const res = await fetch('/api/test/scenarios');
+        const data = await res.json();
+        scenarioList = data.scenarios || [];
+        const sel = document.getElementById('setupScenario');
+        for (const s of scenarioList) {
+            sel.innerHTML += `<option value="${s.id}">[ID:${s.id}] ${s.title} — ${s.npc_name}(${s.npc_job})</option>`;
+        }
+    } catch (e) {
+        document.getElementById('setupError').textContent = '시나리오 로드 실패: ' + e.message;
+    }
+}
+
+async function loadGoals() {
+    try {
+        const res = await fetch('/api/test/goals');
+        const data = await res.json();
+        goalList = data.goals || [];
+        const sel = document.getElementById('setupGoal');
+        for (const g of goalList) {
+            sel.innerHTML += `<option value="${g.id}">[ID:${g.id}] ${g.title}${g.target_expression ? ' — ' + g.target_expression : ''}</option>`;
+        }
+        sel.addEventListener('change', onGoalChange);
+    } catch (e) {
+        console.error('목표 로드 실패:', e);
+    }
+}
+
+function onScenarioChange() {
+    const id = document.getElementById('setupScenario').value;
+    const detail = document.getElementById('scenarioDetail');
+    const btn = document.getElementById('setupStartBtn');
+
+    if (!id) {
+        detail.style.display = 'none';
+        btn.disabled = true;
+        return;
+    }
+
+    const s = scenarioList.find(x => x.id == id);
+    if (s) {
+        detail.innerHTML = `<strong>NPC:</strong> ${s.npc_name} (${s.npc_job})<br><strong>말투:</strong> ${s.speech_style || '미지정'}`;
+        detail.style.display = 'block';
+    }
+    btn.disabled = false;
+}
+
+function onGoalChange() {
+    const id = document.getElementById('setupGoal').value;
+    const detail = document.getElementById('goalDetail');
+
+    if (!id) { detail.style.display = 'none'; return; }
+
+    const g = goalList.find(x => x.id == id);
+    if (g) {
+        let html = '';
+        if (g.conversation_goal) html += `<strong>대화 목표:</strong> ${g.conversation_goal}<br>`;
+        if (g.npc_guidelines) html += `<strong>NPC 행동 방침:</strong> ${g.npc_guidelines}`;
+        detail.innerHTML = html || '(상세 정보 없음)';
+        detail.style.display = 'block';
+    }
+}
+
+// ═══════════ 테스트 시작 ═══════════
+async function startTest() {
+    selectedScenarioId = parseInt(document.getElementById('setupScenario').value);
+    const goalVal = document.getElementById('setupGoal').value;
+    selectedGoalId = goalVal ? parseInt(goalVal) : null;
+
+    document.getElementById('setupError').textContent = '';
+
+    try {
+        let url = `/api/test/load-config?scenario_id=${selectedScenarioId}`;
+        if (selectedGoalId) url += `&goal_id=${selectedGoalId}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.success) {
+            document.getElementById('setupError').textContent = data.error || '설정 로드 실패';
             return;
         }
 
-        const audio = new Audio(store.url);
-        store.audio = audio;
-        btn.textContent = '⏹ 정지';
-        audio.play();
-        audio.onended = () => { btn.textContent = '▶ 듣기'; };
-    }
+        loadedConfig = data.scenario;
 
-    function toggleNpcText(btn, msgId) {
-        const textEl = document.getElementById(msgId + '-text');
-        if (!textEl) return;
-        textEl.classList.toggle('visible');
-        btn.textContent = textEl.classList.contains('visible') ? '🔽 텍스트 숨기기' : '📝 텍스트 보기';
-    }
+        // 시나리오 정보 표시
+        const npc = loadedConfig.npc;
+        const preCats = Object.keys(loadedConfig.pre_categories || {});
+        document.getElementById('scenarioInfo').innerHTML = `
+            <strong>NPC:</strong> <span class="val">${npc.name}</span> (${npc.age}세, ${npc.job}) — ${npc.personality}<br>
+            <strong>상황:</strong> ${loadedConfig.situation}<br>
+            <strong>목표:</strong> ${loadedConfig.conversation_goal || '(없음)'}<br>
+            <strong>말투:</strong> <span class="val">${loadedConfig.speech_style || '미지정'}</span> |
+            <strong>PRE:</strong> ${preCats.length > 0 ? preCats.join(', ') : '(없음)'}
+            ${loadedConfig.npc_guidelines ? '<br><strong>행동방침:</strong> ' + loadedConfig.npc_guidelines : ''}
+        `;
 
-    function toggleRecording() {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            // 녹음 중단
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        // 화면 전환
+        document.getElementById('setupPanel').style.display = 'none';
+        document.getElementById('chatScreen').classList.add('active');
+
+    } catch (e) {
+        document.getElementById('setupError').textContent = '네트워크 오류: ' + e.message;
+    }
+}
+
+function backToSetup() {
+    document.getElementById('chatScreen').classList.remove('active');
+    document.getElementById('setupPanel').style.display = 'flex';
+    resetConversation();
+}
+
+// ═══════════ 메시지 전송 ═══════════
+async function sendMessage() {
+    const input = document.getElementById('studentInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    input.value = '';
+
+    addChatMessage('student', text);
+    document.getElementById('loading').classList.add('active');
+
+    try {
+        const res = await fetch('/api/analyst-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_input: text,
+                conversation_history: conversationHistory,
+                scenario_id: selectedScenarioId,
+                goal_id: selectedGoalId
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            turnNumber++;
+            document.getElementById('turnCount').textContent = `턴: ${turnNumber}`;
+
+            addDebugCard(turnNumber, text, data);
+            conversationHistory.push({ role: "player", text: text });
+
+            const resp = data.analyst_response;
+            let npcSummary = '';
+
+            if (resp.route === 'PRE') {
+                npcSummary = `[PRE → "${resp.category}"] (사전녹음 MP3 재생 위치)`;
+                conversationHistory.push({ role: "npc", text: `[PRE: ${resp.category}]`, route: "PRE" });
+            } else if (resp.route === 'DYN' && data.actor_line) {
+                const cleanLine = data.actor_line.replace(/\[.*?\]/g, '').trim();
+                if (data.tts_audio_base64) {
+                    const audioUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
+                    const msgId = 'npc-' + Date.now();
+                    npcAudioStore[msgId] = { url: audioUrl, audio: null };
+                    npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this,'${msgId}')">▶ 듣기</button>`
+                        + ` <button class="btn-play-inline" style="background:#6c5ce7;" onclick="toggleNpcText(this,'${msgId}')">📝 텍스트</button>`
+                        + `<div class="npc-hidden-text" id="${msgId}-text">${escapeHtml(cleanLine)}</div>`;
+                } else {
+                    npcSummary = cleanLine;
+                }
+                conversationHistory.push({ role: "npc", text: data.actor_line, route: "DYN" });
+            } else {
+                npcSummary = `[DYN] ${resp.direction || JSON.stringify(resp)}`;
+                conversationHistory.push({ role: "npc", text: resp.direction || "(응답)", route: "DYN" });
+            }
+            addChatMessage('npc', npcSummary);
         } else {
-            // 녹음 시작 (또는 재녹음)
-            startRecording();
+            addChatMessage('system', `❌ ${data.error}`);
         }
+    } catch (e) {
+        addChatMessage('system', `❌ 네트워크 오류: ${e.message}`);
+    } finally {
+        document.getElementById('loading').classList.remove('active');
+        sendBtn.disabled = false;
+        input.focus();
+    }
+}
+
+// ═══════════ 디버그 카드 ═══════════
+function addDebugCard(turn, inputText, data) {
+    const container = document.getElementById('debugOutput');
+    if (turn === 1) container.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'turn-card';
+
+    const route = data.analyst_response?.route || '?';
+    const routeClass = route === 'PRE' ? 'pre' : 'dyn';
+    const apId = `ap-${turn}`;
+    const acId = `ac-${turn}`;
+
+    let html = `
+        <div class="turn-header">
+            <span>턴 ${turn} — "${escapeHtml(inputText)}"</span>
+            <span class="total-time">총 ${data.total_latency}ms</span>
+        </div>
+        <span class="route-badge ${routeClass}">${route}</span>
+
+        <div class="stage-box stt">
+            <div class="stage-label"><span>👂 귀 (STT)</span><span class="ms">${data.stt_latency}ms (텍스트)</span></div>
+            <pre>"${escapeHtml(data.stt_text)}"</pre>
+        </div>
+
+        <div class="stage-box analyst">
+            <div class="stage-label"><span>🧠 분석가</span><span class="ms">${data.analyst_latency}ms</span></div>
+            <pre>${JSON.stringify(data.analyst_response, null, 2)}</pre>
+            <div class="prompt-toggle" onclick="togglePrompt('${apId}')">📋 분석가 프롬프트</div>
+            <div class="prompt-content" id="${apId}"><pre>${escapeHtml(data.analyst_prompt || '')}</pre></div>
+        </div>`;
+
+    if (data.actor_line) {
+        html += `
+        <div class="stage-box actor">
+            <div class="stage-label"><span>🎭 연기자</span><span class="ms">${data.actor_latency}ms</span></div>
+            <div class="actor-text">${escapeHtml(data.actor_line)}</div>
+            <div class="prompt-toggle" onclick="togglePrompt('${acId}')">📋 연기자 프롬프트</div>
+            <div class="prompt-content" id="${acId}"><pre>${escapeHtml(data.actor_prompt || '')}</pre></div>
+        </div>`;
+    } else {
+        html += `<div class="stage-box actor" style="opacity:0.4;"><div class="stage-label"><span>🎭 연기자</span><span class="ms">스킵 (PRE)</span></div></div>`;
     }
 
-    async function startRecording() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-            if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                recordedMimeType = 'audio/mp4';
-            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-                recordedMimeType = 'audio/webm';
-            } else {
-                recordedMimeType = '';
-            }
-
-            const options = recordedMimeType ? { mimeType: recordedMimeType } : {};
-            mediaRecorder = new MediaRecorder(stream, options);
-            audioChunks = [];
-            recordedBlob = null;
-
-            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-
-            mediaRecorder.onstop = () => {
-                recordedBlob = new Blob(audioChunks, { type: recordedMimeType });
-
-                const recordBtn = document.getElementById('recordBtn');
-                recordBtn.textContent = '🔄 재녹음';
-                recordBtn.classList.remove('recording');
-
-                document.getElementById('listenBtn').style.display = 'inline-block';
-                document.getElementById('sendAudioBtn').style.display = 'inline-block';
-            };
-
-            mediaRecorder.start();
-            const recordBtn = document.getElementById('recordBtn');
-            recordBtn.textContent = '⏹️ 녹음 중단';
-            recordBtn.classList.add('recording');
-
-            // 녹음 시작하면 듣기/전송 숨김
-            document.getElementById('listenBtn').style.display = 'none';
-            document.getElementById('sendAudioBtn').style.display = 'none';
-
-        } catch (err) {
-            addChatMessage('system', `❌ 마이크 접근 실패: ${err.message}`);
-        }
+    if (data.tts_latency !== null && data.tts_latency !== undefined) {
+        html += `<div class="stage-box tts"><div class="stage-label"><span>🔊 TTS</span><span class="ms">${data.tts_latency}ms${data.tts_audio_base64 ? ' ✅' : ' ❌'}</span></div></div>`;
     }
 
-    function playRecording() {
-        if (!recordedBlob) return;
-        const listenBtn = document.getElementById('listenBtn');
+    card.innerHTML = html;
+    container.appendChild(card);
+    container.scrollTop = container.scrollHeight;
+}
 
-        if (!playbackAudioEl.paused) {
-            playbackAudioEl.pause();
-            playbackAudioEl.currentTime = 0;
-            listenBtn.textContent = '🔊 듣기';
-            listenBtn.classList.remove('playing');
-            return;
-        }
+// ═══════════ 유틸 ═══════════
+function addChatMessage(type, text) {
+    const container = document.getElementById('chatMessages');
+    const msg = document.createElement('div');
+    msg.className = `message ${type}`;
+    let label = type === 'student' ? '🎓 학생' : type === 'npc' ? `☕ ${loadedConfig?.npc?.name || 'NPC'}` : '';
+    const t = new Date();
+    const ts = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0');
+    msg.innerHTML = (label ? `<div class="label">${label}</div>` : '') + text + `<div class="msg-time">${ts}</div>`;
+    container.appendChild(msg);
+    container.scrollTop = container.scrollHeight;
+}
 
-        playbackAudioEl.src = URL.createObjectURL(recordedBlob);
-        playbackAudioEl.play();
-        listenBtn.textContent = '⏹️ 정지';
-        listenBtn.classList.add('playing');
+function escapeHtml(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
+function togglePrompt(id) { document.getElementById(id).classList.toggle('visible'); }
 
-        playbackAudioEl.onended = () => {
-            listenBtn.textContent = '🔊 듣기';
-            listenBtn.classList.remove('playing');
-        };
-    }
+function playNpcAudio(btn, msgId) {
+    const s = npcAudioStore[msgId]; if (!s) return;
+    if (s.audio && !s.audio.paused) { s.audio.pause(); s.audio.currentTime = 0; btn.textContent = '▶ 듣기'; return; }
+    const a = new Audio(s.url); s.audio = a; btn.textContent = '⏹ 정지'; a.play(); a.onended = () => { btn.textContent = '▶ 듣기'; };
+}
+function toggleNpcText(btn, msgId) {
+    const el = document.getElementById(msgId + '-text'); if (!el) return;
+    el.classList.toggle('visible'); btn.textContent = el.classList.contains('visible') ? '📝 숨기기' : '📝 텍스트';
+}
 
-    function playInlineAudio(btn, url) {
-        if (btn._audio && !btn._audio.paused) {
-            btn._audio.pause();
-            btn._audio.currentTime = 0;
-            btn.textContent = '▶ 듣기';
-            return;
-        }
-        const audio = new Audio(url);
-        btn._audio = audio;
-        btn.textContent = '⏹ 정지';
-        audio.play();
-        audio.onended = () => { btn.textContent = '▶ 듣기'; };
-    }
+function resetConversation() {
+    conversationHistory = []; turnNumber = 0;
+    document.getElementById('turnCount').textContent = '턴: 0';
+    document.getElementById('chatMessages').innerHTML = '<div class="message system">💡 대화가 초기화되었습니다.</div>';
+    document.getElementById('debugOutput').innerHTML = '<div class="turn-card"><pre style="color:#666;">초기화됨. 텍스트를 입력하세요.</pre></div>';
+}
 
-    async function sendAudio() {
-        if (!recordedBlob) {
-            addChatMessage('system', '❌ 녹음된 오디오가 없습니다.');
-            return;
-        }
-
-        const sendAudioBtn = document.getElementById('sendAudioBtn');
-        const recordBtn = document.getElementById('recordBtn');
-        sendAudioBtn.disabled = true;
-        recordBtn.disabled = true;
-
-        const audioBlobUrl = URL.createObjectURL(recordedBlob);
-        addChatMessage('student', `🎤 <button class="btn-play-inline" onclick="playInlineAudio(this, '${audioBlobUrl}')">▶ 듣기</button>`);
-
-        document.getElementById('loading').classList.add('active');
-
-        const extension = recordedMimeType.includes('webm') ? 'webm' : 'mp4';
-        const formData = new FormData();
-        formData.append('audio_file', recordedBlob, `roleplay_audio.${extension}`);
-        formData.append('mime_type', recordedMimeType);
-        formData.append('conversation_history', JSON.stringify(conversationHistory));
-
-        try {
-            const res = await fetch('/api/analyst-test-audio', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await res.json();
-
-            if (data.success) {
-                turnNumber++;
-                document.getElementById('turnCount').textContent = `턴: ${turnNumber}`;
-
-                const resp = data.analyst_response;
-                const transcribedText = data.transcribed_text || '(인식 실패)';
-
-                // JSON 카드에 인식된 텍스트 표시
-                addJsonCard(turnNumber, `🎤 "${transcribedText}"`, resp, data.analyst_latency, data.prompt_used, data.actor_line, data.actor_latency, data.tts_latency);
-
-                conversationHistory.push({ role: "player", text: transcribedText });
-
-                let npcSummary = '';
-                if (resp.route === 'PRE') {
-                    npcSummary = `[PRE → "${resp.category}"] (사전녹음 MP3가 재생될 위치)`;
-                    conversationHistory.push({ role: "npc", text: `[PRE: ${resp.category}]`, route: "PRE" });
-                } else if (resp.route === 'DYN') {
-                    if (data.actor_line) {
-                        const cleanLine = data.actor_line.replace(/\[.*?\]/g, '').trim();
-                        if (data.tts_audio_base64) {
-                            const audioDataUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
-                            const msgId = 'npc-' + Date.now();
-
-                            npcAudioStore[msgId] = { url: audioDataUrl, audio: null };
-
-                            npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this, '${msgId}')">▶ 듣기</button>`
-                                + ` <button class="btn-play-inline" style="background:#6c5ce7;" onclick="toggleNpcText(this, '${msgId}')">📝 텍스트 보기</button>`
-                                + `<div class="npc-hidden-text" id="${msgId}-text">${escapeHtml(cleanLine)}</div>`;
-                        } else {
-                            npcSummary = cleanLine;
-                        }
-                        conversationHistory.push({ role: "npc", text: data.actor_line, route: "DYN" });
-                    }
-                } else {
-                    npcSummary = `⚠️ 파싱 오류: ${JSON.stringify(resp)}`;
-                }
-                addChatMessage('npc', npcSummary);
-            } else {
-                addChatMessage('system', `❌ 오류: ${data.error}`);
-            }
-        } catch (e) {
-            addChatMessage('system', `❌ 네트워크 오류: ${e.message}`);
-        } finally {
-            document.getElementById('loading').classList.remove('active');
-            sendAudioBtn.disabled = false;
-            recordBtn.disabled = false;
-
-            // 전송 후 녹음 상태 리셋
-            recordedBlob = null;
-            document.getElementById('recordBtn').textContent = '🎤 녹음 시작';
-            document.getElementById('listenBtn').style.display = 'none';
-            document.getElementById('sendAudioBtn').style.display = 'none';
-        }
-    }
-
-
-
-    // 시나리오 정보 로드
-    async function loadScenario() {
-        try {
-            const res = await fetch('/api/scenario-info');
-            const data = await res.json();
-            document.getElementById('scenarioInfo').innerHTML = `
-                <strong>NPC:</strong> <span class="npc-name">${data.npc.name}</span> (${data.npc.age}세, ${data.npc.job}) — ${data.npc.personality}<br>
-                <strong>상황:</strong> ${data.situation}<br>
-                <strong>목표 문법:</strong> ${data.target_grammar}<br>
-                <strong>PRE 카테고리:</strong> ${Object.keys(data.pre_categories).join(', ')}
-            `;
-        } catch (e) {
-            document.getElementById('scenarioInfo').innerHTML = '⚠️ 시나리오 로드 실패';
-        }
-    }
-
-    // 메시지 전송
-    async function sendMessage() {
-        const input = document.getElementById('studentInput');
-        const text = input.value.trim();
-        if (!text) return;
-
-        const sendBtn = document.getElementById('sendBtn');
-        sendBtn.disabled = true;
-        input.value = '';
-
-        addChatMessage('student', text);
-
-        // 로딩 표시
-        document.getElementById('loading').classList.add('active');
-
-        const startTime = Date.now();
-
-        try {
-            const res = await fetch('/api/analyst-test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    student_input: text,
-                    conversation_history: conversationHistory
-                })
-            });
-
-            const data = await res.json();
-            const latency = Date.now() - startTime;
-
-            if (data.success) {
-                turnNumber++;
-                document.getElementById('turnCount').textContent = `턴: ${turnNumber}`;
-
-                const resp = data.analyst_response;
-
-                // JSON 결과 표시
-                addJsonCard(turnNumber, text, resp, data.analyst_latency || latency, data.prompt_used, data.actor_line, data.actor_latency, data.tts_latency);
-                
-                // 대화 기록에 추가
-                conversationHistory.push({
-                    role: "player",
-                    text: text
-                });
-
-                // NPC 응답 표시
-                let npcSummary = '';
-                if (resp.route === 'PRE') {
-                    npcSummary = `[PRE → "${resp.category}"] (사전녹음 MP3가 재생될 위치)`;
-                    conversationHistory.push({
-                        role: "npc",
-                        text: `[PRE: ${resp.category}]`,
-                        route: "PRE"
-                    });
-                } else if (resp.route === 'DYN') {
-                    if (data.actor_line) {
-                        const cleanLine = data.actor_line.replace(/\[.*?\]/g, '').trim();
-
-
-                        if (data.tts_audio_base64) {
-                            const audioDataUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
-                            const msgId = 'npc-' + Date.now();
-
-                            npcAudioStore[msgId] = { url: audioDataUrl, audio: null };
-
-                            npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this, '${msgId}')">▶ 듣기</button>`
-                                + ` <button class="btn-play-inline" style="background:#6c5ce7;" onclick="toggleNpcText(this, '${msgId}')">📝 텍스트 보기</button>`
-                                + `<div class="npc-hidden-text" id="${msgId}-text">${escapeHtml(cleanLine)}</div>`;
-                        } else {
-                            npcSummary = cleanLine;
-                        }
-
-                        conversationHistory.push({
-                            role: "npc",
-                            text: data.actor_line,
-                            route: "DYN"
-                        });
-                    } else if (resp.understood === 'partial') {
-                        npcSummary = `[DYN → 부분이해] 들린 부분: "${resp.heard}" — ${resp.direction}`;
-                        conversationHistory.push({
-                            role: "npc",
-                            text: resp.direction || "(동적 응답)",
-                            route: "DYN"
-                        });
-                    } else {
-                        npcSummary = `[DYN → ${resp.main_emotion}(${resp.intensity})] ${resp.direction}`;
-                        conversationHistory.push({
-                            role: "npc",
-                            text: resp.direction || "(동적 응답)",
-                            route: "DYN"
-                        });
-                    }
-                } else {
-                    npcSummary = `⚠️ 파싱 오류: ${JSON.stringify(resp)}`;
-                }
-
-                addChatMessage('npc', npcSummary);
-
-            } else {
-                addChatMessage('system', `❌ 오류: ${data.error}`);
-            }
-
-        } catch (e) {
-            addChatMessage('system', `❌ 네트워크 오류: ${e.message}`);
-        } finally {
-            document.getElementById('loading').classList.remove('active');
-            sendBtn.disabled = false;
-            input.focus();
-        }
-    }
-
-    // 대화 메시지 추가
-    function addChatMessage(type, text) {
-        const container = document.getElementById('chatMessages');
-        const msg = document.createElement('div');
-        msg.className = `message ${type}`;
-
-        let label = '';
-        if (type === 'student') label = '🎓 학생';
-        else if (type === 'npc') label = '☕ NPC (분석가 판단)';
-
-        const now = new Date();
-        const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-
-        msg.innerHTML = (label ? `<div class="label">${label}</div>` : '') 
-            + text 
-            + `<div class="msg-time">${timeStr}</div>`;
-        container.appendChild(msg);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    // JSON 카드 추가
-    function addJsonCard(turn, input, response, latency, prompt, actorLine, actorLatency, ttsLatency) {
-        const container = document.getElementById('jsonOutput');
-
-        // 기본 안내 메시지 제거 (첫 턴에만)
-        if (turn === 1) {
-            container.innerHTML = '';
-        }
-
-        const card = document.createElement('div');
-        card.className = 'json-card';
-
-        const routeClass = response.route === 'PRE' ? 'pre' : 
-                          response.route === 'DYN' ? 'dyn' : 'error';
-        const routeLabel = response.route || 'ERROR';
-
-        const promptId = `prompt-${turn}`;
-
-        card.innerHTML = `
-            <div class="turn-label">턴 ${turn} — 학생: "${input}"</div>
-            <span class="route-badge ${routeClass}">${routeLabel}</span>
-            <span class="latency">분석: ${latency}ms${actorLatency ? ` | 연기: ${actorLatency}ms` : ''}${ttsLatency ? ` | TTS: ${ttsLatency}ms` : ''}</span>
-            <pre>${JSON.stringify(response, null, 2)}</pre>
-            ${actorLine ? '<div style="margin-top:8px;padding:8px;background:#1a3a1a;border-radius:4px;border-left:3px solid #27ae60;"><span style="color:#27ae60;font-size:0.8em;font-weight:bold;">🎭 연기자 대사:</span><br><span style="color:#e0e0e0;">' + escapeHtml(actorLine) + '</span></div>' : ''}
-            <div class="prompt-toggle" onclick="togglePrompt('${promptId}')">📋 프롬프트 보기/숨기기</div>
-            <div class="prompt-content" id="${promptId}">
-                <pre>${escapeHtml(prompt || '(없음)')}</pre>
-            </div>
-        `;
-
-        container.appendChild(card);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    // 프롬프트 토글
-    function togglePrompt(id) {
-        document.getElementById(id).classList.toggle('visible');
-    }
-
-    // HTML 이스케이프
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // 초기화
-    function resetConversation() {
-        conversationHistory = [];
-        turnNumber = 0;
-        document.getElementById('turnCount').textContent = '턴: 0';
-        document.getElementById('chatMessages').innerHTML = `
-            <div class="message system">
-                💡 대화가 초기화되었습니다. 학생 역할로 한국어를 입력하세요.
-            </div>
-        `;
-        document.getElementById('jsonOutput').innerHTML = `
-            <div class="json-card">
-                <pre style="color: #888;">분석가의 응답이 여기에 표시됩니다.</pre>
-            </div>
-        `;
-    }
-
-    // Enter 키로 전송
-    document.getElementById('studentInput').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-
-    // 초기 로드
-    loadScenario();
+document.getElementById('studentInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
 </script>
-
 </body>
 </html>
