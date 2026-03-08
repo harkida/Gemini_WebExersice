@@ -594,18 +594,21 @@ def run_stt(audio_bytes, mime_type):
 
     try:
         parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            stt_text = parsed.get("transcribed_text", "")
-        elif isinstance(parsed, list):
-            stt_text = parsed[0] if parsed else ""
-        else:
-            stt_text = str(parsed)
     except (json.JSONDecodeError, TypeError):
-        m = re.search(r"['\"]transcribed_text['\"]\s*:\s*['\"]([^'\"]*)['\"]", raw)
-        if m:
-            stt_text = m.group(1)
-        else:
-            stt_text = raw.strip('"').strip("'")
+        try:
+            parsed = json.loads(raw.replace("'", '"'))
+        except (json.JSONDecodeError, TypeError):
+            parsed = None
+
+    if isinstance(parsed, dict):
+        stt_text = parsed.get("transcribed_text", "")
+    elif isinstance(parsed, list):
+        stt_text = parsed[0] if parsed else ""
+    elif parsed is None:
+        m = re.search(r"transcribed_text['\"]?\s*:\s*['\"](.+?)['\"]", raw)
+        stt_text = m.group(1) if m else raw
+    else:
+        stt_text = str(parsed)
 
     # 문자열 보장
     if not isinstance(stt_text, str):
