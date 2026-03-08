@@ -601,7 +601,11 @@ def run_stt(audio_bytes, mime_type):
         else:
             stt_text = str(parsed)
     except (json.JSONDecodeError, TypeError):
-        stt_text = raw.strip('"').strip("'")
+        m = re.search(r"['\"]transcribed_text['\"]\s*:\s*['\"]([^'\"]*)['\"]", raw)
+        if m:
+            stt_text = m.group(1)
+        else:
+            stt_text = raw.strip('"').strip("'")
 
     # 문자열 보장
     if not isinstance(stt_text, str):
