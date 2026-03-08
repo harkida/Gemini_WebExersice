@@ -461,7 +461,7 @@ async function sendAudio() {
         if (data.success && data.stt_text) {
             const msgs = document.querySelectorAll('.message.student');
             const lastMsg = msgs[msgs.length - 1];
-            if (lastMsg) lastMsg.innerHTML = `<div class="label">🎓 학생</div>🎤 "${escapeHtml(data.stt_text)}"`;
+            if (lastMsg) lastMsg.innerHTML = `<div class="label">🎓 학생</div>🎤 ${escapeHtml(data.stt_text)}`;
         }
         handleResponse(data, data.stt_text || '(인식 실패)');
     } catch (e) {
