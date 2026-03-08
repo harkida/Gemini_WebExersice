@@ -71,6 +71,10 @@
       "dest": "api/roleplay_test.py"
     },
     {
+      "src": "/api/test/(.*)",
+      "dest": "api/roleplay_test.py"
+    },
+    {
       "src": "/roleplay-play",
       "dest": "api/roleplay.py"
     },
