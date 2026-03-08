@@ -170,12 +170,20 @@
 
             <div class="loading" id="loading"><span class="spinner"></span> 3단계 체인 처리 중...</div>
 
+
+
             <div class="input-area">
-                <input type="text" id="studentInput" placeholder="한국어로 입력..." autocomplete="off" />
+                <button class="btn-send" id="btnRecord" onclick="toggleRecording()" style="background:#e74c3c;">🎤 녹음</button>
+                <button class="btn-send" id="btnListen" onclick="playRecording()" style="display:none;background:#9b59b6;">🔊</button>
+                <button class="btn-send" id="btnSendAudio" onclick="sendAudio()" style="display:none;background:#27ae60;">📤 음성전송</button>
+                <input type="text" id="studentInput" placeholder="또는 텍스트로 입력..." autocomplete="off" />
                 <button class="btn-send" id="sendBtn" onclick="sendMessage()">전송</button>
                 <button class="btn-reset" onclick="resetConversation()">초기화</button>
                 <button class="btn-back" onclick="backToSetup()">⬅ 설정</button>
             </div>
+
+
+
         </div>
 
         <div class="debug-panel">
@@ -495,6 +503,136 @@ function resetConversation() {
 document.getElementById('studentInput').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
+
+// ═══════════ 녹음 ═══════════
+let mediaRecorder = null;
+let audioChunks = [];
+let recordedBlob = null;
+let recordedMimeType = 'audio/mp4';
+let playbackAudio = null;
+
+async function toggleRecording() {
+    const btn = document.getElementById('btnRecord');
+
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (MediaRecorder.isTypeSupported('audio/mp4')) recordedMimeType = 'audio/mp4';
+        else if (MediaRecorder.isTypeSupported('audio/webm')) recordedMimeType = 'audio/webm';
+        else recordedMimeType = '';
+
+        const options = recordedMimeType ? { mimeType: recordedMimeType } : {};
+        mediaRecorder = new MediaRecorder(stream, options);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+            recordedBlob = new Blob(audioChunks, { type: recordedMimeType || 'audio/mp4' });
+            btn.textContent = '🔄 재녹음';
+            btn.style.background = '#e74c3c';
+            document.getElementById('btnListen').style.display = '';
+            document.getElementById('btnSendAudio').style.display = '';
+        };
+
+        mediaRecorder.start();
+        btn.textContent = '⏹ 중지';
+        btn.style.background = '#555';
+        document.getElementById('btnListen').style.display = 'none';
+        document.getElementById('btnSendAudio').style.display = 'none';
+        recordedBlob = null;
+    } catch (e) {
+        alert('마이크 접근 실패: ' + e.message);
+    }
+}
+
+function playRecording() {
+    if (!recordedBlob) return;
+    if (playbackAudio && !playbackAudio.paused) {
+        playbackAudio.pause(); playbackAudio.currentTime = 0; return;
+    }
+    playbackAudio = new Audio(URL.createObjectURL(recordedBlob));
+    playbackAudio.play();
+}
+
+async function sendAudio() {
+    if (!recordedBlob) return;
+
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    document.getElementById('btnSendAudio').style.display = 'none';
+    document.getElementById('btnListen').style.display = 'none';
+    document.getElementById('btnRecord').textContent = '🎤 녹음';
+    document.getElementById('btnRecord').style.background = '#e74c3c';
+
+    addChatMessage('student', '🎤 (음성 전송)');
+    document.getElementById('loading').classList.add('active');
+
+    const ext = recordedMimeType.includes('webm') ? 'webm' : 'mp4';
+    const formData = new FormData();
+    formData.append('audio_file', recordedBlob, `recording.${ext}`);
+    formData.append('mime_type', recordedMimeType);
+    formData.append('conversation_history', JSON.stringify(conversationHistory));
+    formData.append('scenario_id', selectedScenarioId);
+    if (selectedGoalId) formData.append('goal_id', selectedGoalId);
+
+    try {
+        const res = await fetch('/api/analyst-test-audio', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.success) {
+            turnNumber++;
+            document.getElementById('turnCount').textContent = `턴: ${turnNumber}`;
+
+            // 인식된 텍스트로 player 메시지 업데이트
+            const msgs = document.querySelectorAll('.message.student');
+            const lastMsg = msgs[msgs.length - 1];
+            if (lastMsg && data.stt_text) {
+                lastMsg.innerHTML = `<div class="label">🎓 학생</div>🎤 "${escapeHtml(data.stt_text)}"`;
+            }
+
+            addDebugCard(turnNumber, data.stt_text || '(인식 실패)', data);
+            conversationHistory.push({ role: "player", text: data.stt_text || '' });
+
+            const resp = data.analyst_response;
+            let npcSummary = '';
+
+            if (resp.route === 'PRE') {
+                npcSummary = `[PRE → "${resp.category}"]`;
+                conversationHistory.push({ role: "npc", text: `[PRE: ${resp.category}]`, route: "PRE" });
+            } else if (resp.route === 'DYN' && data.actor_line) {
+                const cleanLine = data.actor_line.replace(/\[.*?\]/g, '').trim();
+                if (data.tts_audio_base64) {
+                    const audioUrl = 'data:audio/mpeg;base64,' + data.tts_audio_base64;
+                    const msgId = 'npc-' + Date.now();
+                    npcAudioStore[msgId] = { url: audioUrl, audio: null };
+                    npcSummary = `<button class="btn-play-inline" onclick="playNpcAudio(this,'${msgId}')">▶ 듣기</button>`
+                        + ` <button class="btn-play-inline" style="background:#6c5ce7;" onclick="toggleNpcText(this,'${msgId}')">📝 텍스트</button>`
+                        + `<div class="npc-hidden-text" id="${msgId}-text">${escapeHtml(cleanLine)}</div>`;
+                } else {
+                    npcSummary = cleanLine;
+                }
+                conversationHistory.push({ role: "npc", text: data.actor_line, route: "DYN" });
+            } else {
+                npcSummary = `[${resp.direction || JSON.stringify(resp)}]`;
+                conversationHistory.push({ role: "npc", text: resp.direction || "(응답)", route: "DYN" });
+            }
+            addChatMessage('npc', npcSummary);
+        } else {
+            addChatMessage('system', `❌ ${data.error}`);
+        }
+    } catch (e) {
+        addChatMessage('system', `❌ ${e.message}`);
+    } finally {
+        document.getElementById('loading').classList.remove('active');
+        sendBtn.disabled = false;
+        recordedBlob = null;
+    }
+}
 </script>
 </body>
 </html>

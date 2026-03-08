@@ -511,3 +511,122 @@ def analyst_test():
     finally:
         if conn:
             conn.close()
+
+# ============================================================
+# 메인: 3단계 체인 (음성)
+# ============================================================
+@app.route('/api/analyst-test-audio', methods=['POST'])
+def analyst_test_audio():
+    if not gemini_client:
+        return jsonify({"error": "Gemini 미설정"}), 500
+
+    audio_file = request.files.get('audio_file')
+    mime_type = request.form.get('mime_type', 'audio/mp4')
+    conversation_history_str = request.form.get('conversation_history', '[]')
+    scenario_id = request.form.get('scenario_id', type=int)
+    goal_id = request.form.get('goal_id', type=int)
+
+    if not audio_file:
+        return jsonify({"error": "오디오 파일 없음"}), 400
+    if not scenario_id:
+        return jsonify({"error": "시나리오 미선택"}), 400
+
+    try:
+        conversation_history = json.loads(conversation_history_str)
+    except json.JSONDecodeError:
+        conversation_history = []
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB 연결 실패"}), 500
+
+    try:
+        scenario = load_scenario_from_db(scenario_id, conn)
+        if not scenario:
+            return jsonify({"error": "시나리오 없음"}), 404
+        if goal_id:
+            goal_data = load_goal_data(goal_id, conn)
+            if goal_data:
+                if goal_data.get('conversation_goal'):
+                    scenario['conversation_goal'] = goal_data['conversation_goal']
+                if goal_data.get('npc_guidelines'):
+                    scenario['npc_guidelines'] = goal_data['npc_guidelines']
+        conn.close()
+        conn = None
+
+        audio_bytes = audio_file.read()
+
+        # ========== STAGE 1: 귀 (STT 전용) ==========
+        stt_prompt = """너는 음성 인식 전문가이다. 첨부된 오디오를 듣고 한글로 전사하라.
+
+절대 규칙:
+- 들리는 소리를 있는 그대로 한글로 적어라.
+- 문맥 기반 자동 교정 금지. 문법이 틀려도 들린 그대로.
+- 외국어도 한글로 음차하라.
+- 침묵/잡음만 있으면 빈 문자열을 반환하라.
+
+출력: 전사된 텍스트만. 따옴표, 설명, JSON 금지. 순수 텍스트만."""
+
+        stt_start = time.time()
+        stt_response = gemini_client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=[
+                types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                stt_prompt
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=256
+            )
+        )
+        stt_text = (stt_response.text or "").strip().strip('"').strip("'")
+        stt_latency = int((time.time() - stt_start) * 1000)
+
+        # STT 실패 체크
+        if not stt_text:
+            return jsonify({
+                "success": True,
+                "stt_text": "",
+                "stt_latency": stt_latency,
+                "analyst_response": {"route": "DYN", "understood": False, "direction": "침묵/인식 실패"},
+                "analyst_latency": 0,
+                "actor_line": None, "actor_latency": None,
+                "tts_audio_base64": None, "tts_latency": None,
+                "total_latency": stt_latency
+            })
+
+        # ========== STAGE 2: 분석가 ==========
+        analyst_json, analyst_latency, analyst_prompt = run_analyst(
+            scenario, conversation_history, stt_text
+        )
+
+        # ========== STAGE 3: 연기자 (DYN만) ==========
+        actor_line = None
+        actor_latency = None
+        actor_prompt = None
+        if analyst_json.get("route") == "DYN":
+            actor_line, actor_latency, actor_prompt = run_actor(
+                scenario, conversation_history, analyst_json, stt_text
+            )
+
+        # ========== TTS ==========
+        tts_audio_b64 = None
+        tts_latency = None
+        if actor_line:
+            tts_audio_b64, tts_latency = run_tts(actor_line, scenario.get('voice_id'))
+
+        return jsonify({
+            "success": True,
+            "stt_text": stt_text, "stt_latency": stt_latency,
+            "analyst_response": analyst_json, "analyst_latency": analyst_latency, "analyst_prompt": analyst_prompt,
+            "actor_line": actor_line, "actor_latency": actor_latency, "actor_prompt": actor_prompt,
+            "tts_audio_base64": tts_audio_b64, "tts_latency": tts_latency,
+            "total_latency": stt_latency + analyst_latency + (actor_latency or 0) + (tts_latency or 0)
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"음성 처리 실패: {str(e)}"}), 500
+    finally:
+        if conn:
+            conn.close()
