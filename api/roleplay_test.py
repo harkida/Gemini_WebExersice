@@ -586,11 +586,17 @@ def run_stt(audio_bytes, mime_type):
         )
     )
     raw = (response.text or "").strip()
+
     try:
         parsed = json.loads(raw)
-        stt_text = parsed.get("transcribed_text", "")
-    except json.JSONDecodeError:
-        stt_text = raw.strip('"').strip("'")
+        if isinstance(parsed, dict):
+            stt_text = parsed.get("transcribed_text", "")
+        elif isinstance(parsed, list):
+            stt_text = parsed[0] if parsed else ""
+        else:
+            stt_text = str(parsed)
+    except (json.JSONDecodeError, TypeError):
+        stt_text = raw.strip('"').strip("'")        
     latency = int((time.time() - start) * 1000)
     return stt_text, latency
 
