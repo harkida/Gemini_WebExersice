@@ -581,10 +581,16 @@ def run_stt(audio_bytes, mime_type):
         config=types.GenerateContentConfig(
             temperature=0.1,
             max_output_tokens=1024,
+            response_mime_type="application/json",
             thinking_config=types.ThinkingConfig(thinking_budget=0)
         )
     )
-    stt_text = (response.text or "").strip().strip('"').strip("'")
+    raw = (response.text or "").strip()
+    try:
+        parsed = json.loads(raw)
+        stt_text = parsed.get("transcribed_text", "")
+    except json.JSONDecodeError:
+        stt_text = raw.strip('"').strip("'")
     latency = int((time.time() - start) * 1000)
     return stt_text, latency
 
