@@ -409,7 +409,30 @@ def test_load_config():
                     scenario['conversation_goal'] = goal_data['conversation_goal']
                 if goal_data.get('npc_guidelines'):
                     scenario['npc_guidelines'] = goal_data['npc_guidelines']
-        return jsonify({"success": True, "scenario": scenario})
+
+        # first_speaker + opening PRE 로드
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT first_speaker FROM rp_scenarios WHERE id = %s", (scenario_id,))
+            row = cur.fetchone()
+            first_speaker = row['first_speaker'] if row else 'player'
+
+            opening_transcript = None
+            if first_speaker == 'npc':
+                cur.execute("""
+                    SELECT transcript FROM rp_pre_recordings
+                    WHERE scenario_id = %s AND category = 'opening'
+                    ORDER BY RANDOM() LIMIT 1
+                """, (scenario_id,))
+                pre_row = cur.fetchone()
+                if pre_row:
+                    opening_transcript = pre_row['transcript']
+
+        return jsonify({
+            "success": True,
+            "scenario": scenario,
+            "first_speaker": first_speaker,
+            "opening_transcript": opening_transcript
+        })    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
