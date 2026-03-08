@@ -19,6 +19,7 @@ import psycopg2.extras
 from google import genai
 from google.genai import types
 import requests as http_requests
+import re
 
 # ============================================================
 # Flask 앱 설정
@@ -766,6 +767,116 @@ def run_tts(text, voice_id=None):
     return None, tts_latency
 
 # ============================================================
+# STT 전용 프롬프트 (BLIND MODE) — 3단계 분리용
+# ============================================================
+STT_PROMPT = """너는 음성 전사 기계이다. 오디오를 듣고 글자로 바꾸는 것이 유일한 역할이다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## 🎯 순수 음성 인식 (BLIND MODE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**절대 규칙:**
+- 당신은 지금 이 오디오의 "맥락"을 전혀 모른다.
+- 어떤 상황인지, 무엇을 말해야 하는지, 정답이 무엇인지 모른다.
+- **오직 귀로 들리는 소리를 텍스트로 변환하는 것이 전부다.**
+
+**인식 기준:**
+✅ **허용:** 학생이 실제로 발음한 소리 그대로
+   - 예: "그 남자 맛있어요" → "그 남자 맛있어요"
+   - 예: "저기 문 다주세요" → "저기 문 다주세요" (발음 오류 포함)
+   - 예: "아메리카도 주세오" → "아메리카도 주세오"
+   - 예: "커피를 마시고 시퍼여" → "커피를 마시고 시퍼여"
+   - 예: "이거 얼마에오" → "이거 얼마에오"
+   - 예: "너무 보내고 시픈데" → "너무 보내고 시픈데"
+
+❌ **금지:** 문맥 기반 자동 수정
+   - "그 남자 맛있어요" → "그 남자 멋있어요" (❌ 절대 안 됨!)
+   - "문 다주세요" → "문 닫아 주세요" (❌ 발음 교정 금지!)
+   - "아메리카도 주세오" → "아메리카노 주세요" (❌ 금지!)
+   - "커피를 마시고 시퍼여" → "커피를 마시고 싶어요" (❌ 금지!)
+   - "이거 얼마에오" → "이거 얼마예요" (❌ 금지!)
+   - "너무 보내고 시픈데" → "너무 보내고 싶은데" (❌ 금지!)
+
+### ⚠️ 조사 인식 특별 주의사항 (Critical!)
+
+한국어 학습자들은 조사를 매우 자주 틀린다. 절대로 문법적으로 "올바른" 조사로 자동 보정하지 마라!
+
+❌ 절대 금지:
+- 학생: "영화를 재미있어요" → "영화가 재미있어요" (❌)
+- 학생: "학교를 가요" → "학교에 가요" (❌)
+- 학생: "친구가 만났어요" → "친구를 만났어요" (❌)
+- 학생: "책이 읽었어요" → "책을 읽었어요" (❌)
+
+✅ 올바른 인식:
+- "영화를 재미있어요" → "영화를 재미있어요" (그대로!)
+- "학교를 가요" → "학교를 가요" (그대로!)
+- "커피를 좋아해요" → "커피를 좋아해요" (그대로!)
+
+**조사 보정 금지 체크리스트:**
+- 은/는, 이/가, 을/를 — 학생이 말한 그대로 적었는가?
+- 에/에서/로 — 문맥상 틀려도 학생 발음 그대로 적었는가?
+- 와/과, 하고 — 보정 없이 들린 그대로 적었는가?
+
+**특수 상황:**
+- 침묵/소음만 있으면 빈 문자열 반환
+- 외국어가 들리면 한글로 음차: "Come ti chiami?" → "코메 티 키아미?"
+- 극도로 불명확하면 들린 부분만 적어라
+
+## ⚠️ 왜 교정하면 안 되는가 (중요)
+이 전사 결과는 한국어 학습자의 발음/문법 오류를 평가하는 데 사용된다.
+당신이 교정하면, 학생의 실제 오류를 파악할 수 없게 되어 평가가 불가능해진다.
+따라서 교정은 평가 시스템을 망가뜨리는 행위이다. 절대 교정하지 마라.
+
+**출력: 반드시 아래 JSON 형식으로만 출력하라.**
+{"transcribed_text": "여기에 전사 결과"}"""
+
+def run_stt(audio_bytes, mime_type):
+    """귀: STT 전용 Gemini 호출 (3단계 분리)"""
+    stt_start = time.time()
+    response = gemini_client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=[
+            types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+            STT_PROMPT
+        ],
+        config=types.GenerateContentConfig(
+            temperature=0.1,
+            max_output_tokens=1024,
+            response_mime_type="application/json",
+            thinking_config=types.ThinkingConfig(thinking_budget=0)
+        )
+    )
+    raw = (response.text or "").strip()
+
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        try:
+            parsed = json.loads(raw.replace("'", '"'))
+        except (json.JSONDecodeError, TypeError):
+            parsed = None
+
+    if isinstance(parsed, dict):
+        stt_text = parsed.get("transcribed_text", "")
+    elif isinstance(parsed, list):
+        stt_text = parsed[0] if parsed else ""
+    elif parsed is None:
+        m = re.search(r"transcribed_text['\"]?\s*:\s*['\"](.+?)['\"]", raw)
+        stt_text = m.group(1) if m else raw
+    else:
+        stt_text = str(parsed)
+
+    # 문자열 보장
+    if not isinstance(stt_text, str):
+        stt_text = str(stt_text) if stt_text else ""
+
+    # 불필요한 따옴표 제거 — ASCII + 유니코드
+    stt_text = re.sub(r'^[\s"\'\u201c\u201d\u2018\u2019]+|[\s"\'\u201c\u201d\u2018\u2019]+$', '', stt_text)
+
+    stt_latency = int((time.time() - stt_start) * 1000)
+    return stt_text, stt_latency
+
+# ============================================================
 # PRE 오디오 URL 조회
 # ============================================================
 def get_pre_audio_url(scenario_id, category, conn, team_id=None):
@@ -1237,20 +1348,23 @@ def send_audio():
 
         conversation_history = load_conversation_history(team_id, scenario_id, conn)
 
-        # 4. 오디오 읽기 + 분석가 호출
+        # 4. 오디오 읽기
         audio_bytes = audio_file.read()
-        parsed, analyst_latency, prompt = run_analyst_audio(
-            scenario, conversation_history, audio_bytes, mime_type)
 
-        transcribed_text = parsed.get("transcribed_text", "")
-        
-        # parse_error 발생 시 raw에서 transcribed_text 복구 시도
-        if not transcribed_text and parsed.get("parse_error"):
-            import re
-            raw = parsed.get("raw", "")
-            m = re.search(r'"transcribed_text"\s*:\s*"([^"]*)"', raw)
-            if m:
-                transcribed_text = m.group(1)
+        # STAGE 1: 귀 (STT 전용 — 3단계 분리)
+        transcribed_text, stt_latency = run_stt(audio_bytes, mime_type)
+
+        # STT 실패
+        if not transcribed_text:
+            parsed = {"route": "DYN", "understood": False, "direction": "침묵/인식 실패", "boundary": 1, "goal_achieved": False}
+            analyst_latency = 0
+        # 한글 체크 — 외국어만이면 분석가 스킵
+        elif not re.search('[가-힣]', transcribed_text):
+            parsed = {"route": "PRE", "category": "not_understood", "boundary": 1, "goal_achieved": False}
+            analyst_latency = 0
+        else:
+            # STAGE 2: 분석가 (텍스트 입력)
+            parsed, analyst_latency, prompt = run_analyst(scenario, conversation_history, transcribed_text)
 
         # 5. 플레이어 턴 저장
         new_turn = current_turn + 1
