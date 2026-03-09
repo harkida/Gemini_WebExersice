@@ -412,6 +412,13 @@ You are an expert AI assistant specializing in Korean language education for Ita
 - **Original Korean Dialogue:** "{korean_dialogue}"
 - **Student's Italian Answer:** "{student_answer}"
 - **Professor's Scoring Criteria (key_points):** {key_points_json}
+- **Professor's Linguistic Notes (교수 언어 지침):** {teacher_criterion_section}
+
+[How to use Professor's Linguistic Notes]
+If "없음" is provided, ignore this section entirely.
+If notes are provided, you MUST follow them strictly during evaluation.
+These notes clarify how specific Korean words or expressions should be interpreted in Italian.
+Example: "누구에게 선물할 거예요?" — '누구' must be interpreted as "qualcuno" (indefinite), NOT "chi" (interrogative).
 
 [Scoring Structure - Total: 10.0 points]
 
@@ -872,16 +879,19 @@ def submit_answer():
                 )
 
             elif quiz_type == 'comprehension':
-                cur.execute("SELECT korean_dialogue, key_points FROM comprehension_exercises WHERE id = %s;", (exercise_id,))
+                cur.execute("SELECT korean_dialogue, key_points, teacher_criterion FROM comprehension_exercises WHERE id = %s;", (exercise_id,))
                 row = cur.fetchone()
                 if not row: return jsonify({"error": "문제 ID 없음"}), 404
-                korean_dialogue, key_points = row[0], row[1]
+                korean_dialogue, key_points, teacher_crit = row[0], row[1], row[2]
                 korean_text = korean_dialogue
+
+                teacher_criterion_section = teacher_crit if teacher_crit and teacher_crit.strip() else "없음"
 
                 prompt_text = COMPREHENSION_EVALUATION_PROMPT.format(
                     korean_dialogue=korean_dialogue,
                     student_answer=student_answer, 
-                    key_points_json=json.dumps(key_points, ensure_ascii=False)
+                    key_points_json=json.dumps(key_points, ensure_ascii=False),
+                    teacher_criterion_section=teacher_criterion_section
                 )
 
                 response = gemini_client.models.generate_content(
