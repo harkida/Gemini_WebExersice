@@ -502,13 +502,14 @@ Example: "누구에게 선물할 거예요?" — '누구' must be interpreted as
   "key_vocabularies_italian": ["학생 답안에서 추출된 핵심 이탈리아어 어휘의 기본형"],
   "key_vocabularies_korean_translation": ["위 이탈리아어 어휘들의 한국어 뜻"],
   "evaluation": "(한국어로) 상세한 채점 근거",
-  "feedback": "(이탈리아어로) 학생을 위한 격려와 건설적 피드백"
+  "feedback": "(이탈리아어로) 학생을 위한 격려와 건설적 피드백. ⚠️ 절대 금지: 학생의 이탈리아어 철자, 문법, 표현 자체를 교정하지 말 것. 오직 한국어 원문 이해도에 대해서만 피드백을 줄 것."
 }}
 
 Important:
 - The evaluation field MUST show detailed calculations with actual numbers
 - Clearly state the coverage percentage for meaning_points
 - If a score cap is applied, explain why
+- The feedback field must NEVER point out Italian language errors (spelling, grammar, or expression). This is a Korean comprehension test, not an Italian writing test.
 """
 
 SPEAKING_EVALUATION_PROMPT = """
