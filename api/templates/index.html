@@ -236,7 +236,7 @@
           <h3>📖 Situazione:</h3>
           <p>{{ exercise.situation_description }}</p>
           <h4>💬 Cosa devi dire:</h4>
-          <p>{{ exercise.required_expression }}</p>
+          <p>{{ exercise.required_expression | safe }}</p>
         </div>
 
         <div class="recording-controls">
