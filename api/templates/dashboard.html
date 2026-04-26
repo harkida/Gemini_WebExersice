@@ -469,9 +469,26 @@
                 const targetVocabString = targetVocab.length > 0 ? targetVocab.join(', ') : '(목표 어휘 없음)';
                 let vocabUsageHtml = '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
                 for (const [vocab, info] of Object.entries(vocabUsage)) {
-                    const usedIcon = info.used ? '✅' : '❌';
+                    // Gate A/B/C 신 스키마 우선, 구 스키마(used) 폴백 처리
+                    let usedIcon;
+                    if (info.gate === 'A') {
+                        usedIcon = '✅';
+                    } else if (info.gate === 'B') {
+                        usedIcon = '⚪';   // 미사용 (빠진 것)
+                    } else if (info.gate === 'C') {
+                        usedIcon = '❌';   // 의미 왜곡 오사용
+                    } else if (typeof info.used === 'boolean') {
+                        // 구 스키마 레코드 호환 (Gate 시스템 도입 이전 데이터)
+                        usedIcon = info.used ? '✅' : '❌';
+                    } else {
+                        usedIcon = '❓';
+                    }
+                    // Gate C인 경우 학생이 실제로 쓴 어휘를 표시 (있으면)
+                    const studentUsedSuffix = (info.gate === 'C' && info.student_used)
+                        ? ` <span style="color:#cc6464;">(학생 사용: "${info.student_used}")</span>`
+                        : '';
                     const note = info.note || '';
-                    vocabUsageHtml += `<li>${usedIcon} <strong>${vocab}</strong>: ${note}</li>`;
+                    vocabUsageHtml += `<li>${usedIcon} <strong>${vocab}</strong>: ${note}${studentUsedSuffix}</li>`;
                 }
                 vocabUsageHtml += '</ul>';
                 criteriaHtml = `<div class="criteria-info"><p><strong>표현:</strong> ${requiredExpression}</p><p><strong>예상 정답:</strong> ${expectedAnswer}</p><p><strong>목표 어휘:</strong> ${targetVocabString}</p></div>`;
